@@ -125,5 +125,21 @@ namespace Psycko
 
             return true;
         }
+        /// <summary>
+        /// Renfloue la main du joueur jusqu'à 3 cartes si la pioche le permet.
+        /// S'applique après toute pose de carte(s), indépendamment d'un rejeu ou non.
+        /// Si la pioche s'épuise en cours de route, le joueur termine avec moins de 3 cartes.
+        /// No-op si la main a déjà 3 cartes ou plus, ou si la pioche est vide.
+        /// </summary>
+        public void RefillHand(Player player)
+        {
+            if (player == null)
+                return;
+
+            while (player.Hand.Count < 3 && Deck.Count > 0)
+            {
+                player.AddCardToHand(Deck.Draw());
+            }
+        }
     }
 }
