@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Psycko.Core;
 
@@ -9,6 +10,12 @@ namespace Psycko
         public List<Player> Players { get; }
         public Pile Pile { get; }
         public Deck Deck { get; }
+
+        /// <summary>
+        /// Mode de comparaison actif pour la validation de pose de carte.
+        /// Par défaut GreaterOrEqual. Bascule temporairement à LessOrEqual via l'effet Prêtre (ticket dédié).
+        /// </summary>
+        public ComparisonMode ActiveComparisonMode { get; set; } = ComparisonMode.GreaterOrEqual;
 
         public GameState(
             IEnumerable<Player> players = null,
@@ -43,6 +50,80 @@ namespace Psycko
                 return PhaseTransitionResult.TransitionedToTalent;
 
             return PhaseTransitionResult.NoChange;
+        }
+
+        /// <summary>
+        /// Vérifie si une carte respecte la règle de hauteur active par rapport au sommet de pile.
+        /// Pile vide => toujours jouable.
+        /// Ne gère PAS les effets spéciaux (Carré, Doublon, fermeture de pli, rejeu, Prêtre) — voir T7+.
+        /// </summary>
+        public bool IsPlayable(Card card)
+        {
+            if (Pile.IsEmpty())
+                return true;
+
+            Card top = Pile.Top();
+
+            // Un Joker est toujours jouable par-dessus n'importe quelle carte (règle de base T6 ;
+            // les interactions fines Joker/Carré/Doublon seront affinées en T7+).
+            if (card.IsJoker)
+                return true;
+
+            // Si la carte du dessus est un Joker, on ne peut pas comparer de rang :
+            // T6 autorise la pose (règle affinée plus tard si nécessaire).
+            if (top.IsJoker)
+                return true;
+
+            int cardRank = (int)card.Rank;
+            int topRank = (int)top.Rank;
+
+            return ActiveComparisonMode == ComparisonMode.GreaterOrEqual
+                ? cardRank >= topRank
+                : cardRank <= topRank;
+        }
+
+        /// <summary>
+        /// Tente de jouer une carte pour le joueur donné depuis sa main.
+        /// Valide la règle de hauteur en vigueur (ActiveComparisonMode) contre le sommet de la pile.
+        /// Ne gère PAS les effets spéciaux (Carré, Doublon, fermeture de pli, rejeu) — voir T7.
+        /// </summary>
+        /// <returns>true si le coup a été joué, false si le coup est refusé (carte non jouable ou absente de la main).</returns>
+        public bool PlayCard(Player player, Card card)
+        {
+            if (player == null)
+                return false;
+
+            if (!player.Hand.Contains(card))
+                return false;
+
+            if (!IsPlayable(card))
+                return false;
+
+            player.RemoveCardFromHand(card);
+            Pile.Add(card);
+            return true;
+        }
+
+        /// <summary>
+        /// Un joueur ramasse la pile entière (volontaire ou forcé).
+        /// Les cartes ramassées rejoignent la main du joueur.
+        /// Ne déclenche pas de transition de phase (utiliser CheckPlayerState après appel).
+        /// </summary>
+        /// <returns>true si la pile contenait des cartes et a été ramassée, false si la pile était déjà vide.</returns>
+        public bool PickUpPile(Player player)
+        {
+            if (player == null)
+                return false;
+
+            if (Pile.IsEmpty())
+                return false;
+
+            while (!Pile.IsEmpty())
+            {
+                player.AddCardToHand(Pile.Pop());
+            }
+
+            return true;
         }
     }
 }
