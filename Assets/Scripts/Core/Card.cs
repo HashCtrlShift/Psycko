@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-public struct Card : IEquatable<Card>
+    public struct Card : IEquatable<Card>
 {
     // Cas 1 : Carte standard (rank + suit, jokerType inutilisé)
     public CardRank Rank { get; }

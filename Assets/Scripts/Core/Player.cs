@@ -1,9 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 namespace Psycko
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-
     public class Player
     {
         public string Id { get; }
