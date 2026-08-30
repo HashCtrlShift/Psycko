@@ -11,6 +11,8 @@ namespace Psycko
         public List<Card> FaceUp { get; }
         public List<Card> FaceDown { get; }
         public PowerCard? AssignedPowerCard { get; set; }
+        public GamePhase CurrentPhase { get; set; }
+        public bool HasWon { get; set; }
 
         public Player(string id, string name)
         {
@@ -25,6 +27,8 @@ namespace Psycko
             FaceUp = new List<Card>();
             FaceDown = new List<Card>();
             AssignedPowerCard = null;
+            CurrentPhase = GamePhase.Travail;
+            HasWon = false;
         }
 
         /// <summary>
