@@ -117,6 +117,19 @@ Before coding any Core feature:
 - **Simulation:** Mass bot simulations (500K+ games) validate structural correctness before UI integration.
 - **Networking:** Photon Fusion (multplayer) — to be integrated post-Core validation.
 - **Backend:** PlayFab (accounts, ELO, cosmetics).
+---
+
+## Phase 1 Implementation Status
+
+**PHASE 1 — COMPLETE & LOCKED** ✅
+
+All foundational data models implemented and tested:
+- **T1:** Card, CardRank (15 ranks), CardSuit (4 colors), JokerType (3 types), Deck (63 cards) — 27/27 tests ✅
+- **T2:** PowerCard (id, playerId, effectType, isUsed) — ✅
+- **T3:** Player (hand, faceUpCards, faceDownCards, assignedPowerCard) — ✅
+- **T4:** Pile (played cards) and base management — ✅
+
+**Total Phase 1:** 62/62 NUnit EditMode tests passing - ✅
 
 ---
 
