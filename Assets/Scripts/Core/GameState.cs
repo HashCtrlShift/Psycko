@@ -16,7 +16,7 @@ namespace Psycko
         /// Par défaut GreaterOrEqual. Bascule temporairement à LessOrEqual via l'effet Prêtre (ticket dédié).
         /// </summary>
         public ComparisonMode ActiveComparisonMode { get; set; } = ComparisonMode.GreaterOrEqual;
-
+        public TurnManager TurnManager { get; private set; }
         public GameState(
             IEnumerable<Player> players = null,
             Pile pile = null,
@@ -26,6 +26,7 @@ namespace Psycko
             Players = players == null ? new List<Player>() : new List<Player>(players);
             Pile = pile ?? new Pile();
             Deck = deck ?? new Deck();
+            TurnManager = new TurnManager(Players);
         }
 
         /// <summary>
@@ -140,6 +141,20 @@ namespace Psycko
             {
                 player.AddCardToHand(Deck.Draw());
             }
+        }
+        /// <summary>
+        /// Factory method pour créer une GameState avec un TurnManager custom.
+        /// Utilisé principalement dans les tests pour injecter un TurnManager spécifique.
+        /// </summary>
+        public static GameState CreateWithTurnManager(
+            IEnumerable<Player> players,
+            Pile pile,
+            Deck deck,
+            TurnManager turnManager)
+        {
+            var gameState = new GameState(players, pile, deck);
+            gameState.TurnManager = turnManager ?? new TurnManager(gameState.Players);
+            return gameState;
         }
     }
 }

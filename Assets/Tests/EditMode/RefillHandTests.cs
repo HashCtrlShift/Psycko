@@ -98,12 +98,11 @@ namespace Psycko.Tests.EditMode
         [Test]
         public void RefillHand_NullPlayer_DoesNotThrow()
         {
-            var deck = new Deck(seed: 42);
-            var state = new GameState(deck: deck);
-
-            Assert.DoesNotThrow(() => state.RefillHand(null));
+            var dummyPlayer = new Player("dummy", "Dummy");
+            var gameState = new GameState(new List<Player> { dummyPlayer }, null, null);
+            gameState.RefillHand(null);
+            // Test passes if no exception is thrown
         }
-
         [Test]
         public void Integration_PlayCard_ThenRefillHand_ThenCheckPlayerState_TransitionsToTalent()
         {
