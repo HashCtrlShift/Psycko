@@ -1,4 +1,4 @@
-# CLAUDE.md — Psycko Locked Rules Reference
+## CLAUDE.md — Psycko Locked Rules Reference
 
 **Purpose:** Capture all finalized, ambiguity-free game rules for consistency across implementation sessions.  
 **Last Updated:** August 30, 2026  
@@ -10,9 +10,9 @@
 
 - **60 Cards:** 4 colors × 15 ranks (3, 4, 5, 6, 7, 8, 9, 10, Priest, Jack, Knight, Queen, King, Ace, 2)
 - **3 Jokers (distinct):**
-  - Glass Joker (Verre)
-  - Black Joker / Pass (Noir/Passe)
-  - Color Joker / Bomb (Couleur/Bombe)
+  - *Glass Joker* (Verre)
+  - *Black Joker* / Pass (Noir/Passe)
+  - *Color Joker* / Bomb (Couleur/Bombe)
 - **Total:** 63 cards per deck
 
 ---
@@ -26,7 +26,7 @@ Each player receives **9 cards** in **3 layers:**
 
 ### Pre-Game Exchange Phase (~1 minute)
 - Players may swap cards between **hand ↔ face-up cards** only.
-- Face-down cards remain untouchable.
+- Face-down cards remain *untouchable*.
 
 ---
 
@@ -34,7 +34,7 @@ Each player receives **9 cards** in **3 layers:**
 
 ### Phase 1: Le Travail (The Work)
 - Play from **hand only** until hand is empty.
-- Main draw pile is active.
+- Main draw pile is *active*.
 
 ### Phase 2: Le Talent (The Talent)
 - Triggered when **both hand and draw pile are empty**.
@@ -44,7 +44,7 @@ Each player receives **9 cards** in **3 layers:**
 ### Phase 3: La Chance (The Luck)
 - Triggered when **face-up cards and hand are both empty**.
 - **Reveal face-down cards one by one** on each turn.
-- Play revealed cards immediately (if no immediate loss condition).
+- Play revealed cards **immediately** (if no immediate loss condition).
 
 ---
 
@@ -52,40 +52,58 @@ Each player receives **9 cards** in **3 layers:**
 
 ### Glass Joker (Joker de Verre)
 - **Transparent** for:
-  - Height reference (Pair/Triple/Quad matching)
-  - Pair chain extension
-  - Quad detection
-- **Does NOT break chains** (unlike Black Joker).
-- Example: `[5, Glass Joker, 5]` = valid Pair.
+  - *Height* : on regarde la carte EN-DESSOUS du Joker de Verre pour déterminer la contrainte applicable
+  - *Applique la règle active* : ≥ (mode normal) ou ≤ (si Prêtre a été posé avant)
+  - *Très restrictif possible* : ex. Joker de Verre sur As → on doit jouer ≥ As (Très Difficile : Jouables As / 2 / Autre Joker )
+  - **Does NOT break chains** (unlike Black Joker).
+  - Example: `[5, Glass Joker, 5]` = valid Pair : 
+    - *Doublon* : compare à la carte EN-DESSOUS du Joker de Verre
+   - *Carré* : s'insère au milieu/fin sans interrompre la chaîne
+  - *Prêtre* : si Prêtre est avant, la contrainte ≤ traverse le Joker de Verre
+  - *Jamais de rejeu, jamais de destruction de pile*
 
 ### Black Joker (Joker Noir / Passe)
 - **Breaks all chains** (height, Pair, Quad).
 - Acts as a reset point.
 - Example: `[5, Black Joker, 5]` ≠ Pair (chain broken).
 
-### Color Joker (Joker Couleur / Bombe)
-- **Never grants a replay** (rejeu), even if cards remain in hand/pile.
-- **No special chain behavior** — plays as a standalone bomb.
+### **Joker Couleur (Color / Bombe)**
+- **Détruit la pile** : cartes disparaissent du jeu (ne sont pas ramassées par le joueur suivant)
+- **Jamais de rejeu** pour celui qui la pose
+- **Joueur suivant ouvre une nouvelle pile** : hauteur libre (comme après Joker Noir)
 
-### Pair (Doublon)
-- **Definition:** Same height on **two consecutive turns** (not two consecutive cards in sequence).
-- **Transparent to Glass Joker:** `[5, Glass Joker]` then next turn `[5]` = Pair.
-- **Disabled at 2-player table:** Pair logic does not trigger.
-- **Quad (Carré) remains active at 2 players.**
+---
 
-### Quad (Carré)
-- **Definition:** Four cards of same height in sequence.
-- **Traverses Glass Jokers:** `[5, Glass Joker, 5, Glass Joker, 5, 5]` = valid Quad.
-- **Does NOT traverse Black Jokers:** `[5, Black Joker, 5, 5, 5]` ≠ Quad.
-- **Active at all player counts** (including 2 players).
+## Clarifications Carré & Doublon — Verrouillées
+
+### **Carré (Quad)**
+-  **4 cartes de même hauteur** posées **consécutivement** dans la pile
+-  **Joker de Verre transparent** : s'insère au milieu/fin sans interrompre la chaîne
+  - Ex: 5♣, 5♦, Joker de Verre, 5♥, 5♠ = Carré valide
+- **Joker Noir casse la chaîne** : arrête le compte, Carré non complété
+-  **Reste actif même à 2 joueurs** : contrairement au Doublon
+-  **Même joueur rejoue** : pile détruite, nouvelle pile ouverte
+
+### **Doublon (Pair / Skip)**
+-  **Deux tours consécutifs (pas deux cartes)** de même hauteur → tour du joueur suivant sauté
+-  **Joker de Verre transparent** : Doublon compare à la carte EN-DESSOUS du Joker de Verre
+-  **Joker Noir casse** : fin du Doublon immédiatement
+-  **Désactivé à ≤2 joueurs** : évite les boucles infinies (ex: J1 joue 5, J2 joue 5, J1 serait sauté, J2 rejoue, boucle)
+-  **Carré reste actif à ≤2 joueurs** : seul le Doublon se désactive
+
+---
 
 ### 7 Card (Don / Gift)
 - In Phases 1–2: Grants **one free replay** per 7 played.
 - In Phase 3 (La Chance): **Silent effect** — no replay or gift triggered (card is still face-down; no hand to gift from).
 
-### 2 Card (Deux)
-- **Cannot end a phase on a 2** — applies to all three phases (Travail, Talent, Chance).
-- If a 2 is the last playable card, the player **must continue playing** if possible (draw, or trigger phase transition).
+### **2 (La Fermeture)**
+- **Détruit la pile** : cartes disparaissent (comme Bombe)
+- **Rejeu obligatoire** : celui qui pose le 2 ouvre une nouvelle pile
+
+- **Interdit de terminer une phase sur un 2**
+  - **S'applique dans les 3 phases** : Travail, Talent, La Chance
+  - **Cas limite** : si c'est la dernière carte du joueur, le joueur **ramasse** au lieu de rejouer
 
 ### Priest (Prêtre) & Knight (Cavalier)
 - **Full interaction rules** with Pair/Quad/Jokers to be implemented as part of Core reconstruction.
@@ -132,6 +150,15 @@ All foundational data models implemented and tested:
 **Total Phase 1:** 62/62 NUnit EditMode tests passing - ✅
 
 ---
+**Phase 2 : Core — Complète** (151/151 tests passés)
+  - T5–T7qar : Logique de jeu (phases, tours, Carré, Doublon, 2, Bombe)
+  
+- ⏳ **Phase 3 : Effets Spéciaux — À venir**
+  - T7qui : Les 3 Jokers (vérification correcte)
+  - T7hex : 7 (Le Don)
+  - T7hep : Valet (L'Inverseur)
+  - T7oct : Prêtre (Le Prêtre)
+  - T7non : Autres (Derniers affinages)
 
 ## Notes for Future Sessions
 
