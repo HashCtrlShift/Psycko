@@ -115,28 +115,6 @@ namespace Psycko
         }
 
         /// <summary>
-        /// Tente de jouer une carte pour le joueur donné depuis sa main.
-        /// Valide la règle de hauteur en vigueur (ActiveComparisonMode) contre la référence effective de la pile.
-        /// Ne gère PAS les effets spéciaux (Carré, Doublon, fermeture de pli, rejeu) — voir T7/T7ter.
-        /// </summary>
-        /// <returns>true si le coup a été joué, false si le coup est refusé (carte non jouable ou absente de la main).</returns>
-        public bool PlayCard(Player player, Card card)
-        {
-            if (player == null)
-                return false;
-
-            if (!player.Hand.Contains(card))
-                return false;
-
-            if (!IsPlayable(card))
-                return false;
-
-            player.RemoveCardFromHand(card);
-            Pile.Add(card);
-            return true;
-        }
-
-        /// <summary>
         /// Un joueur ramasse la pile entière (volontaire ou forcé).
         /// Les cartes ramassées rejoignent la main du joueur.
         /// Ne déclenche pas de transition de phase (utiliser CheckPlayerState après appel).
@@ -224,7 +202,7 @@ namespace Psycko
         }
 
         /// <summary>
-        /// Détecte un Doublon : deux tours consécutifs où la même hauteur a été jouée
+        /// Détecte un Doublet : deux tours consécutifs où la même hauteur a été jouée
         /// (pas deux cartes consécutives brutes de la pile — le Joker de Verre est transparent).
         /// Désactivé dès qu'il ne reste que 2 joueurs (à vérifier par l'appelant selon le contexte de la partie).
         /// </summary>
@@ -274,6 +252,95 @@ namespace Psycko
             {
                 Pile.Pop();
             }
+        }
+
+        /// <summary>
+        /// Gère la fermeture spéciale du "2". La carte a déjà été posée sur Pile par PlayCard.
+        /// Cas normal (il reste des cartes) : pile détruite, même joueur rejoue.
+        /// Cas dernière carte (transition de phase imminente, interdit de finir sur un 2) :
+        ///   pile conservée, le joueur la ramasse entièrement (y compris le 2), joueur suivant ouvre.
+        /// </summary>
+        private void HandleTwoCardPlayed(Player player)
+        {
+            PhaseTransitionResult result = CheckPlayerState(player);
+
+            if (result == PhaseTransitionResult.NoChange)
+            {
+                // Cas normal : pile détruite (y compris le 2), même joueur rejoue
+                ResolvePileDestruction(DestructionReason.Two);
+                TurnManager.HandleTwoPlayed(isLastCardBeforePhaseChange: false);
+            }
+            else
+            {
+                // Cas dernière carte avant transition : le joueur ramasse toute la pile au lieu de la détruire
+                PickUpPile(player);
+                TurnManager.HandleTwoPlayed(isLastCardBeforePhaseChange: true);
+
+                // Note : la transition de phase réelle (Talent/Chance/Won) doit être appliquée
+                // séparément par l'appelant de PlayCard (CheckPlayerState ne fait que détecter, pas appliquer).
+            }
+        }
+
+        /// <summary>
+        /// Un joueur joue une carte de sa main.
+        /// Étapes :
+        /// 1. Valide la carte (existe en main, jouable selon la hauteur active)
+        /// 2. Pose la carte sur la pile
+        /// 3. Détecte Carré/Doublet/2/Bombe et applique les effets
+        /// 4. Gère les transitions de tour (rejeu, skip, joueur suivant)
+        /// 5. Rembobine la main du joueur courant jusqu'à 3 cartes
+        /// </summary>
+        /// <returns>true si la pose a réussi, false si invalide (carte inexistante, non jouable).</returns>
+        public bool PlayCard(Player player, Card card)
+        {
+            if (player == null)
+                return false;
+
+            // Étape 1 : Valide la carte
+            if (!player.Hand.Contains(card))
+                return false;
+
+            if (!IsPlayable(card))
+                return false;
+
+            // Étape 2 : Pose la carte sur la pile
+            player.RemoveCardFromHand(card);
+            Pile.Add(card);
+
+            // Étape 3 : Détecte les effets spéciaux et applique
+            if (card.IsJoker && card.JokerType == JokerType.Color)
+            {
+                // Bombe : destruction + joueur suivant
+                ResolvePileDestruction(DestructionReason.Bomb);
+                TurnManager.HandleBombPlayed();
+            }
+            else if (card.Rank == CardRank.Two)
+            {
+                // 2 : gestion spéciale (peut être normal ou dernière carte)
+                HandleTwoCardPlayed(player);
+            }
+            else if (DetectSquare(Pile))
+            {
+                // Carré : destruction + même joueur rejoue
+                ResolvePileDestruction(DestructionReason.Square);
+                // TurnManager.CurrentTurn ne change pas — rejeu automatique
+            }
+            else if (DetectDoublet(Pile))
+            {
+                // Doublet : saute le joueur suivant (le joueur d'après rejoue)
+                TurnManager.AdvanceToNextPlayer();  // Skip le prochain
+                TurnManager.AdvanceToNextPlayer();  // Positionne sur le joueur après
+            }
+            else
+            {
+                // Cas normal : joueur suivant joue
+                TurnManager.AdvanceToNextPlayer();
+            }
+
+            // Étape 5 : Rembobine la main du joueur courant jusqu'à 3 cartes
+            RefillHand(TurnManager.CurrentTurn.CurrentPlayer);
+
+            return true;
         }
 
         /// <summary>

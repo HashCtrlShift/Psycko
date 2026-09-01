@@ -21,6 +21,11 @@ namespace Psycko.Tests
         [Test]
         public void PlayCard_OnEmptyPile_AlwaysSucceeds()
         {
+            var emptyDeck = new Deck(seed: 1);
+            while (emptyDeck.Count > 0) emptyDeck.Draw();  // Vide le deck
+    
+            var state = new GameState(new List<Player> { player }, new Pile(), emptyDeck);
+            
             Card card = new Card(CardRank.Five, CardSuit.Hearts);
             player.AddCardToHand(card);
 

@@ -89,11 +89,18 @@ namespace Psycko
         }
 
         /// <summary>
-        /// Joueur joue un 2 : pile détruite, même joueur commence la nouvelle pile.
+        /// Joueur joue un 2.
+        /// Cas normal (il reste des cartes) : pile détruite, même joueur rejoue (CurrentTurn inchangé).
+        /// Cas dernière carte (transition de phase imminente, interdiction de finir sur un 2) :
+        ///   pile conservée pour ramassage (fait dans GameState), joueur suivant ouvre.
         /// </summary>
-        public void HandleTwoPlayed()
+        public void HandleTwoPlayed(bool isLastCardBeforePhaseChange)
         {
-            // Pile détruite, même joueur rejoue — on ne change pas CurrentTurn
+            if (isLastCardBeforePhaseChange)
+            {
+                AdvanceToNextPlayer();
+            }
+            // Cas normal : CurrentTurn ne change pas, le même joueur rejoue
         }
 
         /// <summary>

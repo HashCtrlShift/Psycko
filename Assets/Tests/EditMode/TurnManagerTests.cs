@@ -177,7 +177,7 @@ namespace Psycko.Tests.EditMode
         public void HandleTwoPlayed_SamePlayerStaysActive()
         {
             var originalPlayer = turnManager.CurrentTurn.CurrentPlayer;
-            turnManager.HandleTwoPlayed();
+            turnManager.HandleTwoPlayed(isLastCardBeforePhaseChange: false);
             Assert.AreEqual(originalPlayer, turnManager.CurrentTurn.CurrentPlayer);
             Assert.AreEqual(0, turnManager.CurrentTurn.CurrentPlayerIndex);
         }
@@ -297,7 +297,7 @@ namespace Psycko.Tests.EditMode
         public void Scenario_TwoPlayedThenBomb_CorrectFlow()
         {
             // Alice joue 2 (rejeu Alice)
-            turnManager.HandleTwoPlayed();
+            turnManager.HandleTwoPlayed(isLastCardBeforePhaseChange: false);
             Assert.AreEqual("Alice", turnManager.CurrentTurn.CurrentPlayer.Name);
 
             // Alice joue Bombe -> Bob ouvre
@@ -358,7 +358,7 @@ namespace Psycko.Tests.EditMode
             Assert.AreEqual("Bob", turnManager.CurrentTurn.CurrentPlayer.Name);
 
             // Bob joue 2 (rejeu)
-            turnManager.HandleTwoPlayed();
+            turnManager.HandleTwoPlayed(isLastCardBeforePhaseChange: false);
             Assert.AreEqual("Bob", turnManager.CurrentTurn.CurrentPlayer.Name);
 
             // Bob joue Valet (inverse sens)
