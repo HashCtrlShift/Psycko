@@ -5,6 +5,11 @@ using Psycko.Core;
 
 namespace Psycko.Tests
 {
+    /// <summary>
+    /// Tests pour la règle du 2 (CardRank.Two = 14) : destruction de pile, rejeu, ramassage forcé.
+    /// Couvre TurnManager.HandleTwoPlayed() et GameState.PlayCard() → HandleTwoCardPlayed().
+    /// </summary>
+    [TestFixture]
     public class TwoCardRuleTests
     {
         private Player _player1;
@@ -21,9 +26,9 @@ namespace Psycko.Tests
             _players = new List<Player> { _player1, _player2, _player3 };
         }
 
-        // ---------------------------------------------------------------
+        // ---------------------------------------------------------
         // TurnManager.HandleTwoPlayed(bool) — tests directs
-        // ---------------------------------------------------------------
+        // ---------------------------------------------------------
 
         [Test]
         public void HandleTwoPlayed_NotLastCard_SamePlayerKeepsTurn()
@@ -32,7 +37,8 @@ namespace Psycko.Tests
 
             turnManager.HandleTwoPlayed(isLastCardBeforePhaseChange: false);
 
-            Assert.AreEqual(_player1, turnManager.CurrentTurn.CurrentPlayer);
+            Assert.AreEqual(_player1, turnManager.CurrentTurn.CurrentPlayer,
+                "Cas normal (NoChange) : le même joueur doit conserver son tour.");
         }
 
         [Test]
@@ -42,12 +48,13 @@ namespace Psycko.Tests
 
             turnManager.HandleTwoPlayed(isLastCardBeforePhaseChange: true);
 
-            Assert.AreEqual(_player2, turnManager.CurrentTurn.CurrentPlayer);
+            Assert.AreEqual(_player2, turnManager.CurrentTurn.CurrentPlayer,
+                "Cas dernier 2 : joueur suivant commence après ramassage forcé.");
         }
 
-        // ---------------------------------------------------------------
-        // GameState.PlayCard -> HandleTwoCardPlayed — cas normal (NoChange)
-        // ---------------------------------------------------------------
+        // ---------------------------------------------------------
+        // GameState.PlayCard → HandleTwoCardPlayed — cas normal (NoChange)
+        // ---------------------------------------------------------
 
         [Test]
         public void PlayCard_TwoPlayed_NoChange_DestroysPileAndSamePlayerReplays()
@@ -61,14 +68,15 @@ namespace Psycko.Tests
             var filler = new Card(CardRank.Three, CardSuit.Hearts);
 
             _player1.AddCardToHand(two);
-            _player1.AddCardToHand(filler); // il reste une carte après le 2 -> NoChange
+            _player1.AddCardToHand(filler); // il reste une carte après le 2 → NoChange
 
             bool result = gameState.PlayCard(_player1, two);
 
             Assert.IsTrue(result);
-            Assert.AreEqual(0, gameState.Pile.Count, "La pile doit être détruite après un 2 (cas normal).");
+            Assert.AreEqual(0, gameState.Pile.Count,
+                "Pile détruite après un 2 (cas normal NoChange).");
             Assert.AreEqual(_player1, gameState.TurnManager.CurrentTurn.CurrentPlayer,
-                "Le même joueur doit rejouer après un 2 (cas normal).");
+                "Même joueur rejoue après un 2 (cas normal NoChange).");
         }
 
         [Test]
@@ -76,7 +84,7 @@ namespace Psycko.Tests
         {
             var deck = new Deck(seed: 1);
             while (deck.Count > 0) deck.Draw();  // Vide le deck
-            
+
             var pile = new Pile();
             var gameState = GameState.CreateWithTurnManager(
                 _players, pile, deck, new TurnManager(_players, _player1));
@@ -89,13 +97,15 @@ namespace Psycko.Tests
 
             gameState.PlayCard(_player1, two);
 
-            Assert.IsFalse(_player1.Hand.Contains(two), "Le 2 doit avoir disparu (pile détruite), pas revenir en main.");
-            Assert.AreEqual(1, _player1.Hand.Count, "Seul le filler doit rester en main.");
+            Assert.IsFalse(_player1.Hand.Contains(two),
+                "En cas NoChange : le 2 doit avoir disparu (pile détruite), pas revenir en main.");
+            Assert.AreEqual(1, _player1.Hand.Count,
+                "Seul le filler doit rester en main.");
         }
 
-        // ---------------------------------------------------------------
-        // GameState.PlayCard -> HandleTwoCardPlayed — cas dernière carte (transition)
-        // ---------------------------------------------------------------
+        // ---------------------------------------------------------
+        // GameState.PlayCard → HandleTwoCardPlayed — cas dernier 2 (transition)
+        // ---------------------------------------------------------
 
         [Test]
         public void PlayCard_TwoPlayed_LastCard_PlayerPicksUpPileInstead()
@@ -112,16 +122,17 @@ namespace Psycko.Tests
                 _players, pile, deck, new TurnManager(_players, _player1));
 
             var two = new Card(CardRank.Two, CardSuit.Hearts);
-            _player1.AddCardToHand(two); // seule carte en main, pas de FaceUp/FaceDown -> transition (pas NoChange)
+            _player1.AddCardToHand(two); // seule carte en main → transition (pas NoChange)
 
             bool result = gameState.PlayCard(_player1, two);
 
             Assert.IsTrue(result);
-            Assert.AreEqual(0, gameState.Pile.Count, "La pile doit être entièrement ramassée par le joueur.");
+            Assert.AreEqual(0, gameState.Pile.Count,
+                "Pile entièrement ramassée par le joueur.");
             Assert.IsTrue(_player1.Hand.Contains(existingPileCard),
-                "Le joueur doit récupérer les cartes de la pile en main.");
+                "Joueur récupère les cartes de la pile en main.");
             Assert.IsTrue(_player1.Hand.Contains(two),
-                "Le 2 lui-même doit revenir en main du joueur (ramassé avec la pile).");
+                "Le 2 lui-même revient en main du joueur (ramassé avec la pile).");
         }
 
         [Test]
@@ -142,15 +153,15 @@ namespace Psycko.Tests
             gameState.PlayCard(_player1, two);
 
             Assert.AreEqual(_player2, gameState.TurnManager.CurrentTurn.CurrentPlayer,
-                "Le joueur suivant doit ouvrir après ramassage forcé sur dernier 2.");
+                "Joueur suivant ouvre après ramassage forcé sur dernier 2.");
         }
 
-        // ---------------------------------------------------------------
-        // Cas limite : le 2 seul en pile vide, pas de carte existante à ramasser
-        // ---------------------------------------------------------------
+        // ---------------------------------------------------------
+        // Cas limite : 2 seul en pile vide, pas de carte existante à ramasser
+        // ---------------------------------------------------------
 
         [Test]
-        public void PlayCard_TwoPlayed_LastCard_EmptyPileBeforeTwo_StillAdvancesAndClearsHand()
+        public void PlayCard_TwoPlayed_LastCard_EmptyPileBeforeTwo_StillAdvancesAndReturnsTwoToHand()
         {
             var deck = new Deck(seed: 1);
             while (deck.Count > 0) deck.Draw();
@@ -166,8 +177,20 @@ namespace Psycko.Tests
 
             Assert.IsTrue(result);
             Assert.IsTrue(_player1.Hand.Contains(two),
-                "Le 2 doit revenir en main du joueur puisqu'il n'y a rien d'autre à détruire.");
-            Assert.AreEqual(_player2, gameState.TurnManager.CurrentTurn.CurrentPlayer);
+                "Le 2 revient en main du joueur (pile vide avant, rien d'autre à détruire).");
+            Assert.AreEqual(_player2, gameState.TurnManager.CurrentTurn.CurrentPlayer,
+                "Joueur suivant commence malgré pile vide.");
+        }
+
+        // ---------------------------------------------------------
+        // CardRank.Two validation
+        // ---------------------------------------------------------
+
+        [Test]
+        public void CardRank_TwoAlwaysEqualsFourteen()
+        {
+            Assert.AreEqual(14, (int)CardRank.Two,
+                "CardRank.Two doit valoir 14 pour la hauteur de comparaison (même que K, A, mais spécial pour destruction).");
         }
     }
 }

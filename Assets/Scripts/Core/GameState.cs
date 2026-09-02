@@ -62,26 +62,11 @@ namespace Psycko
         /// - Une carte standard est significative.
         /// Retourne null si la pile est vide ou ne contient que des Jokers de Verre.
         /// </summary>
-        private Card? GetEffectiveTopCard(Pile pile)
+        public Card? GetEffectiveTopCard(Pile pile)
         {
-            if (pile == null || pile.IsEmpty())
-                return null;
-
-            IReadOnlyList<Card> cards = pile.Cards;
-
-            for (int i = cards.Count - 1; i >= 0; i--)
-            {
-                Card current = cards[i];
-
-                if (current.IsJoker && current.JokerType == JokerType.Glass)
-                    continue; // transparent, on continue de chercher en dessous
-
-                return current;
-            }
-
-            return null; // uniquement des Jokers de Verre empilés
+            List<Card> significant = GetSignificantCardsFromTop(pile, 1);
+            return significant.Count > 0 ? significant[0] : (Card?)null;
         }
-
         /// <summary>
         /// Vérifie si une carte respecte la règle de hauteur active par rapport à la référence effective
         /// (dernière carte significative de la pile, transparente au Joker de Verre).
@@ -152,7 +137,37 @@ namespace Psycko
                 player.AddCardToHand(Deck.Draw());
             }
         }
+        /// <summary>
+        /// Remonte la pile depuis le sommet et retourne les N premières cartes "significatives"
+        /// (Joker de Verre ignoré/transparent, non compté). S'arrête dès qu'un Joker Noir ou Couleur
+        /// est rencontré (il est lui-même significatif et devient la dernière carte de la liste,
+        /// car il casse toute chaîne Doublon/Carré au-delà).
+        /// Retourne une liste de taille <= count.
+        /// </summary>
+        public List<Card> GetSignificantCardsFromTop(Pile pile, int count)
+        {
+            var result = new List<Card>();
 
+            if (pile == null || pile.IsEmpty())
+                return result;
+
+            IReadOnlyList<Card> cards = pile.Cards;
+
+            for (int i = cards.Count - 1; i >= 0 && result.Count < count; i--)
+            {
+                Card current = cards[i];
+
+                if (current.IsJoker && current.JokerType == JokerType.Glass)
+                    continue; // transparent : ignoré, ne compte pas, on continue sous lui
+
+                result.Add(current);
+
+                if (current.IsJoker)
+                    break; // Joker Noir/Couleur : significatif MAIS casse la chaîne en dessous
+            }
+
+            return result;
+        }
         /// <summary>
         /// Détecte si les cartes du sommet de la pile forment un Carré (4 cartes de même rang).
         /// Le Joker de Verre est transparent (n'interrompt pas la chaîne et n'est pas compté comme une des 4).
@@ -164,41 +179,25 @@ namespace Psycko
             if (pile == null || pile.Count < 4)
                 return false;
 
-            IReadOnlyList<Card> cards = pile.Cards;
-            int matchCount = 0;
+            List<Card> significant = GetSignificantCardsFromTop(pile, 4);
+
+            if (significant.Count < 4)
+                return false;
+
             CardRank? referenceRank = null;
 
-            for (int i = cards.Count - 1; i >= 0; i--)
+            foreach (Card current in significant)
             {
-                Card current = cards[i];
-
                 if (current.IsJoker)
-                {
-                    if (current.JokerType == JokerType.Glass)
-                        continue; // transparent : on continue de remonter la chaîne
-
-                    break; // Joker Noir ou Couleur : casse la chaîne
-                }
+                    return false; // Noir/Couleur rencontré avant d'avoir 4 cartes standard = chaîne cassée
 
                 if (referenceRank == null)
-                {
                     referenceRank = current.Rank;
-                    matchCount = 1;
-                }
-                else if (current.Rank == referenceRank.Value)
-                {
-                    matchCount++;
-                }
-                else
-                {
-                    break;
-                }
-
-                if (matchCount == 4)
-                    return true;
+                else if (current.Rank != referenceRank.Value)
+                    return false;
             }
 
-            return false;
+            return true;
         }
 
         /// <summary>
@@ -215,18 +214,7 @@ namespace Psycko
             if (pile == null || pile.Count < 2)
                 return false;
 
-            IReadOnlyList<Card> cards = pile.Cards;
-            var significant = new List<Card>();
-
-            for (int i = cards.Count - 1; i >= 0 && significant.Count < 2; i--)
-            {
-                Card current = cards[i];
-
-                if (current.IsJoker && current.JokerType == JokerType.Glass)
-                    continue; // transparent
-
-                significant.Add(current);
-            }
+            List<Card> significant = GetSignificantCardsFromTop(pile, 2);
 
             if (significant.Count < 2)
                 return false;
@@ -235,11 +223,10 @@ namespace Psycko
             Card previous = significant[1];
 
             if (mostRecent.IsJoker || previous.IsJoker)
-                return false;
+                return false; // Noir/Couleur cassent toujours la chaîne Doublon
 
             return mostRecent.Rank == previous.Rank;
         }
-
         /// <summary>
         /// Résout la destruction/fermeture de la pile suite à un Carré, un "2", ou une Bombe (Joker Couleur).
         /// Vide entièrement la pile. Ne gère PAS le rejeu/skip du TurnManager :
