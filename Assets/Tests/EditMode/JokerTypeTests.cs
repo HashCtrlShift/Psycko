@@ -638,19 +638,24 @@ namespace Psycko.Tests
         }
 
         [Test]
-        public void PlayCard_HandRefilled_To3Cards()
+        public void PlayCard_SevenCard_PlayerWhoPlayedSevenRefilled()
         {
             Player p0 = players[0];
-            Card card = new Card(CardRank.Seven, CardSuit.Hearts);
-            p0.AddCardToHand(card);
+            Card seven = new Card(CardRank.Seven, CardSuit.Hearts);
+            p0.AddCardToHand(seven);
             p0.AddCardToHand(new Card(CardRank.Eight, CardSuit.Spades));
+            // p0.Hand = [7♥, 8♠] (2 cartes)
 
             int deckBefore = deck.Count;
-            gameState.PlayCard(p0, card);
 
-            Assert.AreEqual(3, players[1].Hand.Count); // p1 devrait avoir été refillé après son premier tour
+            // Act
+            bool result = gameState.PlayCard(p0, seven);
+
+            // Assert
+            Assert.IsTrue(result);
+            Assert.AreEqual(3, p0.Hand.Count); // 1 restante (8♠) + 2 piochées = 3
+            Assert.AreEqual(deckBefore - 2, deck.Count); // 2 cartes piochées pour remplir à 3
         }
-
         #endregion
     }
 }

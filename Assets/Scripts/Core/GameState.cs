@@ -275,7 +275,7 @@ namespace Psycko
         /// 2. Pose la carte sur la pile
         /// 3. Détecte Carré/Doublet/2/Bombe et applique les effets
         /// 4. Gère les transitions de tour (rejeu, skip, joueur suivant)
-        /// 5. Rembobine la main du joueur courant jusqu'à 3 cartes
+        /// 5. Rembobine la main du joueur qui vient de jouer jusqu'à 3 cartes
         /// </summary>
         /// <returns>true si la pose a réussi, false si invalide (carte inexistante, non jouable).</returns>
         public bool PlayCard(Player player, Card card)
@@ -314,26 +314,26 @@ namespace Psycko
             }
             else if (DetectDoublet(Pile))
             {
-                // Doublet : saute le joueur suivant (le joueur d'après rejoue)
-                TurnManager.AdvanceToNextPlayer();  // Skip le prochain
-                TurnManager.AdvanceToNextPlayer();  // Positionne sur le joueur après
+                // Doublet : saute le joueur suivant
+                TurnManager.AdvanceToNextPlayer();  // Avance au prochain
+                TurnManager.AdvanceToNextPlayer();  // Avance au joueur après (skip du premier)
             }
-            else
+            else if (card.Rank == CardRank.Jack)
             {
-                // Cas normal : joueur suivant joue
+                // Valet : inverse direction + joueur suivant (dans la nouvelle direction) joue
+                HandleJackPlayed(player);
                 TurnManager.AdvanceToNextPlayer();
             }
-
-            // Étape 5 : Rembobine la main du joueur courant jusqu'à 3 cartes
-            // ✅ Pour un 7 : rebobiner le joueur qui a JOUÉ (pas le suivant)
-            if (card.Rank == CardRank.Seven)
-            {
-                RefillHand(player);  // ← rebobine le joueur qui a joué le 7
-            }
             else
             {
-                RefillHand(TurnManager.CurrentTurn.CurrentPlayer);  // cas normal
+             // Cas normal : joueur suivant joue
+             TurnManager.AdvanceToNextPlayer();
             }
+
+            // Étape 5 : Rembobine la main du joueur qui VIENT DE JOUER jusqu'à 3 cartes
+            // (avant toute avance de tour dans les étapes d'après)
+            // Exception : Carré/Square où le même joueur rejoue immédiatement (rebobinage au prochain tour)
+            RefillHand(player);
 
             return true;
         }
@@ -367,6 +367,17 @@ namespace Psycko
             }
 
             // Cas 2 & 3 : Phase Chance ou playerWhoPlayed sans cette carte = effet silencieux
+        }
+
+        /// <summary>
+        /// Gère l'effet du Valet (L'Inverseur) : inverse le sens de jeu.
+        /// Le joueur actuel reste le même, le prochain joueur change selon la nouvelle direction.
+        /// À 2 joueurs : inversion + avance = retour au même joueur = "passe".
+        /// </summary>
+        public void HandleJackPlayed(Player player)
+        {
+            TurnManager.ReverseDirection();
+            // Aucune autre action : le joueur suivant joue dans la nouvelle direction
         }
         /// <summary>
         /// Factory method pour créer une GameState avec un TurnManager custom.
