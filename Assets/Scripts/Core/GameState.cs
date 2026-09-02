@@ -325,11 +325,49 @@ namespace Psycko
             }
 
             // Étape 5 : Rembobine la main du joueur courant jusqu'à 3 cartes
-            RefillHand(TurnManager.CurrentTurn.CurrentPlayer);
+            // ✅ Pour un 7 : rebobiner le joueur qui a JOUÉ (pas le suivant)
+            if (card.Rank == CardRank.Seven)
+            {
+                RefillHand(player);  // ← rebobine le joueur qui a joué le 7
+            }
+            else
+            {
+                RefillHand(TurnManager.CurrentTurn.CurrentPlayer);  // cas normal
+            }
 
             return true;
         }
+        /// <summary>
+        /// Gère l'effet du 7 (Don / Gift).
+        /// Le joueur qui a posé le 7 choisit un adversaire et une carte de sa main à donner.
+        /// 
+        /// Cas spéciaux :
+        /// - Phase 1→2 : don après ramassage des cartes FaceUp
+        /// - Phase 2→3 : don ANNULÉ (main vide après pose du 7)
+        /// - Phase 3 retournement : pas d'effet (silencieux)
+        /// - Phase 3 pose avec cartes restantes : don applicable
+        /// - Phase 3 pose sans cartes restantes : don N/A
+        /// - 2 joueurs : don applicable normalement
+        /// </summary>
+        public void HandleSevenPlayed(Player playerWhoPlayed, Player nextPlayer, Card cardToGift)
+        {
+            if (playerWhoPlayed == null || nextPlayer == null || cardToGift == null)
+                return;
 
+            // Cas 1 : Phase Travail ou Talent, playerWhoPlayed a cette carte en main
+            if ((CurrentPhase == GamePhase.Travail || CurrentPhase == GamePhase.Talent) &&
+                playerWhoPlayed.Hand.Contains(cardToGift))
+            {
+                // Joueur qui a joué le 7 choisit une carte DE SA MAIN et la donne
+                playerWhoPlayed.Hand.Remove(cardToGift);
+                nextPlayer.AddCardToHand(cardToGift);
+
+                // ✅ Rebobiner le joueur qui a joué le 7 APRÈS le don
+                RefillHand(playerWhoPlayed);
+            }
+
+            // Cas 2 & 3 : Phase Chance ou playerWhoPlayed sans cette carte = effet silencieux
+        }
         /// <summary>
         /// Factory method pour créer une GameState avec un TurnManager custom.
         /// Utilisé principalement dans les tests pour injecter un TurnManager spécifique.
