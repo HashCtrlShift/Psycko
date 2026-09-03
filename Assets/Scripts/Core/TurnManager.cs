@@ -90,9 +90,8 @@ namespace Psycko
 
         /// <summary>
         /// Joueur joue un 2.
-        /// Cas normal (il reste des cartes) : pile détruite, même joueur rejoue (CurrentTurn inchangé).
-        /// Cas dernière carte (transition de phase imminente, interdiction de finir sur un 2) :
-        ///   pile conservée pour ramassage (fait dans GameState), joueur suivant ouvre.
+        /// Cas normal (il reste des cartes) : aucune avance (même joueur rejoue).
+        /// Cas dernière carte (transition de phase imminente) : avance au joueur suivant.
         /// </summary>
         public void HandleTwoPlayed(bool isLastCardBeforePhaseChange)
         {
