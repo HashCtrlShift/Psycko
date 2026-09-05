@@ -289,21 +289,21 @@ namespace Psycko.Tests
             player1.AddCardToHand(seven1);
             player2.AddCardToHand(glass);
             player3.AddCardToHand(seven2);
-            player4.AddCardToHand(seven3);
+            player1.AddCardToHand(seven3);
 
             gameState.PlayCard(player1, seven1);
             gameState.PlayCard(player2, glass);
             gameState.PlayCard(player3, seven2);
-            gameState.PlayCard(player4, seven3);
+            gameState.PlayCard(player1, seven3);
 
             // Act : P1 plays 4th Seven
-            player1.AddCardToHand(seven4);
-            bool played = gameState.PlayCard(player1, seven4);
+            player3.AddCardToHand(seven4);
+            bool played = gameState.PlayCard(player3, seven4);
 
             // Assert
             Assert.IsTrue(played, "Fourth 7 should trigger Square");
             Assert.IsTrue(gameState.Pile.IsEmpty(), "Pile should be destroyed (Square)");
-            Assert.AreEqual(player1, gameState.TurnManager.CurrentTurn.CurrentPlayer, "P1 rejeu after Square");
+            Assert.AreEqual(player3, gameState.TurnManager.CurrentTurn.CurrentPlayer, "P3 rejeu after Square");
         }
 
         [Test]
@@ -487,62 +487,86 @@ namespace Psycko.Tests
 
             player1.AddCardToHand(priest1);
             player2.AddCardToHand(priest2);
-            player3.AddCardToHand(priest3);
-            player4.AddCardToHand(priest4);
+            player4.AddCardToHand(priest3);
+            player2.AddCardToHand(priest4);
 
             gameState.PlayCard(player1, priest1);
             gameState.PlayCard(player2, priest2);
-            gameState.PlayCard(player3, priest3);
+            gameState.PlayCard(player4, priest3);
 
             // Act : P4 plays 4th Priest
-            bool played = gameState.PlayCard(player4, priest4);
+            bool played = gameState.PlayCard(player2, priest4);
 
             // Assert
             Assert.IsTrue(played, "Fourth Priest should trigger Square and be played");
             Assert.IsTrue(gameState.Pile.IsEmpty(), "Pile should be destroyed after Square");
-            // P4 plays Square → same player rejeu → P4 is still current
-            Assert.AreEqual(player4, gameState.TurnManager.CurrentTurn.CurrentPlayer);
+            // P2 plays Square → same player rejeu → P2 is still current
+            Assert.AreEqual(player2, gameState.TurnManager.CurrentTurn.CurrentPlayer);
         }
 
-        [Test]
+          [Test]
         public void T20_SquareOfPriestsWithGlassesIgnored()
         {
-            // Arrange : Priest → Glass → Priest → Glass → Priest → Priest (4 Priests, Glasses ignored)
             var priest1 = new Card(CardRank.Priest, CardSuit.Hearts);
-            var glass1 = new Card(JokerType.Glass);
+            var glass1  = new Card(JokerType.Glass);
             var priest2 = new Card(CardRank.Priest, CardSuit.Clubs);
-            var glass2 = new Card(JokerType.Glass);
+            var glass2  = new Card(JokerType.Glass);
             var priest3 = new Card(CardRank.Priest, CardSuit.Spades);
             var priest4 = new Card(CardRank.Priest, CardSuit.Diamonds);
 
+            // Ballast : chaque joueur garde des cartes injouables en main
+            // pour rester "actif" (GetActivePlayerCount() doit rester a 4,
+            // sinon le Doublon se desactive automatiquement a 2 joueurs).
+            var ballast = new Card(CardRank.Two, CardSuit.Spades);
+            player1.AddCardToHand(ballast);
+            player2.AddCardToHand(ballast);
+            player3.AddCardToHand(ballast);
+            player4.AddCardToHand(ballast);
+
+            // Distribution complete AVANT toute pose
             player1.AddCardToHand(priest1);
+            player1.AddCardToHand(glass2);
             player2.AddCardToHand(glass1);
+            player2.AddCardToHand(priest3);
             player3.AddCardToHand(priest2);
-            player4.AddCardToHand(glass2);
+            player4.AddCardToHand(priest4);
 
+            Assert.AreEqual(4, gameState.TurnManager.GetActivePlayerCount(),
+                "Pre-condition : 4 joueurs actifs, sinon le Doublon est desactive");
+
+            // 1. P1 Pretre -> P2
             gameState.PlayCard(player1, priest1);
+
+            // 2. P2 Glass -> P3
             gameState.PlayCard(player2, glass1);
+
+            // 3. P3 Pretre -> Doublon (Glass transparent) -> saute P4 -> P1
             gameState.PlayCard(player3, priest2);
-            gameState.PlayCard(player4, glass2);
+            Assert.AreEqual(player1, gameState.TurnManager.CurrentTurn.CurrentPlayer,
+                "Doublon 1 : P4 doit etre saute");
 
-            player1.AddCardToHand(priest3);
-            gameState.PlayCard(player1, priest3);
+            // 4. P1 Glass -> P2
+            gameState.PlayCard(player1, glass2);
 
-            player2.AddCardToHand(priest4);
+            // 5. P2 Pretre -> Doublon -> saute P3 -> P4
+            gameState.PlayCard(player2, priest3);
+            Assert.AreEqual(player4, gameState.TurnManager.CurrentTurn.CurrentPlayer,
+                "Doublon 2 : P3 doit etre saute");
 
-            // Act
-            bool played = gameState.PlayCard(player2, priest4);
+            // 6. P4 joue le 4e Pretre -> Carre (Glass ignores) -> P4 rejoue
+            bool played = gameState.PlayCard(player4, priest4);
 
-            // Assert
-            Assert.IsTrue(played, "Fourth Priest should trigger Square (Glasses ignored)");
-            Assert.IsTrue(gameState.Pile.IsEmpty(), "Pile destroyed");
-            Assert.AreEqual(player2, gameState.TurnManager.CurrentTurn.CurrentPlayer, "P2 rejeu");
+            Assert.IsTrue(played, "Le 4e Pretre doit declencher le Carre");
+            Assert.IsTrue(gameState.Pile.IsEmpty(), "Pile detruite apres Carre");
+            Assert.AreEqual(player4, gameState.TurnManager.CurrentTurn.CurrentPlayer,
+                "P4 rejoue apres Carre");
         }
 
         [Test]
         public void T21_SquareOfPriestsWithBlackJokerBreaksChain()
         {
-            // Arrange : Priest → Priest → Black → Priest → Priest (Black breaks, only 2+2 = not Square)
+            // Arrange : Priest(P1) → Priest(P2) → Black(P3) → Priest(P4) → Priest(P1)
+            // Black casse la chaîne : seulement 2+2 Prêtres séparés, pas de Carré.
             var priest1 = new Card(CardRank.Priest, CardSuit.Hearts);
             var priest2 = new Card(CardRank.Priest, CardSuit.Clubs);
             var black = new Card(JokerType.Black);
@@ -551,24 +575,31 @@ namespace Psycko.Tests
 
             player1.AddCardToHand(priest1);
             player2.AddCardToHand(priest2);
-            player3.AddCardToHand(black);
-            player4.AddCardToHand(priest3);
+            player4.AddCardToHand(black);
+            player1.AddCardToHand(priest3);
 
-            gameState.PlayCard(player1, priest1);
-            gameState.PlayCard(player2, priest2);
-            gameState.PlayCard(player3, black);
-            gameState.PlayCard(player4, priest3);
+            Assert.IsTrue(gameState.PlayCard(player1, priest1), "P1 plays priest1");
+            Assert.AreEqual(player2, gameState.TurnManager.CurrentTurn.CurrentPlayer, "After P1 -> P2's turn");
 
-            player1.AddCardToHand(priest4);
+            Assert.IsTrue(gameState.PlayCard(player2, priest2), "P2 plays priest2");
+            Assert.AreEqual(player4, gameState.TurnManager.CurrentTurn.CurrentPlayer, "After P2 -> P4's turn Doublon skip P3");
+
+            Assert.IsTrue(gameState.PlayCard(player4, black), "P4 plays black joker");
+            Assert.AreEqual(player1, gameState.TurnManager.CurrentTurn.CurrentPlayer, "After P4 -> P1's turn");
+
+            Assert.IsTrue(gameState.PlayCard(player1, priest3), "P1 plays priest3");
+            Assert.AreEqual(player2, gameState.TurnManager.CurrentTurn.CurrentPlayer, "After P1 -> P2's turn");
+
+            player2.AddCardToHand(priest4);
 
             // Act
-            bool played = gameState.PlayCard(player1, priest4);
+            bool played = gameState.PlayCard(player2, priest4);
 
-            // Assert
-            Assert.IsTrue(played, "P1 plays 4th Priest");
+            // Assert 
+            Assert.IsTrue(played, "P2 plays 4th Priest");
             Assert.IsFalse(gameState.Pile.IsEmpty(), "Pile should remain (Black breaks chain, no Square)");
-            // Normal advance: P2
-            Assert.AreEqual(player2, gameState.TurnManager.CurrentTurn.CurrentPlayer);
+            Assert.AreEqual(player4, gameState.TurnManager.CurrentTurn.CurrentPlayer,
+                "Normal advance after non-Square play: P4's turn");
         }
 
         [Test]
@@ -581,18 +612,18 @@ namespace Psycko.Tests
 
             player1.AddCardToHand(priest1);
             player2.AddCardToHand(priest2);
-            player3.AddCardToHand(priest3);
+            player4.AddCardToHand(priest3);
 
             gameState.PlayCard(player1, priest1);
             gameState.PlayCard(player2, priest2);
 
             // Act
-            bool played = gameState.PlayCard(player3, priest3);
+            bool played = gameState.PlayCard(player4, priest3);
 
             // Assert
             Assert.IsTrue(played);
             Assert.IsFalse(gameState.Pile.IsEmpty(), "Pile should remain (3 Priests, not Square)");
-            Assert.AreEqual(player4, gameState.TurnManager.CurrentTurn.CurrentPlayer, "Normal advance to P4");
+            Assert.AreEqual(player2, gameState.TurnManager.CurrentTurn.CurrentPlayer, "Normal advance to P2");
         }
 
         [Test]

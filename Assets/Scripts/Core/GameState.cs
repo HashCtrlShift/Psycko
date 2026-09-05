@@ -214,6 +214,7 @@ namespace Psycko
 
             // La pile disparaît => la contrainte Prêtre disparaît avec elle
             ResetPriestBlock();
+            LastSignificantRank = null;
 
             return true;
         }
@@ -267,31 +268,52 @@ namespace Psycko
         }
 
         /// <summary>
-        /// Doublon : les 2 dernières cartes significatives partagent le même rang.
-        /// Désactivé s'il ne reste que 2 joueurs actifs.
+        /// Hauteur de la dernière carte significative posée.
+        /// Utilisée pour détecter un Doublon : si la carte posée ce tour a le même rang
+        /// que cette dernière, le Doublon est déclenché, puis ce tracker est mis à jour.
         /// </summary>
-        public bool DetectDoublet(Pile pile)
+        private CardRank? LastSignificantRank { get; set; } = null;
+
+        /// <summary>
+        /// Doublon : la carte qui vient d'être posée a le même rang que la dernière
+        /// carte significative posée avant elle (Joker de Verre transparent).
+        /// Désactivé s'il ne reste que 2 joueurs actifs.
+        /// Se déclenche au maximum une fois par tour (une seule paire comparée).
+        /// </summary>
+        public bool DetectDoublet(Card cardJustPlayed)
         {
             if (TurnManager.GetActivePlayerCount() <= 2)
                 return false;
 
-            if (pile == null || pile.Count < 2)
+            if (cardJustPlayed == null || cardJustPlayed.IsJoker)
                 return false;
 
-            List<Card> significant = GetSignificantCardsFromTop(pile, 2);
-
-            if (significant.Count < 2)
+            if (LastSignificantRank == null)
                 return false;
 
-            Card mostRecent = significant[0];
-            Card previous = significant[1];
-
-            if (mostRecent.IsJoker || previous.IsJoker)
-                return false;
-
-            return mostRecent.Rank == previous.Rank;
+            return cardJustPlayed.Rank == LastSignificantRank.Value;
         }
 
+        /// <summary>
+        /// Met à jour la dernière carte significative posée.
+        /// - Joker de Verre : transparent, ne change rien
+        /// - Joker Noir/Couleur : casse la chaîne Doublon => reset à null
+        /// - Carte standard : met à jour avec ce rang
+        /// </summary>
+        public void UpdateLastSignificantRank(Card card)
+        {
+            if (card.IsJoker && card.JokerType == JokerType.Glass)
+                return; // Transparent : ne change rien
+
+            if (card.IsJoker && (card.JokerType == JokerType.Black || card.JokerType == JokerType.Color))
+            {
+                LastSignificantRank = null; // Casse la chaîne
+                return;
+            }
+
+            // Carte standard
+            LastSignificantRank = card.Rank;
+        }
         // ------------------------------------------------------------------
         // DESTRUCTION DE PILE
         // ------------------------------------------------------------------
@@ -308,6 +330,7 @@ namespace Psycko
             }
 
             ResetPriestBlock();
+            LastSignificantRank = null;
         }
 
         /// <summary>
@@ -395,7 +418,7 @@ namespace Psycko
                 ResolvePileDestruction(DestructionReason.Square);
                 effectHandled = true;
             }
-            else if (DetectDoublet(Pile))
+            else if (DetectDoublet(card))
             {
                 // Doublon : saute le joueur suivant
                 TurnManager.AdvanceToNextPlayer();
@@ -416,6 +439,9 @@ namespace Psycko
 
             // Renfloue la main du joueur qui vient de jouer
             RefillHand(player);
+
+            // ---- Mise à jour du Doublon tracker ----
+            UpdateLastSignificantRank(card);
 
             // ---- Activation d'un nouveau Prêtre ----
             // Placée en DERNIER pour survivre à tous les resets ci-dessus.

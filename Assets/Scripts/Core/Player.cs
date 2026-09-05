@@ -13,6 +13,7 @@ namespace Psycko
         public PowerCard? AssignedPowerCard { get; set; }
         public GamePhase CurrentPhase { get; set; }
         public bool HasWon { get; set; }
+        public bool IsReady { get; set; }
 
         public Player(string id, string name)
         {
@@ -29,6 +30,7 @@ namespace Psycko
             AssignedPowerCard = null;
             CurrentPhase = GamePhase.Travail;
             HasWon = false;
+            IsReady = false;
         }
 
         /// <summary>

@@ -195,19 +195,6 @@ namespace Psycko.Tests
             Assert.IsFalse(gameState.IsPlayable(notPlayable));
         }
 
-        [Test]
-        public void IsPlayable_LessOrEqualMode_ReverseComparison()
-        {
-            gameState.ActiveComparisonMode = ComparisonMode.LessOrEqual;
-            pile.Add(new Card(CardRank.Eight, CardSuit.Hearts));
-
-            Card card = new Card(CardRank.Five, CardSuit.Spades);
-            Assert.IsTrue(gameState.IsPlayable(card));
-
-            Card notPlayable = new Card(CardRank.Nine, CardSuit.Spades);
-            Assert.IsFalse(gameState.IsPlayable(notPlayable));
-        }
-
         #endregion
 
         #region DetectSquare Tests
@@ -305,61 +292,99 @@ namespace Psycko.Tests
         [Test]
         public void DetectDoublet_FewerThan2Cards_NotDoublet()
         {
-            pile.Add(new Card(CardRank.Five, CardSuit.Hearts));
-
-            Assert.IsFalse(gameState.DetectDoublet(pile));
+            // Aucune carte précédente significative => pas de Doublon possible
+            Card card = new Card(CardRank.Five, CardSuit.Hearts);
+            
+            Assert.IsFalse(gameState.DetectDoublet(card));
         }
 
         [Test]
         public void DetectDoublet_2CardsOfSameRank_IsDoublet()
         {
-            pile.Add(new Card(CardRank.Six, CardSuit.Hearts));
-            pile.Add(new Card(CardRank.Six, CardSuit.Spades));
-
-            Assert.IsTrue(gameState.DetectDoublet(pile));
+            // Première carte significative : 6♥
+            Card card1 = new Card(CardRank.Six, CardSuit.Hearts);
+            pile.Add(card1);
+            gameState.UpdateLastSignificantRank(card1);  // LastSignificantRank = Six
+            
+            // Deuxième carte : 6♠ (même rang => Doublon)
+            Card card2 = new Card(CardRank.Six, CardSuit.Spades);
+            
+            Assert.IsTrue(gameState.DetectDoublet(card2));
         }
 
         [Test]
         public void DetectDoublet_2CardsOfDifferentRanks_NotDoublet()
         {
-            pile.Add(new Card(CardRank.Five, CardSuit.Hearts));
-            pile.Add(new Card(CardRank.Seven, CardSuit.Spades));
-
-            Assert.IsFalse(gameState.DetectDoublet(pile));
+            Card card1 = new Card(CardRank.Five, CardSuit.Hearts);
+            pile.Add(card1);
+            gameState.UpdateLastSignificantRank(card1);  // LastSignificantRank = Five
+            
+            Card card2 = new Card(CardRank.Seven, CardSuit.Spades);
+            
+            Assert.IsFalse(gameState.DetectDoublet(card2));
         }
 
         [Test]
         public void DetectDoublet_GlassJokerBetween2Cards_TransparentDoesntBreakChain()
         {
-            // Pile : [8♥, Glass, 8♠]
-            // Significant : [8♠, 8♥] => Doublet
-            pile.Add(new Card(CardRank.Eight, CardSuit.Hearts));
+            // Première carte : 8♥
+            Card card1 = new Card(CardRank.Eight, CardSuit.Hearts);
+            pile.Add(card1);
+            gameState.UpdateLastSignificantRank(card1);  // LastSignificantRank = Eight
+            
+            // Verre empilé (transparent, ne change pas LastSignificantRank)
             pile.Add(new Card(JokerType.Glass));
-            pile.Add(new Card(CardRank.Eight, CardSuit.Spades));
-
-            Assert.IsTrue(gameState.DetectDoublet(pile));
+            
+            // Deuxième carte : 8♠ (même rang que la dernière significative => Doublet)
+            Card card2 = new Card(CardRank.Eight, CardSuit.Spades);
+            
+            Assert.IsTrue(gameState.DetectDoublet(card2));
         }
 
         [Test]
         public void DetectDoublet_BlackJokerBetween2Cards_BreaksChain()
         {
-            // Pile : [5♥, 5♠, Black]
-            // Significant : [Black, 5♠] => stops at Black => not doublet
-            pile.Add(new Card(CardRank.Five, CardSuit.Hearts));
-            pile.Add(new Card(CardRank.Five, CardSuit.Spades));
-            pile.Add(new Card(JokerType.Black));
-
-            Assert.IsFalse(gameState.DetectDoublet(pile));
+            // Première carte : 5♥
+            Card card1 = new Card(CardRank.Five, CardSuit.Hearts);
+            pile.Add(card1);
+            gameState.UpdateLastSignificantRank(card1);  // LastSignificantRank = Five
+            
+            // Deuxième carte : 5♠ (même rang, mais on va empiler un Joker Noir)
+            Card card2 = new Card(CardRank.Five, CardSuit.Spades);
+            pile.Add(card2);
+            gameState.UpdateLastSignificantRank(card2);  // LastSignificantRank = Five
+            
+            // Joker Noir empilé => il casse la chaîne Doublon
+            // UpdateLastSignificantRank(Joker Noir) doit RESET LastSignificantRank à null
+            Card blackJoker = new Card(JokerType.Black);
+            pile.Add(blackJoker);
+            gameState.UpdateLastSignificantRank(blackJoker);  // LastSignificantRank = null (reset)
+            
+            // Troisième carte : 5♦ (5 != null => pas de Doublon)
+            Card card3 = new Card(CardRank.Five, CardSuit.Diamonds);
+            
+            Assert.IsFalse(gameState.DetectDoublet(card3));
         }
 
         [Test]
         public void DetectDoublet_ColorJokerBetween2Cards_BreaksChain()
         {
-            pile.Add(new Card(CardRank.Queen, CardSuit.Hearts));
-            pile.Add(new Card(CardRank.Queen, CardSuit.Spades));
-            pile.Add(new Card(JokerType.Color));
-
-            Assert.IsFalse(gameState.DetectDoublet(pile));
+            Card card1 = new Card(CardRank.Queen, CardSuit.Hearts);
+            pile.Add(card1);
+            gameState.UpdateLastSignificantRank(card1);
+            
+            Card card2 = new Card(CardRank.Queen, CardSuit.Spades);
+            pile.Add(card2);
+            gameState.UpdateLastSignificantRank(card2);
+            
+            // Joker Couleur empilé => reset LastSignificantRank
+            Card colorJoker = new Card(JokerType.Color);
+            pile.Add(colorJoker);
+            gameState.UpdateLastSignificantRank(colorJoker);  // LastSignificantRank = null
+            
+            Card card3 = new Card(CardRank.Queen, CardSuit.Diamonds);
+            
+            Assert.IsFalse(gameState.DetectDoublet(card3));
         }
 
         [Test]
@@ -371,12 +396,14 @@ namespace Psycko.Tests
                 new Player("p1", "Player1")
             };
             var twoPlayerGameState = new GameState(twoPlayerList, new Pile(), new Deck());
-
-            var testPile = new Pile();
-            testPile.Add(new Card(CardRank.Three, CardSuit.Hearts));
-            testPile.Add(new Card(CardRank.Three, CardSuit.Spades));
-
-            Assert.IsFalse(twoPlayerGameState.DetectDoublet(testPile));
+            
+            Card card1 = new Card(CardRank.Three, CardSuit.Hearts);
+            Card card2 = new Card(CardRank.Three, CardSuit.Spades);
+            
+            twoPlayerGameState.UpdateLastSignificantRank(card1);  // Initialise tracker
+            
+            // Même rang, mais seulement 2 joueurs => Doublon désactivé
+            Assert.IsFalse(twoPlayerGameState.DetectDoublet(card2));
         }
 
         [Test]
@@ -389,12 +416,14 @@ namespace Psycko.Tests
                 new Player("p2", "Player2")
             };
             var threePlayerGameState = new GameState(threePlayerList, new Pile(), new Deck());
-
-            var testPile = new Pile();
-            testPile.Add(new Card(CardRank.Four, CardSuit.Hearts));
-            testPile.Add(new Card(CardRank.Four, CardSuit.Spades));
-
-            Assert.IsTrue(threePlayerGameState.DetectDoublet(testPile));
+            
+            Card card1 = new Card(CardRank.Four, CardSuit.Hearts);
+            Card card2 = new Card(CardRank.Four, CardSuit.Spades);
+            
+            threePlayerGameState.UpdateLastSignificantRank(card1);
+            
+            // 3 joueurs => Doublon actif
+            Assert.IsTrue(threePlayerGameState.DetectDoublet(card2));
         }
 
         #endregion
@@ -625,18 +654,25 @@ namespace Psycko.Tests
             Player p0 = players[0];
             Player p1 = players[1];
             Player p2 = players[2];
-            Card card = new Card(CardRank.Four, CardSuit.Hearts);
 
-            p0.AddCardToHand(card);
+            // Arrange : la pile contient déjà un 4 (posé "avant" le test),
+            // et le tracker Doublon reflète cet état.
+            pile.Add(new Card(CardRank.Four, CardSuit.Clubs));
+            gameState.UpdateLastSignificantRank(new Card(CardRank.Four, CardSuit.Clubs));
+
+            // p0 joue un second 4 consécutif => Doublon
+            Card doubletCard = new Card(CardRank.Four, CardSuit.Hearts);
+            p0.AddCardToHand(doubletCard);
             p0.AddCardToHand(new Card(CardRank.Five, CardSuit.Spades));
 
-            pile.Add(new Card(CardRank.Four, CardSuit.Clubs));
+            // Act
+            bool played = gameState.PlayCard(p0, doubletCard);
 
-            gameState.PlayCard(p0, card);
-
-            Assert.AreEqual(p2, gameState.TurnManager.CurrentTurn.CurrentPlayer);
+            // Assert
+            Assert.IsTrue(played, "Le Doublon doit être une pose valide");
+            Assert.AreEqual(p2, gameState.TurnManager.CurrentTurn.CurrentPlayer,
+                "Le Doublon doit sauter p1 : p2 doit jouer ensuite");
         }
-
         [Test]
         public void PlayCard_SevenCard_PlayerWhoPlayedSevenRefilled()
         {

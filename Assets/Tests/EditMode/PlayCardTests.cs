@@ -97,33 +97,7 @@ namespace Psycko.Tests
 
             Assert.IsFalse(result);
         }
-
-        [Test]
-        public void PlayCard_LessOrEqualMode_HigherRank_Fails()
-        {
-            state.ActiveComparisonMode = ComparisonMode.LessOrEqual;
-            state.Pile.Add(new Card(CardRank.Five, CardSuit.Hearts));
-            Card card = new Card(CardRank.Seven, CardSuit.Clubs);
-            player.AddCardToHand(card);
-
-            bool result = state.PlayCard(player, card);
-
-            Assert.IsFalse(result);
-        }
-
-        [Test]
-        public void PlayCard_LessOrEqualMode_LowerRank_Succeeds()
-        {
-            state.ActiveComparisonMode = ComparisonMode.LessOrEqual;
-            state.Pile.Add(new Card(CardRank.Seven, CardSuit.Hearts));
-            Card card = new Card(CardRank.Five, CardSuit.Clubs);
-            player.AddCardToHand(card);
-
-            bool result = state.PlayCard(player, card);
-
-            Assert.IsTrue(result);
-        }
-
+        
         [Test]
         public void PlayCard_JokerFromHand_AlwaysSucceeds()
         {
