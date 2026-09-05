@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "Pp3Wzka1gSA=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\raphs\\Psycko\\Psycko.Core\\Psycko.Core.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\raphs\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.28\\microsoft.netcore.app.ref.8.0.28.nupkg.sha512",
+    "C:\\Users\\raphs\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.28\\microsoft.windowsdesktop.app.ref.8.0.28.nupkg.sha512",
+    "C:\\Users\\raphs\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.28\\microsoft.aspnetcore.app.ref.8.0.28.nupkg.sha512"
+  ],
+  "logs": []
+}

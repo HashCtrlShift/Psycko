@@ -42,6 +42,8 @@ namespace Psycko
             TurnManager = new TurnManager(Players);
         }
 
+        #region Prêtre Utilities
+
         // ------------------------------------------------------------------
         // PRÊTRE
         // ------------------------------------------------------------------
@@ -78,6 +80,10 @@ namespace Psycko
             return !(card.IsJoker && card.JokerType == JokerType.Glass);
         }
 
+        #endregion
+
+        #region Player State Utilities
+
         // ------------------------------------------------------------------
         // ÉTAT DU JOUEUR / PHASES
         // ------------------------------------------------------------------
@@ -105,6 +111,10 @@ namespace Psycko
 
             return PhaseTransitionResult.NoChange;
         }
+
+        #endregion
+
+        #region Pile Utilities
 
         // ------------------------------------------------------------------
         // LECTURE DE LA PILE
@@ -153,6 +163,10 @@ namespace Psycko
             return result;
         }
 
+        #endregion
+
+        #region Validation Pose Utilities
+
         // ------------------------------------------------------------------
         // VALIDATION DE POSE
         // ------------------------------------------------------------------
@@ -191,6 +205,10 @@ namespace Psycko
 
             return (int)card.Rank >= (int)top.Rank;
         }
+
+        #endregion
+
+        #region Pioche / Ramassage Utilities
 
         // ------------------------------------------------------------------
         // RAMASSAGE / PIOCHE
@@ -232,6 +250,10 @@ namespace Psycko
                 player.AddCardToHand(Deck.Draw());
             }
         }
+
+        #endregion
+
+        #region Détection Utilities
 
         // ------------------------------------------------------------------
         // DÉTECTIONS
@@ -314,6 +336,11 @@ namespace Psycko
             // Carte standard
             LastSignificantRank = card.Rank;
         }
+
+        #endregion
+
+        #region Destruction + Valet Utilities
+
         // ------------------------------------------------------------------
         // DESTRUCTION DE PILE
         // ------------------------------------------------------------------
@@ -361,6 +388,10 @@ namespace Psycko
         {
             TurnManager.ReverseDirection();
         }
+
+        #endregion
+
+        #region Pose Carte Utilities
 
         // ------------------------------------------------------------------
         // POSE DE CARTE
@@ -455,6 +486,10 @@ namespace Psycko
             return true;
         }
 
+        #endregion
+
+        #region 7 (DON) Utilities
+
         // ------------------------------------------------------------------
         // 7 (DON)
         // ------------------------------------------------------------------
@@ -479,6 +514,10 @@ namespace Psycko
             // Phase Chance ou carte absente => effet silencieux
         }
 
+        #endregion
+
+        #region Factory Utilities
+
         // ------------------------------------------------------------------
         // FACTORY
         // ------------------------------------------------------------------
@@ -496,5 +535,7 @@ namespace Psycko
             gameState.TurnManager = turnManager ?? new TurnManager(gameState.Players);
             return gameState;
         }
+        
+        #endregion
     }
 }

@@ -12,6 +12,7 @@ namespace Psycko
     /// </summary>
     public static class PreGameSwap
     {
+        #region Determine First Player Utilities
         /// <summary>
         /// Ordre de priorité des couleurs pour la détermination du premier joueur,
         /// INDÉPENDANT de l'enum CardSuit (dont les valeurs numériques ne correspondent pas
@@ -125,5 +126,66 @@ namespace Psycko
 
             return bestPlayer;
         }
+
+        #endregion
+
+        #region Bots AutoSwap Utilities
+        
+        private static readonly Random _random = new Random();
+
+        /// <summary>
+        /// Effectue un swap aléatoire pour un bot durant la phase d'échange pré-jeu.
+        /// Simule un comportement "simple" : le bot décide aléatoirement s'il swap (0 à 3 fois),
+        /// puis choisit aléatoirement une carte main + une carte face-up à échanger à chaque fois.
+        /// Utilise une seed dédiée (via GameSeed.DerivePlayerSeed) pour rester reproductible en simulation.
+        /// </summary>
+        public static void AutoSwapForBot(Player bot, int seed = -1)
+        {
+            if (bot == null)
+                return;
+
+            Random rng = seed >= 0 ? new Random(seed) : _random;
+
+            // Le bot décide aléatoirement combien de swaps il tente (0 à 3)
+            int swapCount = rng.Next(0, 4);
+
+            for (int i = 0; i < swapCount; i++)
+            {
+                if (bot.Hand.Count == 0 || bot.FaceUp.Count == 0)
+                    break;
+
+                Card handCard = bot.Hand[rng.Next(bot.Hand.Count)];
+                Card faceUpCard = bot.FaceUp[rng.Next(bot.FaceUp.Count)];
+
+                SwapHandWithFaceUp(bot, handCard, faceUpCard);
+            }
+
+            MarkReady(bot);
+        }
+
+        /// <summary>
+        /// Applique AutoSwapForBot à une collection de bots, en dérivant une seed par bot
+        /// depuis une seed racine de partie (reproductibilité totale en simulation de masse).
+        /// L'ordre d'itération de players DOIT correspondre à l'ordre des seats (0,1,2...)
+        /// utilisé ailleurs (Deck, RandomBot) pour que la dérivation de seed soit cohérente.
+        /// </summary>
+        public static void AutoSwapForAllBots(IEnumerable<Player> bots, int rootSeed = -1)
+        {
+            if (bots == null)
+                return;
+
+            int seatIndex = 0;
+            foreach (Player bot in bots)
+            {
+                int botSeed = rootSeed >= 0
+                    ? Psycko.Core.GameSeed.DerivePlayerSeed(rootSeed, seatIndex)
+                    : -1;
+
+                AutoSwapForBot(bot, botSeed);
+                seatIndex++;
+            }
+        }
+
+        #endregion
     }
 }

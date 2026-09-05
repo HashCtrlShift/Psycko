@@ -1,0 +1,6 @@
+C:\Users\raphs\Psycko\Tools\PsyckoConsole\obj\Debug\net8.0\Psycko.Console.csproj.AssemblyReference.cache
+C:\Users\raphs\Psycko\Tools\PsyckoConsole\obj\Debug\net8.0\Psycko.Console.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\raphs\Psycko\Tools\PsyckoConsole\obj\Debug\net8.0\Psycko.Console.AssemblyInfoInputs.cache
+C:\Users\raphs\Psycko\Tools\PsyckoConsole\obj\Debug\net8.0\Psycko.Console.AssemblyInfo.cs
+C:\Users\raphs\Psycko\Tools\PsyckoConsole\obj\Debug\net8.0\Psycko.Console.csproj.CoreCompileInputs.cache
+C:\Users\raphs\Psycko\Tools\PsyckoConsole\obj\Debug\net8.0\Psycko.Console.sourcelink.json

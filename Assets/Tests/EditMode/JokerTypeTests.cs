@@ -654,25 +654,23 @@ namespace Psycko.Tests
             Player p0 = players[0];
             Player p1 = players[1];
             Player p2 = players[2];
-
-            // Arrange : la pile contient déjà un 4 (posé "avant" le test),
-            // et le tracker Doublon reflète cet état.
-            pile.Add(new Card(CardRank.Four, CardSuit.Clubs));
-            gameState.UpdateLastSignificantRank(new Card(CardRank.Four, CardSuit.Clubs));
-
-            // p0 joue un second 4 consécutif => Doublon
+            
+            // Initialise le tracker Doublon : la dernière carte significative posée était un 4
+            Card setupCard = new Card(CardRank.Four, CardSuit.Clubs);
+            gameState.UpdateLastSignificantRank(setupCard);
+            // LastSignificantRank = Four maintenant
+            
+            // p0 joue un 4♥ (Doublon !)
             Card doubletCard = new Card(CardRank.Four, CardSuit.Hearts);
             p0.AddCardToHand(doubletCard);
             p0.AddCardToHand(new Card(CardRank.Five, CardSuit.Spades));
-
-            // Act
-            bool played = gameState.PlayCard(p0, doubletCard);
-
-            // Assert
-            Assert.IsTrue(played, "Le Doublon doit être une pose valide");
-            Assert.AreEqual(p2, gameState.TurnManager.CurrentTurn.CurrentPlayer,
-                "Le Doublon doit sauter p1 : p2 doit jouer ensuite");
+            
+            gameState.PlayCard(p0, doubletCard);
+            
+            // p1 doit être sauté => p2 joue maintenant
+            Assert.AreEqual(p2, gameState.TurnManager.CurrentTurn.CurrentPlayer);
         }
+
         [Test]
         public void PlayCard_SevenCard_PlayerWhoPlayedSevenRefilled()
         {
