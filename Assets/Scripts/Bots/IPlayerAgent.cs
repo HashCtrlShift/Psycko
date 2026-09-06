@@ -1,20 +1,19 @@
 using System.Collections.Generic;
-using Psycko.Core;
+using Psycko;
 
-namespace Psycko
+namespace Psycko.Bots
 {
-    /// <summary>
-    /// Interface commune à tout agent capable de décider d'un coup à jouer.
-    /// Implémentée par RandomBot pour l'instant ; futurs bots plus complexes
-    /// (heuristiques, ML) implémenteront la même interface.
-    /// </summary>
     public interface IPlayerAgent
     {
         /// <summary>
-        /// Choisit une carte à jouer parmi les cartes légales fournies.
-        /// Retourne null si l'agent décide de ramasser la pile (aucun coup jouable
-        /// ou choix délibéré de ramasser).
+        /// Le joueur choisit les cartes à jouer (1-4 de même rang) ou null/empty pour ramasser.
         /// </summary>
-        Card? ChooseCard(Player player, GameState gameState, IReadOnlyList<Card> legalCards);
+        List<Card> ChooseCards(Player player, GameState gameState);
+
+        /// <summary>
+        /// Le joueur choisit quelle carte donner lors d'un 7 (Don).
+        /// Retourne null si pas de carte à donner.
+        /// </summary>
+        Card? ChooseGiftCard(Player giver, Player receiver);  
     }
 }

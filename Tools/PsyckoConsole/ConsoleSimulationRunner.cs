@@ -90,10 +90,8 @@ namespace Psycko.Console
         /// Simule une partie et retourne le nombre de coups joués.
         /// Gère les erreurs : si une erreur est levée, la retourne à Run() pour log.
         /// </summary>
-        private int SimulateGame(ConsoleGameRunner runner)
+            private int SimulateGame(ConsoleGameRunner runner)
         {
-            // Accès direct aux champs privés via réflexion (hack simulation)
-            // Mieux : rendre _gameState public ou passer par une interface
             var gameStateField = typeof(ConsoleGameRunner).GetField("_gameState", 
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             var agentsField = typeof(ConsoleGameRunner).GetField("_agents",
@@ -111,28 +109,86 @@ namespace Psycko.Console
             {
                 Player player = gameState.TurnManager.CurrentTurn.CurrentPlayer;
 
+                // ✅ GESTION DES TRANSITIONS DE PHASE
+                ApplyPhaseTransitions(player, gameState);
+
                 if (!agents.ContainsKey(player.Id))
                     throw new InvalidOperationException($"Agent manquant pour {player.Name}");
 
                 List<Card> legalCards = RandomBot.GetLegalCards(player, gameState);
-                Card chosenCard = agents[player.Id].ChooseCard(player, gameState, legalCards);
+                Card? chosenCard = agents[player.Id].ChooseCard(player, gameState, legalCards);
 
                 if (chosenCard == null)
-                    throw new InvalidOperationException($"{player.Name} a retourné null (ramassage obligatoire)."); // À gérer si ramassage automatique existe
+                {
+                    bool ramasse = gameState.PickUpPile(player);
 
-                bool success = gameState.PlayCard(player, chosenCard);
+                    if (!ramasse)
+                        throw new InvalidOperationException(
+                            $"{player.Name} n'a aucun coup légal alors que la pile est vide — incohérence (main vide ou bug de détection).");
 
-                if (!success)
-                    throw new InvalidOperationException($"Pose invalide : {player.Name} a joué {chosenCard} illégalement.");
+                    gameState.TurnManager.HandlePlayerPickedUp();
+                    moveCount++;
 
-                moveCount++;
+                    if (moveCount > 10000)
+                        throw new InvalidOperationException("Partie excède 10 000 coups — boucle infinie ?");
 
-                // Sécurité : évite les boucles infinies (limite arbitraire 10k coups/partie)
+                    continue;
+                }
+
+                bool success = gameState.PlayCard(player, chosenCard.Value);
+                if (success)
+                {
+                    moveCount++;
+                }
+
                 if (moveCount > 10000)
                     throw new InvalidOperationException("Partie excède 10 000 coups — boucle infinie ?");
             }
 
             return moveCount;
+        }
+
+        /// <summary>
+        /// Applique les transitions de phase nécessaires pour le joueur courant.
+        /// </summary>
+        private void ApplyPhaseTransitions(Player player, GameState gameState)
+        {
+            // Phase Travail → Talent
+            if (player.CurrentPhase == GamePhase.Travail &&
+                player.Hand.Count == 0 &&
+                gameState.Deck.Count == 0 &&
+                player.FaceUp.Count > 0)
+            {
+                player.CurrentPhase = GamePhase.Talent;
+            }
+
+            // Talent : fusion FaceUp → Main
+            if (player.CurrentPhase == GamePhase.Talent &&
+                player.Hand.Count == 0 &&
+                gameState.Deck.Count == 0 &&
+                player.FaceUp.Count > 0)
+            {
+                player.Hand.AddRange(player.FaceUp);
+                player.FaceUp.Clear();
+            }
+
+            // Talent → Chance
+            if (player.CurrentPhase == GamePhase.Talent &&
+                player.Hand.Count == 0 &&
+                gameState.Deck.Count == 0 &&
+                player.FaceDown.Count > 0)
+            {
+                player.CurrentPhase = GamePhase.Chance;
+            }
+
+            // Chance → Victoire
+            if (player.CurrentPhase == GamePhase.Chance &&
+                player.Hand.Count == 0 &&
+                player.FaceUp.Count == 0 &&
+                player.FaceDown.Count == 0)
+            {
+                player.HasWon = true;
+            }
         }
     }
 }

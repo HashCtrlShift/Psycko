@@ -1,122 +1,62 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using Psycko;
+using Psycko.Core;
+using Psycko.Bots;
 
 namespace Psycko.Console
 {
-    public static class Program
+    class Program
     {
-        public static void Main(string[] args)
+        static void Main(string[] args)
         {
             System.Console.WriteLine("=== Psycko Console ===");
-            System.Console.WriteLine("1. Mode interactif (vs bots)");
-            System.Console.WriteLine("2. Mode simulation de masse");
-            System.Console.WriteLine("3. Replay depuis une seed connue");
-            System.Console.Write("Choix: ");
+            System.Console.WriteLine("Mode interactif uniquement (vs bots)");
+            System.Console.WriteLine();
 
-            string choice = System.Console.ReadLine();
-
-            switch (choice)
-            {
-                case "1":
-                    RunInteractive();
-                    break;
-                case "2":
-                    RunSimulation();
-                    break;
-                case "3":
-                    RunReplay();
-                    break;
-                default:
-                    System.Console.WriteLine("Choix invalide.");
-                    break;
-            }
-        }
-
-        private static void RunInteractive()
-        {
             System.Console.Write("Nombre de joueurs (2-4): ");
-            if (!int.TryParse(System.Console.ReadLine(), out int totalPlayers) || totalPlayers < 2 || totalPlayers > 4)
-                totalPlayers = 4;
+            if (!int.TryParse(System.Console.ReadLine(), out int playerCount) || playerCount < 2 || playerCount > 4)
+            {
+                System.Console.WriteLine("Entrée invalide.");
+                return;
+            }
 
-            System.Console.Write("Nombre de joueurs humains (0-4): ");
-            if (!int.TryParse(System.Console.ReadLine(), out int humanCount) || humanCount < 0 || humanCount > 4)
-                humanCount = 1;
+            System.Console.Write("Nombre de joueurs humains (0-N): ");
+            if (!int.TryParse(System.Console.ReadLine(), out int humanCount) || humanCount < 0 || humanCount > playerCount)
+            {
+                System.Console.WriteLine("Entrée invalide.");
+                return;
+            }
 
-            List<int> humanSeats = new List<int>();
+            var humanSeats = new List<int>();
             for (int i = 0; i < humanCount; i++)
             {
-                System.Console.Write($"Position (siège 0-{totalPlayers - 1}) du joueur humain #{i + 1}: ");
-                if (int.TryParse(System.Console.ReadLine(), out int seat) && seat >= 0 && seat < totalPlayers)
+                System.Console.Write($"Position (siège 0-{playerCount - 1}) du joueur humain #{i + 1}: ");
+                if (!int.TryParse(System.Console.ReadLine(), out int seat) || seat < 0 || seat >= playerCount)
                 {
-                    humanSeats.Add(seat);
+                    System.Console.WriteLine("Entrée invalide.");
+                    return;
                 }
-                else
-                {
-                    humanSeats.Add(i % totalPlayers);
-                }
+                humanSeats.Add(seat);
             }
 
             System.Console.Write("Seed racine (laisser vide pour aléatoire): ");
-            string seedInput = System.Console.ReadLine();
-            int rootSeed = string.IsNullOrWhiteSpace(seedInput)
-                ? new Random().Next(1, int.MaxValue)
-                : int.Parse(seedInput);
+            string seedInput = System.Console.ReadLine() ?? "";
+            int rootSeed = string.IsNullOrWhiteSpace(seedInput) ? new Random().Next() : int.Parse(seedInput);
 
-            try
+            System.Console.WriteLine();
+            System.Console.WriteLine($"=== Nouvelle partie interactive — Seed racine: {rootSeed} ===");
+
+            // ✅ À faire : créer ConsoleGameRunner simplifié ou appeler GameState directement
+            // Pour l'instant, on peut faire un test simple :
+            var players = new List<Player>();
+            for (int i = 0; i < playerCount; i++)
             {
-                var runner = new ConsoleGameRunner(rootSeed, totalPlayers, humanSeats, "Logs/Interactif");
-                runner.Run();
+                players.Add(new Player($"Player{i}", i < humanCount ? $"Human{i}" : $"Bot{i}"));
             }
-            catch (Exception ex)
-            {
-                System.Console.WriteLine($"[ERREUR] {ex.Message}");
-                System.Console.WriteLine(ex.StackTrace);
-            }
-        }
 
-        private static void RunSimulation()
-        {
-            System.Console.Write("Nombre de parties à simuler: ");
-            if (!int.TryParse(System.Console.ReadLine(), out int numberOfGames) || numberOfGames < 1)
-                numberOfGames = 1000;
-
-            System.Console.Write("Seed de session (laisser vide pour aléatoire): ");
-            string seedInput = System.Console.ReadLine();
-            int sessionSeed = string.IsNullOrWhiteSpace(seedInput)
-                ? new Random().Next(1, int.MaxValue)
-                : int.Parse(seedInput);
-
-            try
-            {
-                var runner = new ConsoleSimulationRunner(numberOfGames, sessionSeed, "Logs/Simulation");
-                runner.Run();
-            }
-            catch (Exception ex)
-            {
-                System.Console.WriteLine($"[ERREUR] {ex.Message}");
-                System.Console.WriteLine(ex.StackTrace);
-            }
-        }
-
-        private static void RunReplay()
-        {
-            System.Console.Write("Seed racine de la partie à rejouer: ");
-            if (!int.TryParse(System.Console.ReadLine(), out int rootSeed))
-                rootSeed = 12345;
-
-            System.Console.WriteLine("Replay 100% bots (déterministe) — affichage compact:");
-
-            try
-            {
-                var runner = new ConsoleGameRunner(rootSeed, 4, new List<int>(), "Logs/Replay");
-                runner.Run();
-            }
-            catch (Exception ex)
-            {
-                System.Console.WriteLine($"[ERREUR] {ex.Message}");
-                System.Console.WriteLine(ex.StackTrace);
-            }
+            var gameState = new GameState(players, new Pile(), new Deck(rootSeed));
+            System.Console.WriteLine($"Partie créée. Phase: {gameState.CurrentPhase}, {gameState.Players.Count} joueurs.");
+            System.Console.WriteLine("TODO: intégrer gameplay interactif ici");
         }
     }
 }
