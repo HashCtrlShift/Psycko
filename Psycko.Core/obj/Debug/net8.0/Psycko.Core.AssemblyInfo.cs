@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Psycko.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ac6255518e4871cad8a19fb3b48695a6db47fbb8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+05324665631374436f5bd6e7981063c92a5b93c1")]
 [assembly: System.Reflection.AssemblyProductAttribute("Psycko.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Psycko.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

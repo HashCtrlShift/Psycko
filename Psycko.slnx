@@ -1,5 +1,2 @@
 ﻿<Solution>
-  <Project Path="Psycko.Core.csproj" />
-  <Project Path="Psycko.Tests.csproj" />
-  <Project Path="Psycko.Bots.csproj" />
 </Solution>
