@@ -439,78 +439,81 @@ Psycko/
 ├── CLAUDE.md
 ├── .editorconfig
 ├── .gitignore
+├── Psycko.slnx
 │
-├── Psycko.Core/                          (C# pur, zéro dépendance Unity)
-│   ├── Psycko.Core.csproj
-│   ├── Domain/
-│   │   ├── Card.cs
-│   │   ├── Deck.cs
-│   │   ├── Pile.cs
-│   │   ├── Player.cs
-│   │   └── GameState.cs
-│   ├── Rules/
-│   │   ├── Comparison/
-│   │   │   └── HeightComparison.cs
-│   │   ├── Detection/
-│   │   │   ├── PairDetection.cs
-│   │   │   └── QuadDetection.cs
-│   │   ├── Validation/
-│   │   │   ├── CardPlayability.cs
-│   │   │   └── LastCardValidator.cs
-│   │   ├── Phase/
-│   │   │   ├── PhaseResolver.cs         (abstrait)
-│   │   │   ├── WorkPhaseResolver.cs     (Phase 1 - Le Travail)
-│   │   │   ├── TalentPhaseResolver.cs   (Phase 2 - Le Talent)
-│   │   │   └── LuckPhaseResolver.cs     (Phase 3 - La Chance)
-│   │   ├── SpecialCards/
-│   │   │   ├── SevenHandler.cs
-│   │   │   ├── TwoHandler.cs
-│   │   │   ├── JackHandler.cs
-│   │   │   └── PriestHandler.cs
-│   │   └── Jokers/
-│   │       ├── GlassJokerResolver.cs
-│   │       ├── BlackJokerResolver.cs
-│   │       └── ColorJokerResolver.cs
-│   ├── Interfaces/
-│   │   ├── IGameStateQuery.cs
-│   │   ├── IGameStateCommand.cs
-│   │   └── ICardPlayabilityChecker.cs
-│   └── Services/
-│       ├── GameOrchestrator.cs
-│       ├── TurnManager.cs
-│       ├──GameResultCalculator.cs
-│       ├── GameSeed.cs          (génération + stockage de la seed RNG d'une partie)
-│       └── GameLogRecorder.cs   (enregistre chaque action/coup avec horodatage/tour)
+├── Assets/
+│   ├── Scripts/
+│   │   ├── Core/                          (C# pur, zéro dépendance Unity — noEngineReferences: true)
+│   │   │   ├── Psycko.Core.asmdef
+│   │   │   ├── Domain/
+│   │   │   │   ├── Card.cs
+│   │   │   │   ├── Deck.cs
+│   │   │   │   ├── Pile.cs
+│   │   │   │   ├── Player.cs
+│   │   │   │   └── GameState.cs
+│   │   │   ├── Rules/
+│   │   │   │   ├── Comparison/
+│   │   │   │   │   └── HeightComparison.cs
+│   │   │   │   ├── Detection/
+│   │   │   │   │   ├── PairDetection.cs
+│   │   │   │   │   └── QuadDetection.cs
+│   │   │   │   ├── Validation/
+│   │   │   │   │   ├── CardPlayability.cs
+│   │   │   │   │   └── LastCardValidator.cs
+│   │   │   │   ├── Phase/
+│   │   │   │   │   ├── PhaseResolver.cs         (abstrait)
+│   │   │   │   │   ├── WorkPhaseResolver.cs     (Phase 1 - Le Travail)
+│   │   │   │   │   ├── TalentPhaseResolver.cs   (Phase 2 - Le Talent)
+│   │   │   │   │   └── LuckPhaseResolver.cs     (Phase 3 - La Chance)
+│   │   │   │   ├── SpecialCards/
+│   │   │   │   │   ├── SevenHandler.cs
+│   │   │   │   │   ├── TwoHandler.cs
+│   │   │   │   │   ├── JackHandler.cs
+│   │   │   │   │   └── PriestHandler.cs
+│   │   │   │   └── Jokers/
+│   │   │   │       ├── GlassJokerResolver.cs
+│   │   │   │       ├── BlackJokerResolver.cs
+│   │   │   │       └── ColorJokerResolver.cs
+│   │   │   ├── Interfaces/
+│   │   │   │   ├── IGameStateQuery.cs
+│   │   │   │   ├── IGameStateCommand.cs
+│   │   │   │   └── ICardPlayabilityChecker.cs
+│   │   │   └── Services/
+│   │   │       ├── GameOrchestrator.cs
+│   │   │       ├── TurnManager.cs
+│   │   │       ├── GameResultCalculator.cs
+│   │   │       ├── GameSeed.cs          (génération + stockage de la seed RNG d'une partie)
+│   │   │       └── GameLogRecorder.cs   (enregistre chaque action/coup avec horodatage/tour)
+│   │   │
+│   │   ├── Bots/                          (C# pur, dépend Core — noEngineReferences: true)
+│   │   │   ├── Psycko.Bots.asmdef
+│   │   │   ├── IPlayerAgent.cs
+│   │   │   └── RandomBot.cs
+│   │   │
+│   │   └── Presentation/                  (Unity 2D, dépend Core + Bots, zéro logique de jeu)
+│   │       ├── UI/
+│   │       │   ├── CardView.cs
+│   │       │   ├── ZoneView.cs
+│   │       │   ├── PlayerSeatView.cs
+│   │       │   └── GameTableView.cs
+│   │       ├── Controllers/
+│   │       │   ├── GameplayController.cs
+│   │       │   ├── InputHandler.cs
+│   │       │   └── AnimationController.cs
+│   │       ├── Models/
+│   │       │   ├── CardSkinDefinition.cs
+│   │       │   └── HumanSelectionState.cs
+│   │       └── Scenes/
+│   │           └── GameplayLocal.unity
+│   │
+│   └── Tests/
+│       └── EditMode/                      (NUnit EditMode, miroir de la structure Core, 1 fichier de test par fichier de règle)
+│           └── Psycko.Core.Tests.asmdef   (références: Psycko.Core, Psycko.Bots)
 │
-├── Psycko.Bots/                          (C# pur, dépend Core)
-│   ├── Psycko.Bots.csproj
-│   ├── IPlayerAgent.cs
-│   └── RandomBot.cs
-│
-├── Psycko.Core.Tests/                    (NUnit EditMode)
-│   └── (miroir de la structure Core, 1 fichier de test par fichier de règle)
-│
-├── Tools/
-│   └── PsyckoConsole/                    (app console dotnet, simulation de parties + parties humain contre bots)
-│
-└── Assets/
-    └── Scripts/
-        └── Presentation/                 (Unity 2D, dépend Core + Bots, zéro logique de jeu)
-            ├── UI/
-            │   ├── CardView.cs
-            │   ├── ZoneView.cs
-            │   ├── PlayerSeatView.cs
-            │   └── GameTableView.cs
-            ├── Controllers/
-            │   ├── GameplayController.cs
-            │   ├── InputHandler.cs
-            │   └── AnimationController.cs
-            ├── Models/
-            │   ├── CardSkinDefinition.cs
-            │   └── HumanSelectionState.cs
-            └── Scenes/
-                └── GameplayLocal.unity 
-
+└── Tools/
+    └── PsyckoConsole/                     (app console dotnet, simulation de parties + parties humain contre bots)
+        └── PsyckoConsole.csproj           (Compile Include relatif vers Assets/Scripts/Core et Assets/Scripts/Bots)
+        
 ## Notes 
 - **Notion** : Source d'un grand nombre d'informations sur le projet 
 - **GitHub** :  Repo : https://github.com/HashCtrlShift/Psycko
