@@ -105,3 +105,14 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# --- Override: dotnet solution projects ARE tracked (Core, Bots, Tests, Tools) ---
+!Psycko.Core/**/*.csproj
+!Psycko.Bots/**/*.csproj
+!Psycko.Core.Tests/**/*.csproj
+!Tools/**/*.csproj
+!*.slnx
+
+# --- dotnet build artifacts (any subfolder) ---
+[Bb]in/
+[Oo]bj/
