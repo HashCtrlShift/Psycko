@@ -17,6 +17,7 @@
 - **Tests :** NUnit (EditMode)
 - **Versionning :** Git + GitHub Desktop
 - **Design :** Figma (UI/UX), Inkscape, GIMP
+- **Palette de marque :** Nuit #100d1f, Violet profond #26215C, Violet clair #7F77DD, Or vif #EF9F27, Or pâle #FAC775. Wordmark : Rajdhani Bold 700.
 
 ---
 
@@ -392,6 +393,45 @@ J4 : 2x Dame (cumul=4)      → Carré ! (priorité sur Doublon) Pile détruite,
   - Un Carré / Bombe / Joker Noir détruit la pile.
 
 ---
+## PowerCards — Système Méta (Hors-Scope V1, Réservé Extension Future)
+
+### Statut
+- **Hors scope des Phases 0→5 actuelles.** Aucune implémentation avant validation complète
+  du Core de base (63 cartes) + Bots + Présentation V1.
+- Réflexion et idées à consigner au fur et à mesure dans **Notion** (liste vivante, non figée).
+
+### Principe général
+- Avant le lancement de la recherche de partie, chaque joueur sélectionne **une PowerCard
+  unique** parmi celles débloquées sur son compte (progression/conditions de déblocage à définir).
+- La PowerCard est **liée au joueur**, pas au deck de la partie — elle n'est **jamais** intégrée
+  à sa main (60+3 cartes du paquet reste inchangé).
+- **Jouable à tout moment durant son tour**, peu importe la phase (1, 2 ou 3).
+- **Non-obligatoire** : un joueur peut terminer la partie (plus de cartes en main/devant lui)
+  sans avoir joué sa PowerCard — elle n'entre pas dans la condition de victoire/défaite.
+
+### Pistes d'effets (non figées, à trancher plus tard)
+- **Piste A — Duplication d'effet existant** : la PowerCard reproduit un effet déjà présent
+  dans le deck de base (Joker de Verre / Noir / Couleur, Prêtre, 2, 7, ou une hauteur forte
+  type Cavalier/Dame/Roi/As). Implémentation plus simple (réutilise les Rules existantes).
+- **Piste B — Effet inédit** : mécanique propre à la PowerCard, sans équivalent dans le deck
+  de base. Exemples en réflexion :
+  - Forcer le joueur suivant à ramasser la pile.
+  - Forçage de coup (ex. le joueur suivant doit jouer 2 cartes d'un coup ou passe son tour).
+- Les deux pistes sont envisagées comme **progression de compte** : effets de plus en plus
+  puissants débloqués à mesure que le joueur monte de niveau.
+
+### Impact anticipé sur l'architecture
+- Le Carré (`Rules/Detection/QuadDetection.cs`) a déjà une note prévoyant un seuil "≥4 peu
+  importe le total final" — anticipant qu'une PowerCard pourrait un jour dupliquer une hauteur
+  et pousser le cumul au-delà de 4 cartes simultanées.
+- Quand implémentées, les PowerCards devront s'intégrer via la couche **Interfaces**
+  (ex. `IPowerCardEffect`) sans casser l'isolation Domain/Rules — à concevoir en session dédiée.
+
+### Prochaine étape
+- Ekinox consigne les idées de PowerCards dans Notion (liste ouverte, brainstorming).
+- Reprise du sujet en session dédiée une fois le Core V1 (63 cartes) stabilisé et testé.
+
+---
 
 ## Structure du Code
 
@@ -399,7 +439,7 @@ J4 : 2x Dame (cumul=4)      → Carré ! (priorité sur Doublon) Pile détruite,
 
 
 ## Notes 
-- **Notion** : Source d'un grand nombre d'informations sur le projet
+- **Notion** : Source d'un grand nombre d'informations sur le projet 
 - **GitHub** :  Repo : https://github.com/HashCtrlShift/Psycko
 - **Chemin local** :  C:\Users\raphs\Psycko 
 
