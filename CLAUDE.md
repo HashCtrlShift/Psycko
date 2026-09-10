@@ -446,14 +446,17 @@ Psycko/
 │   │   ├── Core/                          (C# pur, zéro dépendance Unity — noEngineReferences: true)
 │   │   │   ├── Psycko.Core.asmdef
 │   │   │   ├── Domain/
-│   │   │   │   ├── Card.cs
-│   │   │   │   ├── Deck.cs
-│   │   │   │   ├── Pile.cs
-│   │   │   │   ├── Player.cs
-│   │   │   │   └── GameState.cs
+│   │   │   │   ├── Card.cs                 Création des Cartes
+│   │   │   │   ├── Deck.cs                 Création de la Pioche et Mélange
+│   │   │   │   ├── DefCard.cs              Enums des Hauteurs, Couleurs et Jokers
+│   │   │   │   ├── DefPhase.cs             Définit les Phases de Jeu
+│   │   │   │   ├── GameState.cs            Définit l'État d'une partie à un instant donné
+│   │   │   │   ├── Pile.cs                 Définit la Pile
+│   │   │   │   ├── Play.cs                 Définit un "Coup" joué
+│   │   │   │   └── Player.cs               Définit un Joueur
 │   │   │   ├── Rules/
 │   │   │   │   ├── Comparison/
-│   │   │   │   │   └── HeightComparison.cs
+│   │   │   │   │   └── HeightComparison.cs   Définit les Règles de Comparaison sur les Hauteurs >= ou <=
 │   │   │   │   ├── Detection/
 │   │   │   │   │   ├── PairDetection.cs
 │   │   │   │   │   └── QuadDetection.cs
@@ -508,12 +511,14 @@ Psycko/
 │   │
 │   └── Tests/
 │       └── EditMode/                      (NUnit EditMode, miroir de la structure Core, 1 fichier de test par fichier de règle)
-│           └── Psycko.Core.Tests.asmdef   (références: Psycko.Core, Psycko.Bots)
-│
 └── Tools/
-    └── PsyckoConsole/                     (app console dotnet, simulation de parties + parties humain contre bots)
-        └── PsyckoConsole.csproj           (Compile Include relatif vers Assets/Scripts/Core et Assets/Scripts/Bots)
-        
+    ├──  PsyckoConsole/                     (app console dotnet, simulation de parties + parties humain contre bots)
+    │    └── PsyckoConsole.csproj           (Compile Include relatif vers Assets/Scripts/Core et Assets/Scripts/Bots)
+    │    Tools/PsyckoConsole/
+    └── Formatting/
+          ├── CardFormatter.cs         (ex: "2♥", "Valet♠", "Joker de Verre")
+          ├── CardSymbols.cs           (♥ ♦ ♣ ♠ — universel, aucune langue)
+          └── ICardFormatter.cs        (contrat commun : Format(Card) → string) 
 ## Notes 
 - **Notion** : Source d'un grand nombre d'informations sur le projet 
 - **GitHub** :  Repo : https://github.com/HashCtrlShift/Psycko
