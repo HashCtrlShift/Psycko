@@ -1,5 +1,8 @@
 namespace Psycko.Core.Domain
 {
+    /// <summary>
+    /// Définit les rangs disponibles pour les cartes standards (hors Jokers).
+    /// </summary>
     public enum DefRank
 
     {
@@ -19,6 +22,9 @@ namespace Psycko.Core.Domain
         Ace = 13,        // As
         Two = 14         // 2 (ne peut pas terminer une phase)
     }
+    /// <summary>
+    /// Définit les couleurs disponibles pour les cartes standards (hors Jokers).
+    /// </summary>
     public enum DefSuit
     {
         Clubs,
@@ -27,6 +33,9 @@ namespace Psycko.Core.Domain
         Spades
     }
 
+/// <summary>
+/// Définit les types de Jokers disponibles dans le jeu.
+/// </summary>
     public enum DefJokerType
     {
         Glass,   // Joker de Verre
