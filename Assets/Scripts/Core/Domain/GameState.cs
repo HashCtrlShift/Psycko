@@ -1,19 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Psycko.Core.Rules.Comparison;
+using Psycko.Core.Interfaces;
 
 namespace Psycko.Core.Domain
 {
-    /// <summary>
-    /// Direction de jeu (sens des joueurs), inversée par le Valet.
-    /// </summary>
-    public enum PlayDirection
-    {
-        Clockwise = 0,
-        CounterClockwise = 1
-    }
-
     /// <summary>
     /// État complet et IMMUABLE d'une partie à un instant T.
     /// Agrège Joueurs, Pile, Pioche, joueur actif, sens de jeu et contrainte de hauteur.
@@ -22,7 +13,7 @@ namespace Psycko.Core.Domain
     /// La chaîne de Doublon/Carré N'EST PAS stockée ici : elle se déduit en lisant
     /// Pile.Cards (voir PairDetection/QuadDetection) — pas de duplication d'état.
     /// </summary>
-    public sealed class GameState
+    public sealed class GameState : IGameStateQuery
     {
         private readonly List<Player> _players;
         private readonly List<Card> _drawPile;
@@ -56,6 +47,9 @@ namespace Psycko.Core.Domain
         /// jamais consultée avant le premier coup posé).
         /// </summary>
         public DefRank RefRank { get; }
+
+        /// <summary>Le joueur dont c'est le tour.</summary>
+        public Player GetActivePlayer() => _players[ActivePlayerIndex];
 
         private GameState(
             List<Player> players,

@@ -380,6 +380,7 @@ J4 : 2x Dame (cumul=4)      → Carré ! (priorité sur Doublon) Pile détruite,
 ### Transparence du Joker de Verre sous contrainte Prêtre
 - Un Joker de Verre posé pendant la contrainte ≤ Prêtre est **transparent** — il ne rompt pas la contrainte.
 - La référence de hauteur **reste le Prêtre** pour le joueur suivant.
+- Si un Joker de Verre est joué sur une **Pile Vide** alors le joueur suivant n'a *pas de contrainte*. Il joue ce qu'il veut ou presque (voir autres execptions).
 
 **Exemple validé** : P1 [Prêtre] → P2 [Joker de Verre] → P3 doit jouer ≤ Prêtre.
 
@@ -449,14 +450,15 @@ Psycko/
 │   │   │   │   ├── Card.cs                 Création des Cartes
 │   │   │   │   ├── Deck.cs                 Création de la Pioche et Mélange
 │   │   │   │   ├── DefCard.cs              Enums des Hauteurs, Couleurs et Jokers
-│   │   │   │   ├── DefPhase.cs             Définit les Phases de Jeu
+│   │   │   │   ├── DefConstraint.cs        Enum des Contraintes
+│   │   │   │   ├── DefDirection.cs         Enum des Directions
+│   │   │   │   ├── DefPhase.cs             Enum des Phases de Jeu
 │   │   │   │   ├── GameState.cs            Définit l'État d'une partie à un instant donné
 │   │   │   │   ├── Pile.cs                 Définit la Pile
 │   │   │   │   ├── Play.cs                 Définit un "Coup" joué
 │   │   │   │   └── Player.cs               Définit un Joueur
 │   │   │   ├── Rules/
 │   │   │   │   ├── Comparison/
-│   │   │   │   │   └── HeightComparison.cs   Définit les Règles de Comparaison sur les Hauteurs >= ou <=
 │   │   │   │   ├── Detection/
 │   │   │   │   │   ├── PairDetection.cs
 │   │   │   │   │   └── QuadDetection.cs
@@ -478,9 +480,10 @@ Psycko/
 │   │   │   │       ├── BlackJokerResolver.cs
 │   │   │   │       └── ColorJokerResolver.cs
 │   │   │   ├── Interfaces/
-│   │   │   │   ├── IGameStateQuery.cs
-│   │   │   │   ├── IGameStateCommand.cs
-│   │   │   │   └── ICardPlayabilityChecker.cs
+│   │   │   │   ├── ICardPlayabilityChecker.cs
+│   │   │   │   ├── IGameState.cs               Interface composite
+│   │   │   │   ├── IGameStateCommand.cs        Contrat de transition
+│   │   │   │   └── IGameStateQuery.cs          Lecture seule de l'état d'une partie
 │   │   │   └── Services/
 │   │   │       ├── GameOrchestrator.cs
 │   │   │       ├── TurnManager.cs

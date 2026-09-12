@@ -80,7 +80,7 @@ namespace Psycko.Core.Domain
 
         /// <summary>
         /// Retourne une pile vide : destruction de la pile
-        /// (Carré, Joker Couleur/Bombe, Joker Noir).
+        /// (Carré, Joker Couleur/Bombe, 2).
         /// </summary>
         public Pile Cleared() => Empty;
     }
