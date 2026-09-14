@@ -309,12 +309,31 @@ J4 : 2x Dame (cumul=4)      → Carré ! (priorité sur Doublon) Pile détruite,
 - **Le Don n'est pas applicable** (pas de cartes à donner).
 - Le 7 reste simplement sur la pile sans effet.
 
-#### Phase 3 (révélation face cachée)
-- Si le joueur **retourne un 7 face cachée** à son tour en Phase 3 : **aucun Don** (effet silencieux) — pas de main disponible à ce stade.
+### Exception — Carte 7 en Phase 3 (Face Cachée vs. Main)
 
-#### Phase 3 (7 depuis la main)
-- Si le joueur **pose un 7 depuis sa main en Phase 3** (après avoir ramassé d'autres cartes) : Don applicable si la main n'est pas vide après la pose.
-- Si c'est sa dernière carte en main : Don non applicable.
+En Phase 3, un joueur dispose de deux sources de cartes :
+  • Sa main (Couche 1) — cartes en main, donables
+  • Ses cartes Face Cachée (Couche 3) — révélées directement sur la pile, NON donables
+
+Lorsqu'un joueur pose un 7 :
+
+  **Cas A — 7 joué depuis la Main (CardLayer.Hand) en Phase 3** :
+    • Le Don s'applique NORMALEMENT.
+    • Le joueur donne une carte de sa main reconstituée (après éventuelle pioche).
+
+  **Cas B — 7 révélé depuis Face Cachée (CardLayer.FaceDown) en Phase 3** :
+    • AUCUN DON n'est déclenché (effet silencieux).
+    • Raison : Une carte Face Cachée n'a jamais transité par la main du joueur 
+      — elle est révélée directement sur la pile. Il n'existe donc aucune main 
+      « constituée pour ce 7 » à partir de laquelle on pourrait donner.
+
+Cette distinction s'exprime via :
+  • play.SourceLayer == CardLayer.Hand   → Don possible (si main non vide)
+  • play.SourceLayer == CardLayer.FaceDown → Don impossible (effet silencieux)
+
+**Corollaire critique** : Un joueur en Phase 3 ne peut JAMAIS donner une carte 
+Face Cachée, même s'il en a en Couche 3. Il ne peut donner que des cartes de sa 
+main reconstituée.
 
 #### Cas général (pas de transition de phase)
 - Le Don n'est possible **que si le joueur a encore des cartes en main** au moment de poser le 7.
@@ -434,6 +453,98 @@ J4 : 2x Dame (cumul=4)      → Carré ! (priorité sur Doublon) Pile détruite,
 
 ---
 
+### CardLayer — Provenance d'une Carte jouée
+
+Un Play provient toujours d'UNE SEULE couche du joueur, jamais d'un mélange.
+Les trois couches sont :
+- CardLayer.Hand        : Main du joueur (Phase 1 principalement, mais aussi Phase 2 et Phase 3)
+- CardLayer.FaceUp      : Cartes Face Découverte devant le joueur (Phase 2, ramassage en fin de phase)
+- CardLayer.FaceDown    : Cartes Face Cachée, révélées directement sur la pile (Phase 3 uniquement)
+
+Utilité : Certains effets spéciaux (notamment le 7 / Don) dépendent de la provenance réelle 
+de la carte, indépendamment de la phase. Une carte révélée depuis FaceDown (Phase 3) 
+ne peut pas déclencher un Don, car le joueur n'a pas de main constituée pour ce 7.
+
+Cette information est portée par Play.SourceLayer (enum CardLayer, valeur par défaut Hand).
+
+---
+
+### Ordre Strict d'Application des Effets
+
+Lorsqu'un joueur pose un ou plusieurs cartes, l'ordre suivant DOIT être respecté 
+(c'est le rôle de TurnManager) :
+
+  1. POSE : Les cartes quittent leur couche (main, FaceUp, ou FaceDown) et entrent 
+     dans Pile.
+  
+  2. RECONSTRUCTION : Reconstitution complète de la main du poseur :
+     - DrawCards (pioche si main < 3 et pioche non épuisée)
+     - AdvancePlayerPhase + ramassage des FaceUp (transition Phase 1→2 uniquement)
+     - Ré-pioche si main < 3 et pioche non épuisée après ramassage
+  
+  3. EFFETS SPÉCIAUX DE CARTES: l'effet d'une carte posée est interrogé ICI.
+     À ce stade, la main est dans son état final et peut être donnée si elle est 
+     non vide.
+  
+  4. RE-PIOCHE FINALE : Ré-pioche si main < 3 et pioche non épuisée 
+     (après Don le cas échéant).
+  
+  5. EFFETS DE PILE : Évaluation Doublon/Carré en relisant Pile.Cards.
+     - Doublon → skip du joueur suivant
+     - Carré → destruction de la pile + rejeu du poseur
+  
+  6. JOUEUR SUIVANT : Transition du tour (PlayDirection).
+
+⚠️ CRITÈRE : Interroger un handler d'effet de main (ex. SevenHandler) à l'étape 1 
+(avant reconstitution) produirait des Dons silencieux à tort. Un 7 en dernière carte 
+doit permettre au joueur de donner la carte qu'il vient de piocher à l'étape 2.
+
+---
+
+### Contrat des Handlers Rules/SpecialCards/
+
+Tous les handlers SpecialCards (SevenHandler, TwoHandler, JackHandler, PriestHandler) 
+respectent l'interface uniforme suivante :
+
+  • (HeightConstraint Mode, DefRank RefRank) ResolveConstraint(IGameStateQuery state)
+    Retourne la contrainte imposée par ce coup. Jamais null : une pile vide 
+    s'exprime par (Normal, Three).
+
+  • PlayDirection ResolveDirection(IGameStateQuery state)
+    Retourne le sens de jeu après ce coup (identique à state.Direction sauf Valet).
+
+  • bool DestroysPile
+    Propriété statique : true si ce coup détruit la pile courante.
+
+  • bool GrantsReplay
+    Propriété statique : true si le poseur rejoue après ce coup.
+
+  • [Membres spécifiques au handler]
+    Ajoutés uniquement si l'effet l'exige (ex. TwoHandler.ResolveReplayingPlayer(), 
+    SevenHandler.IsGiftTriggered()).
+
+Chaque handler est une classe statique, jamais instancié. Il reçoit toujours 
+IGameStateQuery (lecture seule), jamais le type concret GameState.
+
+Les handlers DÉCLARENT les effets (« un Don est dû »), ils ne les APPLIQUENT jamais.
+L'application relève de Rules/Phase (PhaseResolver) ou de Services/.
+
+---
+
+### Priorité et Imbrication des Effets
+
+Lorsque plusieurs effets sont possibles sur le même coup (ex. Carré + effet spécial 
+d'une carte), l'ordre de priorité est :
+
+  1. Effets spéciaux (Prêtre, 2, 7, Joker de Verre, etc.)
+  2. Détection Carré (≥ 4 cartes de même hauteur) → Destruction pile + rejeu
+  3. Détection Doublon (≥ 2 cartes de même hauteur) → Skip joueur suivant
+
+Note : Ces trois évaluations se font sur la MÊME pile avant de passer au tour suivant.
+Seule la Carré interrompt la chaîne Doublon et réinitialise la pile.
+
+---
+
 ## Structure du Code
 
 Psycko/
@@ -452,6 +563,7 @@ Psycko/
 │   │   │   │   ├── DefCard.cs              Enums des Hauteurs, Couleurs et Jokers
 │   │   │   │   ├── DefConstraint.cs        Enum des Contraintes
 │   │   │   │   ├── DefDirection.cs         Enum des Directions
+│   │   │   │   ├── DefLayer.cs             Enum de l'Origine d'une carte lorsqu'elle est jouée
 │   │   │   │   ├── DefPhase.cs             Enum des Phases de Jeu
 │   │   │   │   ├── GameState.cs            Définit l'État d'une partie à un instant donné
 │   │   │   │   ├── Pile.cs                 Définit la Pile

@@ -34,24 +34,35 @@ namespace Psycko.Core.Domain
         /// <summary>Nombre de cartes posées dans ce coup.</summary>
         public int Count => Cards.Count;
 
+        /// <summary>
+        /// Couche d'origine des cartes de ce Play. Toujours Hand en Phase 1.
+        /// Peut être FaceUp (Phase 2) ou FaceDown (Phase 3, révélation directe).
+        /// </summary>
+        public CardLayer SourceLayer { get; }
+
         private Play(
             IReadOnlyList<Card> cards,
             int playerId,
             DefRank? effectiveRank,
-            DefJokerType? jokerType)
+            DefJokerType? jokerType,
+            CardLayer sourceLayer)
         {
             Cards = cards;
             PlayerId = playerId;
             EffectiveRank = effectiveRank;
             JokerType = jokerType;
+            SourceLayer = sourceLayer;
         }
 
         /// <summary>
-        /// Construit un coup à partir des cartes quittant la main du joueur.
+        /// Construit un coup à partir des cartes quittant une couche du joueur.
         /// Valide uniquement la COHÉRENCE STRUCTURELLE (pas la légalité de jeu) :
         /// non vide, pas de mélange Joker/standard, hauteur unique, un seul Joker.
         /// </summary>
-        public static Play Create(int playerId, IEnumerable<Card> cards)
+        public static Play Create(
+            int playerId,
+            IEnumerable<Card> cards,
+            CardLayer sourceLayer = CardLayer.Hand)
         {
             if (cards is null)
                 throw new ArgumentNullException(nameof(cards));
@@ -78,7 +89,8 @@ namespace Psycko.Core.Domain
                     cards: list,
                     playerId: playerId,
                     effectiveRank: null,
-                    jokerType: joker.JokerType);
+                    jokerType: joker.JokerType,
+                    sourceLayer: sourceLayer);
             }
 
             // Cas standard : toutes les cartes doivent partager la même hauteur.
@@ -93,11 +105,15 @@ namespace Psycko.Core.Domain
                 cards: list,
                 playerId: playerId,
                 effectiveRank: rank,
-                jokerType: null);
+                jokerType: null,
+                sourceLayer: sourceLayer);
         }
 
         /// <summary>Raccourci pour un coup d'une seule carte.</summary>
-        public static Play CreateSingle(int playerId, Card card)
-            => Create(playerId, new[] { card });
+        public static Play CreateSingle(
+            int playerId,
+            Card card,
+            CardLayer sourceLayer = CardLayer.Hand)
+            => Create(playerId, new[] { card }, sourceLayer);
     }
 }
