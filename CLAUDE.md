@@ -471,14 +471,14 @@ Psycko/
 │   │   │   │   │   ├── TalentPhaseResolver.cs   (Phase 2 - Le Talent)
 │   │   │   │   │   └── LuckPhaseResolver.cs     (Phase 3 - La Chance)
 │   │   │   │   ├── SpecialCards/
+│   │   │   │   │   ├── JackHandler.cs         Définit le Valet
+│   │   │   │   │   ├── PriestHandler.cs       Définit le Prêtre
 │   │   │   │   │   ├── SevenHandler.cs
-│   │   │   │   │   ├── TwoHandler.cs
-│   │   │   │   │   ├── JackHandler.cs
-│   │   │   │   │   └── PriestHandler.cs
+│   │   │   │   │   └── TwoHandler.cs          Définit le 2
 │   │   │   │   └── Jokers/
-│   │   │   │       ├── GlassJokerResolver.cs
-│   │   │   │       ├── BlackJokerResolver.cs
-│   │   │   │       └── ColorJokerResolver.cs
+│   │   │   │       ├── GlassJokerResolver.cs   Définit le Joker de Verre
+│   │   │   │       ├── BlackJokerResolver.cs   Définit le Joker Noir
+│   │   │   │       └── ColorJokerResolver.cs   Définit le Joker Couleur
 │   │   │   ├── Interfaces/
 │   │   │   │   ├── ICardPlayabilityChecker.cs
 │   │   │   │   ├── IGameState.cs               Interface composite

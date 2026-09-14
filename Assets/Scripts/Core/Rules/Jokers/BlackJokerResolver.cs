@@ -21,7 +21,7 @@ namespace Psycko.Core.Rules.Jokers
         /// Toujours true : le Joker Noir est jouable quelle que soit la contrainte
         /// active, y compris sur une pile vide.
         /// </summary>
-        public static bool IsAlwaysPlayable(IGameStateQuery state) => true;
+        public static bool IsAlwaysPlayable => true;
 
         /// <summary>
         /// Contrainte transmise au joueur suivant : toujours neutre.
@@ -40,6 +40,6 @@ namespace Psycko.Core.Rules.Jokers
         /// Toujours true : la pose d'un Joker Noir efface la contrainte de hauteur
         /// en cours, quel que soit l'état précédent (y compris pile vide).
         /// </summary>
-        public static bool ResetsConstraint(IGameStateQuery state) => true;
+        public static bool ResetsConstraint => true;
     }
 }

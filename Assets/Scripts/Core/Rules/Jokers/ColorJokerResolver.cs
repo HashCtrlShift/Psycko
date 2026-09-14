@@ -10,7 +10,7 @@ namespace Psycko.Core.Rules.Jokers
     /// cas dégénéré, aucun no-op.
     /// ⚠️ DIVERGENCE ASSUMÉE AVEC LE CARRÉ : après un Carré, c'est le POSEUR qui
     /// rejoue et ouvre la nouvelle pile. Après une Bombe, c'est le JOUEUR SUIVANT.
-    /// Cette asymétrie est volontaire (arbitrage Ekinox) — ne pas « corriger »
+    /// Cette asymétrie est volontaire — ne pas « corriger »
     /// par alignement sur QuadDetection.
     /// La nouvelle pile étant vide, aucune contrainte de hauteur ne subsiste.
     /// </summary>
@@ -20,19 +20,19 @@ namespace Psycko.Core.Rules.Jokers
         /// Toujours true : la Bombe est jouable quelle que soit la contrainte active,
         /// y compris sur une pile vide.
         /// </summary>
-        public static bool IsAlwaysPlayable(IGameStateQuery state) => true;
+        public static bool IsAlwaysPlayable => true;
 
         /// <summary>
         /// Toujours true : la pile est intégralement détruite après la pose.
         /// L'appelant (Services/) applique la transition via Pile.Cleared().
         /// </summary>
-        public static bool DestroysPile(IGameStateQuery state) => true;
+        public static bool DestroysPile => true;
 
         /// <summary>
         /// Toujours false : contrairement au Carré, le poseur de la Bombe NE rejoue PAS.
         /// C'est le joueur suivant qui ouvre la nouvelle pile.
         /// </summary>
-        public static bool PlayerPlaysAgain(IGameStateQuery state) => false;
+        public static bool GrantsReplay => false;
 
         /// <summary>
         /// Contrainte transmise au joueur suivant : toujours neutre, la nouvelle pile
