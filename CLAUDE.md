@@ -242,6 +242,7 @@ Les joueurs jouent **à tour de rôle** en posant des cartes de leur **main** ju
 - **Joker de Verre transparent** : ne casse pas la chaîne, comparaison sautant par-dessus lui.
 - **Joker Noir casse la chaîne** : remet tout à zéro immédiatement.
 - **Désactivé à ≤2 joueurs** — **le Carré, lui, reste actif à ≤2 joueurs.**
+- **Granularité du Doublon** : Le Doublon compare le Play courant au Play précédent (niveau coup, pas niveau carte). Un Play multi-cartes (ex. 2×5) ne peut jamais être un Doublon avec lui-même. Il n'y a Doublon que si sa hauteur effective égale celle du Play précédent. Sur pile vide, aucun Doublon n'est possible (pas de Play précédent).
 
 ### **Exemple**
 J1 : Dame              → rien (première carte de la chaîne)
@@ -253,6 +254,11 @@ J2 : Dame (cumul=4)    → Carré ! (vérifié avant Doublon) Pile détruite, J2
 J1 : Dame (cumul=1)         → rien
 J2 : Dame (cumul=2)         → Doublon ! J3 sauté
 J4 : 2x Dame (cumul=4)      → Carré ! (priorité sur Doublon) Pile détruite, J4 rejoue
+
+- **Traversée Doublon/Carré par type de Joker** :
+  - Joker de Verre : transparent — traverse sans rompre la chaîne Doublon/Carré, la comparaison continue avec la carte/le Play en-dessous.
+  - Joker Noir : réinitialise hauteur et contrainte — rompt la chaîne. Une carte posée juste après ne peut pas former de Doublon avec ce qui précède le Joker Noir.
+  - Joker Couleur/Bombe : détruit la Pile — rupture totale, équivalent à repartir de pile vide.
 
 ---
 
@@ -572,8 +578,8 @@ Psycko/
 │   │   │   ├── Rules/
 │   │   │   │   ├── Comparison/
 │   │   │   │   ├── Detection/
-│   │   │   │   │   ├── PairDetection.cs
-│   │   │   │   │   └── QuadDetection.cs
+│   │   │   │   │   ├── PairDetection.cs        Définit un "Doublon"
+│   │   │   │   │   └── QuadDetection.cs        Définit un "Carré"
 │   │   │   │   ├── Validation/
 │   │   │   │   │   ├── CardPlayability.cs
 │   │   │   │   │   └── LastCardValidator.cs
