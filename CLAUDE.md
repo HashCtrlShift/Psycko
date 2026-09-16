@@ -585,10 +585,10 @@ Psycko/
 │   │   │   │   │   ├── CardPlayability.cs      Détermine si une carte est jouable d'après l'état actuel de la Partie
 │   │   │   │   │   └── LastCardValidator.cs    Valide la règle : interdiction de terminer une phase sur un 2.
 │   │   │   │   ├── Phase/
-│   │   │   │   │   ├── PhaseResolver.cs         (abstrait)
-│   │   │   │   │   ├── WorkPhaseResolver.cs     (Phase 1 - Le Travail)
-│   │   │   │   │   ├── TalentPhaseResolver.cs   (Phase 2 - Le Talent)
-│   │   │   │   │   └── LuckPhaseResolver.cs     (Phase 3 - La Chance)
+│   │   │   │   │   ├── PhaseResolver.cs         Contrat abstrait commun aux phases de jeu 
+│   │   │   │   │   ├── WorkPhaseResolver.cs     Phase 1 - Le Travail
+│   │   │   │   │   ├── TalentPhaseResolver.cs   Phase 2 - Le Talent
+│   │   │   │   │   └── LuckPhaseResolver.cs     Phase 3 - La Chance
 │   │   │   │   ├── SpecialCards/
 │   │   │   │   │   ├── JackHandler.cs         Définit le Valet
 │   │   │   │   │   ├── PriestHandler.cs       Définit le Prêtre
