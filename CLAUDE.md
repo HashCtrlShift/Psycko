@@ -551,6 +551,50 @@ Seule la Carré interrompt la chaîne Doublon et réinitialise la pile.
 
 ---
 
+### Contrat des PhaseResolver (Rules/Phase/)
+
+Chaque phase (Work, Talent, Luck) est représentée par une classe scellée (`sealed`)
+héritant de `PhaseResolver` (abstrait). Contrat commun :
+
+  • DefPhase Phase { get; }
+    Phase représentée par ce resolver.
+
+  • bool IsLayerPlayable(Player player, CardLayer layer)
+    Répond : cette couche est-elle jouable pour ce joueur, à l'instant T ?
+    Ne modifie jamais Player. Lecture seule.
+
+  • bool ShouldTransitionToNextPhase(Player player)
+    Répond : faut-il transitionner vers la phase suivante, à l'instant T ?
+    Ne réalise jamais la transition (pas de WithPhase/WithHand/etc.).
+
+  • DefPhase NextPhase { get; }
+    Phase suivante si ShouldTransitionToNextPhase retourne true.
+
+RÈGLES VERROUILLÉES PAR PHASE :
+
+  Work (Phase 1) :
+    - Seule Hand est jouable.
+    - Transition → Talent quand Hand.Count == 0.
+    - INVARIANT (garanti par TurnManager, pas testé dans le resolver) :
+      cette méthode est appelée APRÈS re-pioche (étape 2 de l'Ordre Strict).
+      Hand.Count == 0 implique donc pioche épuisée par construction.
+
+  Talent (Phase 2) :
+    - Seule Hand est jouable (FaceUp déjà ramassées en main à l'entrée de phase).
+    - Transition → Luck quand Hand.Count == 0.
+
+  Luck (Phase 3) :
+    - Exclusivité mutuelle stricte : si Hand.Count > 0 → seule Hand jouable ;
+      sinon → seule FaceDown jouable (jamais les deux simultanément).
+    - Transition → Finished quand !player.HasCards (Hand, FaceUp, FaceDown tous vides).
+
+Aucun resolver n'appelle TurnManager, GameOrchestrator, ni aucun handler
+SpecialCards — dépendance strictement unidirectionnelle :
+TurnManager → PhaseResolver (jamais l'inverse).
+
+Aucun effet spécial n'est câblé ici (SevenHandler, TwoHandler, etc.) —
+ces resolvers sont purement déclaratifs.
+
 ## Structure du Code
 
 Psycko/
