@@ -577,11 +577,12 @@ Psycko/
 │   │   │   │   └── Player.cs               Définit un Joueur
 │   │   │   ├── Rules/
 │   │   │   │   ├── Comparison/
+│   │   │   │   │   └── HeightComparison.cs     Compare la Hauteur de 2 DefRank
 │   │   │   │   ├── Detection/
 │   │   │   │   │   ├── PairDetection.cs        Définit un "Doublon"
 │   │   │   │   │   └── QuadDetection.cs        Définit un "Carré"
 │   │   │   │   ├── Validation/
-│   │   │   │   │   ├── CardPlayability.cs
+│   │   │   │   │   ├── CardPlayability.cs      Détermine si une carte est jouable d'après l'état actuel de la Partie
 │   │   │   │   │   └── LastCardValidator.cs
 │   │   │   │   ├── Phase/
 │   │   │   │   │   ├── PhaseResolver.cs         (abstrait)
