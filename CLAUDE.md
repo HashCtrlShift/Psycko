@@ -583,7 +583,7 @@ Psycko/
 │   │   │   │   │   └── QuadDetection.cs        Définit un "Carré"
 │   │   │   │   ├── Validation/
 │   │   │   │   │   ├── CardPlayability.cs      Détermine si une carte est jouable d'après l'état actuel de la Partie
-│   │   │   │   │   └── LastCardValidator.cs
+│   │   │   │   │   └── LastCardValidator.cs    Valide la règle : interdiction de terminer une phase sur un 2.
 │   │   │   │   ├── Phase/
 │   │   │   │   │   ├── PhaseResolver.cs         (abstrait)
 │   │   │   │   │   ├── WorkPhaseResolver.cs     (Phase 1 - Le Travail)
