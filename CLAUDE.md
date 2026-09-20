@@ -608,51 +608,52 @@ Psycko/
 │   │   ├── Core/                          (C# pur, zéro dépendance Unity — noEngineReferences: true)
 │   │   │   ├── Psycko.Core.asmdef
 │   │   │   ├── Domain/
-│   │   │   │   ├── Card.cs                 Création des Cartes
-│   │   │   │   ├── Deck.cs                 Création de la Pioche et Mélange
-│   │   │   │   ├── DefCard.cs              Enums des Hauteurs, Couleurs et Jokers
-│   │   │   │   ├── DefConstraint.cs        Enum des Contraintes
-│   │   │   │   ├── DefDirection.cs         Enum des Directions
-│   │   │   │   ├── DefLayer.cs             Enum de l'Origine d'une carte lorsqu'elle est jouée
-│   │   │   │   ├── DefPhase.cs             Enum des Phases de Jeu
-│   │   │   │   ├── GameState.cs            Définit l'État d'une partie à un instant donné
-│   │   │   │   ├── Pile.cs                 Définit la Pile
-│   │   │   │   ├── Play.cs                 Définit un "Coup" joué
-│   │   │   │   └── Player.cs               Définit un Joueur
+│   │   │   │   ├── Card.cs                       Création des Cartes
+│   │   │   │   ├── Deck.cs                       Création de la Pioche et Mélange
+│   │   │   │   ├── DefCard.cs                    Enums des Hauteurs, Couleurs et Jokers
+│   │   │   │   ├── DefConstraint.cs              Enum des Contraintes
+│   │   │   │   ├── DefDirection.cs               Enum des Directions
+│   │   │   │   ├── DefLayer.cs                   Enum de l'Origine d'une carte lorsqu'elle est jouée
+│   │   │   │   ├── DefPhase.cs                   Enum des Phases de Jeu
+│   │   │   │   ├── GameState.cs                  Définit l'État d'une partie à un instant donné
+│   │   │   │   ├── Pile.cs                       Définit la Pile
+│   │   │   │   ├── Play.cs                       Définit un "Coup" joué
+│   │   │   │   └── Player.cs                     Définit un Joueur
 │   │   │   ├── Rules/
 │   │   │   │   ├── Comparison/
-│   │   │   │   │   └── HeightComparison.cs     Compare la Hauteur de 2 DefRank
+│   │   │   │   │   └── HeightComparison.cs       Compare la Hauteur de 2 DefRank
 │   │   │   │   ├── Detection/
-│   │   │   │   │   ├── PairDetection.cs        Définit un "Doublon"
-│   │   │   │   │   └── QuadDetection.cs        Définit un "Carré"
+│   │   │   │   │   ├── PairDetection.cs          Définit un "Doublon"
+│   │   │   │   │   └── QuadDetection.cs          Définit un "Carré"
 │   │   │   │   ├── Validation/
-│   │   │   │   │   ├── CardPlayability.cs      Détermine si une carte est jouable d'après l'état actuel de la Partie
-│   │   │   │   │   └── LastCardValidator.cs    Valide la règle : interdiction de terminer une phase sur un 2.
+│   │   │   │   │   ├── CardPlayability.cs        Détermine si une carte est jouable d'après l'état actuel de      │   │   │   │   │   │                             la Partie
+│   │   │   │   │   ├── CardPlayabilityChecker.cs Détecte les cartes jouables d'un joueur
+│   │   │   │   │   └── LastCardValidator.cs      Valide la règle : interdiction de terminer une phase sur un 2.
 │   │   │   │   ├── Phase/
-│   │   │   │   │   ├── PhaseResolver.cs         Contrat abstrait commun aux phases de jeu 
-│   │   │   │   │   ├── WorkPhaseResolver.cs     Phase 1 - Le Travail
-│   │   │   │   │   ├── TalentPhaseResolver.cs   Phase 2 - Le Talent
-│   │   │   │   │   └── LuckPhaseResolver.cs     Phase 3 - La Chance
+│   │   │   │   │   ├── PhaseResolver.cs          Contrat abstrait commun aux phases de jeu 
+│   │   │   │   │   ├── WorkPhaseResolver.cs      Phase 1 - Le Travail
+│   │   │   │   │   ├── TalentPhaseResolver.cs    Phase 2 - Le Talent
+│   │   │   │   │   └── LuckPhaseResolver.cs      Phase 3 - La Chance
 │   │   │   │   ├── SpecialCards/
-│   │   │   │   │   ├── JackHandler.cs         Définit le Valet
-│   │   │   │   │   ├── PriestHandler.cs       Définit le Prêtre
+│   │   │   │   │   ├── JackHandler.cs            Définit le Valet
+│   │   │   │   │   ├── PriestHandler.cs          Définit le Prêtre
 │   │   │   │   │   ├── SevenHandler.cs
-│   │   │   │   │   └── TwoHandler.cs          Définit le 2
+│   │   │   │   │   └── TwoHandler.cs             Définit le 2
 │   │   │   │   └── Jokers/
-│   │   │   │       ├── GlassJokerResolver.cs   Définit le Joker de Verre
-│   │   │   │       ├── BlackJokerResolver.cs   Définit le Joker Noir
-│   │   │   │       └── ColorJokerResolver.cs   Définit le Joker Couleur
-│   │   │   ├── Interfaces/
-│   │   │   │   ├── ICardPlayabilityChecker.cs
-│   │   │   │   ├── IGameState.cs               Interface composite
-│   │   │   │   ├── IGameStateCommand.cs        Contrat de transition
-│   │   │   │   └── IGameStateQuery.cs          Lecture seule de l'état d'une partie
+│   │   │   │       ├── GlassJokerResolver.cs     Définit le Joker de Verre
+│   │   │   │       ├── BlackJokerResolver.cs     Définit le Joker Noir
+│   │   │   │       └── ColorJokerResolver.cs     Définit le Joker Couleur
+│   │   │   ├── Interfaces/ 
+│   │   │   │   ├── ICardPlayabilityChecker.cs    Contrat de jouabilité des cartes d'un joueur
+│   │   │   │   ├── IGameState.cs                 Interface composite
+│   │   │   │   ├── IGameStateCommand.cs          Contrat de transition
+│   │   │   │   └── IGameStateQuery.cs            Lecture seule de l'état d'une partie
 │   │   │   └── Services/
-│   │   │       ├── GameOrchestrator.cs
-│   │   │       ├── TurnManager.cs
-│   │   │       ├── GameResultCalculator.cs
-│   │   │       ├── GameSeed.cs          (génération + stockage de la seed RNG d'une partie)
-│   │   │       └── GameLogRecorder.cs   (enregistre chaque action/coup avec horodatage/tour)
+│   │   │       ├── GameOrchestrator.cs           Définit le déroulement d'une partie
+│   │   │       ├── TurnManager.cs                Définit le déroulement d'un tour pour un joueur
+│   │   │       ├── GameResultCalculator.cs       Définit la Fin d'un partie.
+│   │   │       ├── GameSeed.cs                   Génération + stockage de la seed RNG d'une partie
+│   │   │       └── GameLogRecorder.cs            Enregistre chaque action/coup avec horodatage/tour
 │   │   │
 │   │   ├── Bots/                          (C# pur, dépend Core — noEngineReferences: true)
 │   │   │   ├── Psycko.Bots.asmdef
