@@ -477,8 +477,19 @@ Cette information est portée par Play.SourceLayer (enum CardLayer, valeur par d
 
 ### Ordre Strict d'Application des Effets
 
-Lorsqu'un joueur pose un ou plusieurs cartes, l'ordre suivant DOIT être respecté 
-(c'est le rôle de TurnManager) :
+Lorsqu'un joueur commence son tour, TurnManager détermine d'abord s'il peut jouer :
+
+  0. RAMASSAGE (branche alternative, pas une étape de la séquence de pose) :
+     - Si le joueur n'a **aucune carte valide** à jouer sur la Pile → ramassage FORCÉ,
+       il ramasse immédiatement la Pile de Jeu, passe son tour sans poser ni piocher.
+     - Si le joueur a au moins une carte jouable mais choisit stratégiquement de ne
+       pas jouer → ramassage VOLONTAIRE (déclenché via le bouton "Ramasser" côté
+       Présentation), même résultat : ramasse la Pile, passe son tour.
+     - Dans les deux cas, la séquence POSE→JOUEUR SUIVANT (étapes 1 à 6 ci-dessous)
+       n'est PAS exécutée : le tour se termine directement sur JOUEUR SUIVANT.
+
+  Si le joueur pose une ou plusieurs cartes, l'ordre suivant DOIT être respecté
+  (c'est le rôle de TurnManager) :
 
   1. POSE : Les cartes quittent leur couche (main, FaceUp, ou FaceDown) et entrent 
      dans Pile.
@@ -505,7 +516,9 @@ Lorsqu'un joueur pose un ou plusieurs cartes, l'ordre suivant DOIT être respect
 (avant reconstitution) produirait des Dons silencieux à tort. Un 7 en dernière carte 
 doit permettre au joueur de donner la carte qu'il vient de piocher à l'étape 2.
 
----
+⚠️ CRITÈRE RAMASSAGE : Le ramassage (forcé ou volontaire) est une branche exclusive 
+qui court-circuite entièrement les étapes 1 à 6. TurnManager doit trancher 
+"le joueur ramasse-t-il ?" AVANT d'entrer dans la séquence POSE, jamais après.
 
 ### Contrat des Handlers Rules/SpecialCards/
 
