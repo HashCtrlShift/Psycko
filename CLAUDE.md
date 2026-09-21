@@ -520,6 +520,30 @@ doit permettre au joueur de donner la carte qu'il vient de piocher à l'étape 2
 qui court-circuite entièrement les étapes 1 à 6. TurnManager doit trancher 
 "le joueur ramasse-t-il ?" AVANT d'entrer dans la séquence POSE, jamais après.
 
+---
+
+## TODO Immédiat — Blocage IGameStateCommand
+
+### T-xx : Implémenter IGameStateCommand sur GameState
+**Dépendance critique pour T14 (Step0_PickupResolver).**
+
+Actuellement GameState n'implémente que `IGameStateQuery` (lecture seule).  
+Les 9 méthodes de `IGameStateCommand` (PlayCards, PickUpPile, DestroyPile, SetActivePlayer, 
+ReverseDirection, SetConstraint, DrawCards, AdvancePlayerPhase, EliminatePlayer) 
+n'existent nulle part dans le codebase — ce sont des stubs abstraits.
+
+**Quand faire :** Immédiatement après validation/merge de T14 (Step0_PickupResolver).  
+**Ordre proposé d'implémentation :**
+  1. PickUpPile(int playerIndex) — utilisé par Step0_PickupResolver via GameOrchestrator
+  2. PlayCards(Play play) — utilisé par Step1_PlaceCardsResolver
+  3. SetConstraint(HeightConstraint, DefRank) — utilisé par handlers SpecialCards / Jokers
+  4. Les 6 autres, selon priorité des Resolvers (Step2-6)
+
+**Blocage levé après :** GameOrchestrator peut alors orchestrer la séquence complète 
+avec mutation réelle de l'état (GameState est à la fois lecteur et écrivain).
+
+---
+
 ### Contrat des Handlers Rules/SpecialCards/
 
 Tous les handlers SpecialCards (SevenHandler, TwoHandler, JackHandler, PriestHandler) 
