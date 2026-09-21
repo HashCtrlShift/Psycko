@@ -1,7 +1,7 @@
 # CLAUDE.md — Référence des Règles Verrouillées de Psycko
 
 **Objectif :** Capturer toutes les règles de jeu finalisées et sans ambiguïté pour la cohérence entre les sessions d'implémentation.  
-**Dernière mise à jour :** 07 Septembre 2026
+**Dernière mise à jour :** 21 septembre 2026
 **Statut :** Verrouillé — ne modifier que avec l'approbation explicite d'Ekinox.
 
 ---
@@ -462,22 +462,90 @@ main reconstituée.
 ### CardLayer — Provenance d'une Carte jouée
 
 Un Play provient toujours d'UNE SEULE couche du joueur, jamais d'un mélange.
-Les trois couches sont :
-- CardLayer.Hand        : Main du joueur (Phase 1 principalement, mais aussi Phase 2 et Phase 3)
-- CardLayer.FaceUp      : Cartes Face Découverte devant le joueur (Phase 2, ramassage en fin de phase)
-- CardLayer.FaceDown    : Cartes Face Cachée, révélées directement sur la pile (Phase 3 uniquement)
+Enum déclaré dans : Assets/Scripts/Core/Domain/DefLayer.cs (namespace Psycko.Core.Domain)
 
-Utilité : Certains effets spéciaux (notamment le 7 / Don) dépendent de la provenance réelle 
-de la carte, indépendamment de la phase. Une carte révélée depuis FaceDown (Phase 3) 
-ne peut pas déclencher un Don, car le joueur n'a pas de main constituée pour ce 7.
+  • CardLayer.Hand     — Couche 1. Main du joueur. Couche jouable en Phase 1 (Work),
+                         en Phase 2 (Talent, car les FaceUp y sont déjà ramassées en main),
+                         et en Phase 3 (Luck) tant que Hand.Count > 0.
+  • CardLayer.FaceUp   — Couche 2. Cartes Face Découverte posées devant le joueur.
+                         JAMAIS jouable directement : elles sont ramassées EN MAIN
+                         à l'entrée de la Phase 2, puis jouées via CardLayer.Hand.
+  • CardLayer.FaceDown — Couche 3. Cartes Face Cachée, révélées directement sur la pile.
+                         Jouable en Phase 3 (Luck) uniquement, et uniquement si Hand.Count == 0.
 
-Cette information est portée par Play.SourceLayer (enum CardLayer, valeur par défaut Hand).
+Cette information est portée par Play.SourceLayer (Assets/Scripts/Core/Domain/Play.cs,
+`public sealed record Play`), de type CardLayer, valeur par défaut Hand dans les
+factories Create(...) et CreateSingle(...).
+
+Utilité : Certains effets spéciaux (notamment le 7 / Don) dépendent de la provenance
+réelle de la carte, indépendamment de la phase. Une carte révélée depuis FaceDown
+(Phase 3) ne peut pas déclencher un Don, car le joueur n'a pas de main constituée pour ce 7.
+
+#### Qualification effective des couches — qui décide
+
+Aucun Resolver de TurnManager ne décide seul de la couche jouable. La qualification
+relève EXCLUSIVEMENT de Rules/Phase/, via PhaseResolver.IsLayerPlayable(Player, CardLayer)
+(lecture seule, ne modifie jamais Player) :
+
+  Work  (Assets/Scripts/Core/Rules/Phase/WorkPhaseResolver.cs)
+    return layer == CardLayer.Hand && player.Hand.Count > 0;
+    → Hand uniquement. FaceUp et FaceDown ne sont JAMAIS jouables en Phase 1.
+
+  Talent (Assets/Scripts/Core/Rules/Phase/TalentPhaseResolver.cs)
+    return layer == CardLayer.Hand && player.Hand.Count > 0;
+    → Hand uniquement. Les FaceUp ayant été ramassées en main à l'entrée de phase,
+      CardLayer.FaceUp n'est jamais une SourceLayer légale.
+
+  Luck  (Assets/Scripts/Core/Rules/Phase/LuckPhaseResolver.cs)
+    if (player.Hand.Count > 0) return layer == CardLayer.Hand;
+    return layer == CardLayer.FaceDown && player.FaceDown.Count > 0;
+    → EXCLUSIVITÉ MUTUELLE STRICTE : jamais deux couches jouables simultanément.
+      Hand prime toujours (cas d'un Don via 7, ou d'un ramassage de pile en Phase 3).
+
+  Toute autre phase (DefPhase.Finished, ou phase sans resolver enregistré)
+    → aucune couche jouable. Voir CardPlayabilityChecker (Rules/Validation/), qui
+      retourne false si la phase du joueur n'a pas de resolver dans son dictionnaire.
+
+CONSÉQUENCE POUR LES RESOLVERS (Step0→Step6) :
+Valider une SourceLayer signifie TOUJOURS interroger le PhaseResolver de la phase
+courante du joueur — jamais réécrire la condition en dur dans un Step.
+
+#### Invariants de couches (Domain)
+
+Garantis par Player.Create (Assets/Scripts/Core/Domain/Player.cs, classe sealed) :
+  • FaceUp.Count == 3 exactement à la création — sinon ArgumentException.
+  • FaceDown.Count == 3 exactement à la création — sinon ArgumentException.
+  • Hand : aucune contrainte de taille.
+  • CurrentPhase forcée à DefPhase.Work à la création.
+
+Player est immuable : toute évolution passe par WithHand / WithFaceUp / WithFaceDown /
+WithPhase, dont l'appel relève de Services/, jamais de Rules/.
+Propriétés dérivées : HasCards (Hand OU FaceUp OU FaceDown non vide), TotalCardCount.
+
+#### Pose effective — séparation décision / exécution
+
+Step1_PlaceCardsResolver VALIDE une pose, il ne l'EXÉCUTE jamais.
+Il reçoit un état, vérifie (joueur actif, count ≥ 1, rang identique, count ≤ 4,
+SourceLayer qualifiée par le PhaseResolver, hauteur via CardPlayability),
+et retourne un TurnResult dont l'État est IDENTIQUE à l'état d'entrée.
+Anomalie → exception explicite, jamais un état dégradé.
+
+Le retrait réel des cartes de la couche source et leur ajout à la Pile relèvent
+d'un unique appel IGameStateCommand.PlayCards(play), émis par GameOrchestrator
+APRÈS validation. C'est GameOrchestrator qui lit play.SourceLayer pour savoir
+de quelle couche retirer les cartes — Hand en Phases 1 et 2, Hand ou FaceDown
+en Phase 3 selon l'exclusivité mutuelle ci-dessus.
+
+Corollaire : aucun Step ne doit jamais retirer, déplacer ou ajouter une carte.
+Si un Step a besoin d'exprimer une pose, il la DÉCRIT dans son TurnResult ;
+GameOrchestrator l'APPLIQUE.
 
 ---
 
 ### Ordre Strict d'Application des Effets
 
-Lorsqu'un joueur commence son tour, TurnManager détermine d'abord s'il peut jouer :
+Lorsqu'un joueur commence son tour, la séquence orchestrée par TurnManager respecte 
+cet ordre IMMUABLE (chaque étape reçoit l'état du précédent, jamais de mutation locale).
 
   0. RAMASSAGE (branche alternative, pas une étape de la séquence de pose) :
      - Si le joueur n'a **aucune carte valide** à jouer sur la Pile → ramassage FORCÉ,
@@ -491,26 +559,37 @@ Lorsqu'un joueur commence son tour, TurnManager détermine d'abord s'il peut jou
   Si le joueur pose une ou plusieurs cartes, l'ordre suivant DOIT être respecté
   (c'est le rôle de TurnManager) :
 
-  1. POSE : Les cartes quittent leur couche (main, FaceUp, ou FaceDown) et entrent 
-     dans Pile.
+  **Chaîne Step1-6 (exécutée uniquement si pas de ramassage) :**
+
+  1. POSE (Step1_PlaceCardsResolver) :
+     - Valide le coup via Rules/ (IGameStateQuery en lecture seule)
+     - Aucune mutation (state retourné = state reçu)
+     - Lève exception si coup invalide
+     - GameOrchestrator exécute IGameStateCommand.PlayCards(play) 
+       avant Step2, produisant un nouvel état avec cartes en Pile
   
-  2. RECONSTRUCTION : Reconstitution complète de la main du poseur :
+  2. RECONSTRUCTION (Step2_ReconstructionResolver) :
+     - Reçoit state avec cartes déjà en Pile
      - DrawCards (pioche si main < 3 et pioche non épuisée)
      - AdvancePlayerPhase + ramassage des FaceUp (transition Phase 1→2 uniquement)
      - Ré-pioche si main < 3 et pioche non épuisée après ramassage
   
-  3. EFFETS SPÉCIAUX DE CARTES: l'effet d'une carte posée est interrogé ICI.
-     À ce stade, la main est dans son état final et peut être donnée si elle est 
-     non vide.
+  3. EFFETS SPÉCIAUX (Step3_CardEffectsResolver) :
+     - Interroge handlers (SevenHandler, TwoHandler, JackHandler, PriestHandler, etc.)
+     - Applique mutations (SetConstraint, ReverseDirection, etc.) via IGameStateCommand
+     - À ce stade, main est dans son état final (permet Don sur cartes piochées)
   
-  4. RE-PIOCHE FINALE : Ré-pioche si main < 3 et pioche non épuisée 
-     (après Don le cas échéant).
+  4. RE-PIOCHE FINALE (Step4_FinalDrawResolver) :
+     - Ré-pioche si main < 3 et pioche non épuisée (après Don le cas échéant)
   
-  5. EFFETS DE PILE : Évaluation Doublon/Carré en relisant Pile.Cards.
+  5. EFFETS DE PILE (Step5_PileEffectsResolver) :
+     - Évaluation Doublon/Carré en relisant Pile.Cards
      - Doublon → skip du joueur suivant
      - Carré → destruction de la pile + rejeu du poseur
   
-  6. JOUEUR SUIVANT : Transition du tour (PlayDirection).
+  6. AVANCEMENT DU TOUR (Step6_AdvanceTurnResolver) :
+     - SetActivePlayer au joueur suivant
+     - Applique skip/replay si signalé par Step5
 
 ⚠️ CRITÈRE : Interroger un handler d'effet de main (ex. SevenHandler) à l'étape 1 
 (avant reconstitution) produirait des Dons silencieux à tort. Un 7 en dernière carte 
@@ -522,26 +601,86 @@ qui court-circuite entièrement les étapes 1 à 6. TurnManager doit trancher
 
 ---
 
-## TODO Immédiat — Blocage IGameStateCommand
+### TODO Immédiat — Blocage IGameStateCommand
 
-### T-xx : Implémenter IGameStateCommand sur GameState
-**Dépendance critique pour T14 (Step0_PickupResolver).**
+Trois faits vérifiés dans le repo, à ne pas confondre :
 
-Actuellement GameState n'implémente que `IGameStateQuery` (lecture seule).  
-Les 9 méthodes de `IGameStateCommand` (PlayCards, PickUpPile, DestroyPile, SetActivePlayer, 
-ReverseDirection, SetConstraint, DrawCards, AdvancePlayerPhase, EliminatePlayer) 
-n'existent nulle part dans le codebase — ce sont des stubs abstraits.
+  1. Le CONTRAT existe.
+     Assets/Scripts/Core/Interfaces/IGameStateCommand.cs déclare 9 méthodes,
+     toutes de type de retour IGameState (interface composite
+     IGameState : IGameStateQuery, IGameStateCommand — Interfaces/IGameState.cs) :
 
-**Quand faire :** Immédiatement après validation/merge de T14 (Step0_PickupResolver).  
-**Ordre proposé d'implémentation :**
-  1. PickUpPile(int playerIndex) — utilisé par Step0_PickupResolver via GameOrchestrator
-  2. PlayCards(Play play) — utilisé par Step1_PlaceCardsResolver
-  3. SetConstraint(HeightConstraint, DefRank) — utilisé par handlers SpecialCards / Jokers
-  4. Les 6 autres, selon priorité des Resolvers (Step2-6)
+       IGameState PlayCards(Play play)
+       IGameState PickUpPile(int playerIndex)
+       IGameState DestroyPile()
+       IGameState SetActivePlayer(int playerIndex)
+       IGameState ReverseDirection()
+       IGameState SetConstraint(HeightConstraint constraint, DefRank refRank)
+       IGameState DrawCards(int playerIndex, int count)
+       IGameState AdvancePlayerPhase(int playerIndex)
+       IGameState EliminatePlayer(int playerIndex)
 
-**Blocage levé après :** GameOrchestrator peut alors orchestrer la séquence complète 
-avec mutation réelle de l'état (GameState est à la fois lecteur et écrivain).
+  2. L'IMPLÉMENTATION n'existe pas.
+     Assets/Scripts/Core/Domain/GameState.cs déclare :
+       public sealed class GameState : IGameStateQuery
+     — IGameStateCommand n'est PAS dans la liste des interfaces implémentées,
+     et aucune des 9 méthodes ci-dessus n'existe dans le fichier.
+     GameState expose uniquement des mutateurs immuables de bas niveau, dont
+     les signatures ne correspondent pas 1:1 au contrat (retour GameState, pas IGameState) :
+       WithPlayers, WithPlayer(index), WithDrawPile, WithPile,
+       WithActivePlayerIndex, WithDirection, WithConstraint(constraint, refRank)
 
+  3. AUCUN APPELANT n'existe.
+     Recherche exhaustive de « IGameStateCommand » dans Services/ : zéro occurrence.
+       • GameOrchestrator.cs est une COQUILLE VIDE (5 lignes : public class GameOrchestrator { })
+       • TurnManager.cs (Services/TurnManager/, 43 lignes) ne référence ni
+         IGameStateCommand ni IGameState
+       • Step0 → Step6 sont tous présents mais à l'état de squelettes
+         (17 à 43 lignes chacun), sans aucun appel de mutation
+
+     Autrement dit : le blocage n'est pas « il manque l'implémentation », c'est
+     « la chaîne d'exécution mutante n'est câblée nulle part ». Les Steps actuels
+     sont conformes à la règle (lecture seule) par vacuité, pas par conception validée.
+
+### Séquence de déblocage
+
+  T-xx.a — Faire implémenter IGameStateCommand par GameState
+           (public sealed class GameState : IGameState)
+           Chaque méthode déléguant aux With* existants. Aucune règle de jeu
+           dans ces 9 méthodes : transition mécanique brute uniquement
+           (ne vérifie jamais si le coup est légal).
+
+  T-xx.b — Ordre d'implémentation, dicté par les consommateurs réels :
+           1. PickUpPile(playerIndex)              → décidé par Step0, exécuté par GameOrchestrator
+           2. PlayCards(play)                      → consommé après validation Step1
+           3. SetConstraint(constraint, refRank)   → handlers SpecialCards / Jokers
+           4. DestroyPile()                        → Step5 (Carré, Bombe, Joker Noir)
+           5. SetActivePlayer / ReverseDirection   → Step6
+           6. DrawCards / AdvancePlayerPhase / EliminatePlayer → Step2, Step4, fin de partie
+
+  T-xx.c — Écrire GameOrchestrator (aujourd'hui vide), SEUL point d'entrée
+           autorisé à appeler IGameStateCommand. Responsabilités :
+             • reçoit le Play proposé (Presentation / Bots)
+             • lit l'état via IGameStateQuery, valide via Rules/
+             • si Step0 décide IsPickup → appelle PickUpPile avant la chaîne
+             • appelle TurnManager.ApplyPlay(state, play)
+             • applique les mutations décidées par les Steps
+             • retourne le nouvel état immuable
+
+### Règle de câblage — VERROUILLÉE
+
+  • GameOrchestrator est le SEUL à appeler IGameStateCommand.
+  • TurnManager et les Steps 0→6 ne l'appellent JAMAIS, même indirectement :
+    ils reçoivent un état, DÉCIDENT, et retournent un TurnResult décrivant
+    la décision. Ils ne mutent rien.
+  • Rules/ ne voit que IGameStateQuery — garantie du compilateur qu'aucune
+    règle ne peut muter l'état par erreur.
+  • IGameState (union des deux) n'est utile que là où lecture et écriture
+    cohabitent dans la même expression : en pratique, GameOrchestrator seul.
+
+**Blocage levé après T-xx.c :** la séquence complète devient exécutable
+(validation Rules + mutation IGameStateCommand + retour à TurnManager),
+et T15 (Step1_PlaceCardsResolver) peut être mergé sans dette de câblage.
 ---
 
 ### Contrat des Handlers Rules/SpecialCards/
