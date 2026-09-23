@@ -599,6 +599,11 @@ doit permettre au joueur de donner la carte qu'il vient de piocher à l'étape 2
 qui court-circuite entièrement les étapes 1 à 6. TurnManager doit trancher 
 "le joueur ramasse-t-il ?" AVANT d'entrer dans la séquence POSE, jamais après.
 
+⚠️ Point de vigilance — Fusion des drapeaux SkipNext/Replay (Step3 & Step5)
+TurnManager.ApplyPlay retourne un TurnResult (et non un GameState seul) afin de propager les intentions produites par Step2 (DrawCount, TriggersFaceUpPickup, TriggersPhaseTransition, TargetPhase) jusqu'à GameOrchestrator, seul habilité à les traduire en IGameStateCommand.
+Tant que Step3_CardEffectsResolver et Step5_PileEffectsResolver restent des stubs (retournant SkipNext: false, Replay: false), TurnManager peut se permettre d'écraser ces drapeaux via WithState(...) à chaque étape sans perte d'information.
+Dès que Step3 et/ou Step5 seront réellement implémentés (Valet, 2, Jokers, etc.) et positionneront SkipNext/Replay à true dans certains cas, il faudra revenir dans TurnManager.ApplyPlay et remplacer les WithState(...) séquentiels par une fusion explicite des drapeaux (probablement un OR logique : result.SkipNext || stepN.SkipNext), sous peine de perdre silencieusement ces effets.
+Ticket à créer au moment de l'implémentation de Step3/Step5, avant tout merge.
 ---
 
 ### TODO Immédiat — Blocage IGameStateCommand
