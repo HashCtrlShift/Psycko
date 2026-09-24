@@ -575,9 +575,15 @@ cet ordre IMMUABLE (chaque étape reçoit l'état du précédent, jamais de muta
      - Ré-pioche si main < 3 et pioche non épuisée après ramassage
   
   3. EFFETS SPÉCIAUX (Step3_CardEffectsResolver) :
-     - Interroge handlers (SevenHandler, TwoHandler, JackHandler, PriestHandler, etc.)
-     - Applique mutations (SetConstraint, ReverseDirection, etc.) via IGameStateCommand
-     - À ce stade, main est dans son état final (permet Don sur cartes piochées)
+     - Résout les effets via Step3_CardEffectsResolver.Resolve(state, play).
+     - Retourne toujours des valeurs concrètes non-null pour NextConstraint,
+     NextRefRank et NextDirection (switch/default exhaustif).
+     - TurnManager chaîne WithState, WithNextConstraint, WithNextDirection,
+     WithDestroysPile, WithGrantsReplay, WithRequiresGiftResolution.
+     - Si RequiresGiftResolution == true → retour immédiat (pas de ResolveRemainder).
+     GameOrchestrator résout alors le Don du 7 via IGameStateCommand, puis
+     rappelle TurnManager.ResolveRemainder(result, play) pour reprendre à Step4.
+     - Sinon → appel direct de ResolveRemainder(result, play).
   
   4. RE-PIOCHE FINALE (Step4_FinalDrawResolver) :
      - Ré-pioche si main < 3 et pioche non épuisée (après Don le cas échéant)
@@ -599,11 +605,20 @@ doit permettre au joueur de donner la carte qu'il vient de piocher à l'étape 2
 qui court-circuite entièrement les étapes 1 à 6. TurnManager doit trancher 
 "le joueur ramasse-t-il ?" AVANT d'entrer dans la séquence POSE, jamais après.
 
-⚠️ Point de vigilance — Fusion des drapeaux SkipNext/Replay (Step3 & Step5)
-TurnManager.ApplyPlay retourne un TurnResult (et non un GameState seul) afin de propager les intentions produites par Step2 (DrawCount, TriggersFaceUpPickup, TriggersPhaseTransition, TargetPhase) jusqu'à GameOrchestrator, seul habilité à les traduire en IGameStateCommand.
-Tant que Step3_CardEffectsResolver et Step5_PileEffectsResolver restent des stubs (retournant SkipNext: false, Replay: false), TurnManager peut se permettre d'écraser ces drapeaux via WithState(...) à chaque étape sans perte d'information.
-Dès que Step3 et/ou Step5 seront réellement implémentés (Valet, 2, Jokers, etc.) et positionneront SkipNext/Replay à true dans certains cas, il faudra revenir dans TurnManager.ApplyPlay et remplacer les WithState(...) séquentiels par une fusion explicite des drapeaux (probablement un OR logique : result.SkipNext || stepN.SkipNext), sous peine de perdre silencieusement ces effets.
-Ticket à créer au moment de l'implémentation de Step3/Step5, avant tout merge.
+⚠️ [RÉSOLU – Step3] Fusion des drapeaux Step2/Step3
+Le TurnManager.ApplyPlay n'écrase plus silencieusement les intentions de Step3.
+Chaque intention (NextConstraint, NextRefRank, NextDirection, DestroysPile,
+GrantsReplay, RequiresGiftResolution) est portée par un With... dédié.
+Aucune fusion OR n'était nécessaire ici car Step2 et Step3 n'exposent pas
+les mêmes drapeaux en conflit.
+
+⚠️ [OUVERT – reporté à l'implémentation de Step5] Fusion Step3/Step5
+Step5_PileEffectsResolver reste un stub (SkipNext: false, Replay: false).
+Le jour où Step5 est réellement implémenté (Doublon/Carré), vérifier que la
+fusion entre GrantsReplay (Step3) et le futur Replay (Step5, cas Carré) se
+fait par OR logique explicite — PAS par écrasement séquentiel via WithState.
+Même classe de risque que celle déjà corrigée pour Step2/Step3 : perte
+silencieuse d'un drapeau de rejeu si les deux Steps l'activent indépendamment.
 ---
 
 ### TODO Immédiat — Blocage IGameStateCommand
@@ -640,8 +655,9 @@ Trois faits vérifiés dans le repo, à ne pas confondre :
        • GameOrchestrator.cs est une COQUILLE VIDE (5 lignes : public class GameOrchestrator { })
        • TurnManager.cs (Services/TurnManager/, 43 lignes) ne référence ni
          IGameStateCommand ni IGameState
-       • Step0 → Step6 sont tous présents mais à l'état de squelettes
-         (17 à 43 lignes chacun), sans aucun appel de mutation
+       • Step0, Step1, Step2, Step3 sont implémentés et clos.
+         Step4 (périmètre résiduel à confirmer) et Step5_PileEffectsResolver
+         restent à l'état de stub.
 
      Autrement dit : le blocage n'est pas « il manque l'implémentation », c'est
      « la chaîne d'exécution mutante n'est câblée nulle part ». Les Steps actuels
@@ -809,6 +825,7 @@ Psycko/
 │   │   │   │   ├── Validation/
 │   │   │   │   │   ├── CardPlayability.cs        Détermine si une carte est jouable d'après l'état actuel de      │   │   │   │   │   │                             la Partie
 │   │   │   │   │   ├── CardPlayabilityChecker.cs Détecte les cartes jouables d'un joueur
+│   │   │   │   │   ├── HandReconstructionPolicy.cs Contrat de Pioche commun à Step2 et Step4
 │   │   │   │   │   └── LastCardValidator.cs      Valide la règle : interdiction de terminer une phase sur un 2.
 │   │   │   │   ├── Phase/
 │   │   │   │   │   ├── PhaseResolver.cs          Contrat abstrait commun aux phases de jeu 
