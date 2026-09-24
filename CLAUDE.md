@@ -1,7 +1,6 @@
 # CLAUDE.md — Référence des Règles Verrouillées de Psycko
 
 **Objectif :** Capturer toutes les règles de jeu finalisées et sans ambiguïté pour la cohérence entre les sessions d'implémentation.  
-**Dernière mise à jour :** 21 septembre 2026
 **Statut :** Verrouillé — ne modifier que avec l'approbation explicite d'Ekinox.
 
 ---
@@ -731,6 +730,9 @@ IGameStateQuery (lecture seule), jamais le type concret GameState.
 
 Les handlers DÉCLARENT les effets (« un Don est dû »), ils ne les APPLIQUENT jamais.
 L'application relève de Rules/Phase (PhaseResolver) ou de Services/.
+### MOMENT D'APPEL — CRITIQUE
+
+- **T18 — Fix** : Step3 reçoit `reconstruction.State` au lieu de `result.State`, afin que `SevenHandler.IsGiftTriggered` lise la main reconstituée.
 
 ---
 

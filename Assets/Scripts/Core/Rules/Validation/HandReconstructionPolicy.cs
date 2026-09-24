@@ -9,7 +9,10 @@ namespace Psycko.Core.Rules.Validation
     /// (pose validée en Step1, ou Don exécuté entre Step3 et Step4).
     /// Une seule responsabilité : DÉCIDER (jamais muter) pioche / ramassage FaceUp /
     /// transition de phase. Réutilisée par Step2 (cardsRemovedFromHand = play.Count)
-    /// et Step4 (cardsRemovedFromHand = 1 si Don effectué, sinon 0).
+    /// et Step4 (cardsRemovedFromHand = 0 systématiquement) : Step4 reçoit l'état
+    /// RÉEL après exécution du Don par GameOrchestrator via IGameStateCommand — la
+    /// carte donnée a déjà été retirée de la main du poseur avant l'appel à
+    /// ResolveRemainder. Step4 ne doit donc jamais recompter ce retrait lui-même.
     /// </summary>
     public static class HandReconstructionPolicy
     {

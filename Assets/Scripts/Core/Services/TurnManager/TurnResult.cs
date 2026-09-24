@@ -1,4 +1,5 @@
 using Psycko.Core.Domain;
+using Psycko.Core.Rules.Validation;
 
 namespace Psycko.Core.Services.TurnManager
 {
@@ -6,8 +7,13 @@ namespace Psycko.Core.Services.TurnManager
     /// Résultat immutable d'une étape de résolution de tour.
     /// Porte l'état (jamais muté par un Resolver) ainsi que les drapeaux de flux
     /// (skip du joueur suivant, rejeu du joueur actif, ramassage détecté par Step0),
-    /// les INTENTIONS de reconstruction produites par Step2/Step4 (pioche, ramassage FaceUp,
-    /// transition de phase) et les INTENTIONS d'effets produites par Step3 (contrainte,
+    /// les INTENTIONS de reconstruction produites par Step2 (pioche, ramassage FaceUp,
+    /// transition de phase — DrawCount/TriggersFaceUpPickup/TriggersPhaseTransition/
+    /// TargetPhase), l'INTENTION de reconstruction finale produite par Step4
+    /// (FinalReconstruction — même structure de données que Step2 mais encapsulée
+    /// dans un HandReconstructionResult, car Step4 peut lui aussi, dans de rares cas
+    /// [Don qui vide la main en fin de pioche Work], déclencher transition de phase
+    /// et ramassage FaceUp) et les INTENTIONS d'effets produites par Step3 (contrainte,
     /// direction, destruction de pile, rejeu, Don du 7).
     /// Toutes sont traduites en IGameStateCommand par GameOrchestrator, seul habilité à muter.
     /// Struct volontairement simple : pas de record/init (compatibilité Unity/IsExternalInit).
@@ -19,7 +25,7 @@ namespace Psycko.Core.Services.TurnManager
         public bool Replay { get; }
         public bool IsPickup { get; }
 
-        // --- Intentions Step2 / Step4 (reconstruction) ---
+        // --- Intentions Step2 (reconstruction) ---
 
         /// <summary>
         /// Cartes à piocher (sous-temps 1 de la reconstruction Work). 0 hors Work.
@@ -36,6 +42,15 @@ namespace Psycko.Core.Services.TurnManager
 
         /// <summary>Phase cible si TriggersPhaseTransition est vrai ; null sinon.</summary>
         public DefPhase? TargetPhase { get; }
+
+        /// <summary>
+        /// Intention de reconstruction finale (Step4, sous-temps 4 de l'Ordre Strict),
+        /// null si Step4 n'a pas encore été exécuté. Renseignée systématiquement par
+        /// Step4_FinalDrawResolver, y compris HandReconstructionResult.None quand
+        /// aucun Don n'a eu lieu. Distincte des champs Step2 ci-dessus : Step4 produit
+        /// sa propre décision de pioche/transition, potentiellement après un Don.
+        /// </summary>
+        public HandReconstructionResult? FinalReconstruction { get; }
 
         // --- Intentions Step3 (effets spéciaux) ---
 
@@ -75,7 +90,8 @@ namespace Psycko.Core.Services.TurnManager
             PlayDirection? nextDirection = null,
             bool destroysPile = false,
             bool grantsReplay = false,
-            bool requiresGiftResolution = false)
+            bool requiresGiftResolution = false,
+            HandReconstructionResult? finalReconstruction = null)
         {
             State = state;
             SkipNext = skipNext;
@@ -91,6 +107,7 @@ namespace Psycko.Core.Services.TurnManager
             DestroysPile = destroysPile;
             GrantsReplay = grantsReplay;
             RequiresGiftResolution = requiresGiftResolution;
+            FinalReconstruction = finalReconstruction;
         }
 
         /// <summary>Copie sélective : chaque paramètre null conserve la valeur courante.</summary>
@@ -100,7 +117,8 @@ namespace Psycko.Core.Services.TurnManager
             int? drawCount = null, bool? faceUp = null, bool? phaseTr = null,
             DefPhase? target = null, bool clearTarget = false,
             HeightConstraint? cons = null, DefRank? refRank = null, PlayDirection? dir = null,
-            bool? destroys = null, bool? grants = null, bool? gift = null)
+            bool? destroys = null, bool? grants = null, bool? gift = null,
+            HandReconstructionResult? finalReconstruction = null)
         {
             return new TurnResult(
                 state ?? State,
@@ -116,7 +134,8 @@ namespace Psycko.Core.Services.TurnManager
                 dir ?? NextDirection,
                 destroys ?? DestroysPile,
                 grants ?? GrantsReplay,
-                gift ?? RequiresGiftResolution);
+                gift ?? RequiresGiftResolution,
+                finalReconstruction ?? FinalReconstruction);
         }
 
         // --- Flux ---
@@ -130,6 +149,9 @@ namespace Psycko.Core.Services.TurnManager
         public TurnResult WithFaceUpPickup(bool triggersFaceUpPickup) => Copy(faceUp: triggersFaceUpPickup);
         public TurnResult WithPhaseTransition(DefPhase targetPhase) => Copy(phaseTr: true, target: targetPhase);
         public TurnResult WithoutPhaseTransition() => Copy(phaseTr: false, clearTarget: true);
+
+        /// <summary>Appelée exclusivement par Step4_FinalDrawResolver, après ou en l'absence de Don.</summary>
+        public TurnResult WithFinalReconstruction(HandReconstructionResult r) => Copy(finalReconstruction: r);
 
         // --- Effets (Step3) ---
         public TurnResult WithNextConstraint(HeightConstraint constraint, DefRank refRank) => Copy(cons: constraint, refRank: refRank);

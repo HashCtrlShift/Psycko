@@ -1,4 +1,5 @@
 using Psycko.Core.Domain;
+using Psycko.Core.Rules.Validation;
 
 namespace Psycko.Core.Services.TurnManager
 {
@@ -82,6 +83,16 @@ namespace Psycko.Core.Services.TurnManager
         /// GameOrchestrator après résolution du Don (main déjà mutée via IGameStateCommand ;
         /// le paramètre play reste le Play original de la pose ayant déclenché le tour,
         /// nécessaire à Step5 pour relire Pile.Cards dans son contexte).
+        ///
+        /// CONTRAT OBLIGATOIRE POUR GAMEORCHESTRATOR : lorsque cette méthode est appelée
+        /// après résolution d'un Don, GameOrchestrator DOIT réinjecter l'état réellement
+        /// muté (mains du donateur et du receveur mises à jour via IGameStateCommand)
+        /// dans le TurnResult AVANT l'appel, c.-à-d. appeler
+        /// ResolveRemainder(result.WithState(stateAprèsDon), play).
+        /// Si cette réinjection est omise, Step4 travaillera sur l'état obsolète
+        /// d'avant le Don (celui produit par Step3), et sa décision de repioche/
+        /// transition de phase sera fausse.
+        ///
         /// Fusionne explicitement SkipNext/Replay (OR logique) entre l'état entrant
         /// (issu de Step3, ex. GrantsReplay du Valet) et Step5 (ex. Replay du Carré) :
         /// aucune étape n'écrase silencieusement les drapeaux de l'autre.
@@ -90,7 +101,10 @@ namespace Psycko.Core.Services.TurnManager
         {
             var result = previous;
 
-            result = result.WithState(Step4_FinalDrawResolver.Resolve(result.State, play.PlayerId).State);
+            var step4 = Step4_FinalDrawResolver.Resolve(result, play);
+            result = result
+                .WithState(step4.State)
+                .WithFinalReconstruction(step4.FinalReconstruction ?? HandReconstructionResult.None);
 
             var step5 = Step5_PileEffectsResolver.Resolve(result.State, play);
             result = result
