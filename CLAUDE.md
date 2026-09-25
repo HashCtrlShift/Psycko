@@ -687,11 +687,16 @@ Trois faits vérifiés dans le repo, à ne pas confondre :
 
 ### Séquence de déblocage
 
-  T-xx.a — Faire implémenter IGameStateCommand par GameState
-           (public sealed class GameState : IGameState)
-           Chaque méthode déléguant aux With* existants. Aucune règle de jeu
+    T-xx.a — FAIT (T21). GameState implémente IGameStateCommand
+           (public sealed class GameState : IGameState).
+           Les 9 méthodes délèguent aux With* existants. Aucune règle de jeu
            dans ces 9 méthodes : transition mécanique brute uniquement
            (ne vérifie jamais si le coup est légal).
+           Détails actés : PlayCards retire par égalité de valeur (Card = record) ;
+           FindPlayerIndexById lève une exception si l'ID ne correspond à aucun
+           joueur ; AdvancePlayerPhase suit l'ordre fixe Work→Talent→Luck→Finished ;
+           EliminatePlayer force directement DefPhase.Finished ;
+           PickUpPile respecte l'ordre d'empilement existant.
 
   T-xx.b — Ordre d'implémentation, dicté par les consommateurs réels :
            1. PickUpPile(playerIndex)              → décidé par Step0, exécuté par GameOrchestrator

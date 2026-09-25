@@ -13,7 +13,7 @@ namespace Psycko.Core.Domain
     /// La chaîne de Doublon/Carré N'EST PAS stockée ici : elle se déduit en lisant
     /// Pile.Cards (voir PairDetection/QuadDetection) — pas de duplication d'état.
     /// </summary>
-    public sealed class GameState : IGameStateQuery
+    public sealed class GameState : IGameState
     {
         private readonly List<Player> _players;
         private readonly List<Card> _drawPile;
@@ -142,5 +142,155 @@ namespace Psycko.Core.Domain
         /// </summary>
         public GameState WithConstraint(HeightConstraint constraint, DefRank refRank)
             => new GameState(_players, _drawPile, Pile, ActivePlayerIndex, Direction, constraint, refRank);
+    
+            // --- IGameStateCommand ---
+
+        public IGameState PlayCards(Play play)
+        {
+            if (play is null) throw new ArgumentNullException(nameof(play));
+
+            var playerIndex = FindPlayerIndexById(play.PlayerId);
+            var player = _players[playerIndex];
+
+            List<Card> remaining;
+            Player updatedPlayer;
+
+            switch (play.SourceLayer)
+            {
+                case CardLayer.Hand:
+                    remaining = RemoveCards(player.Hand, play.Cards);
+                    updatedPlayer = player.WithHand(remaining);
+                    break;
+                case CardLayer.FaceUp:
+                    remaining = RemoveCards(player.FaceUp, play.Cards);
+                    updatedPlayer = player.WithFaceUp(remaining);
+                    break;
+                case CardLayer.FaceDown:
+                    remaining = RemoveCards(player.FaceDown, play.Cards);
+                    updatedPlayer = player.WithFaceDown(remaining);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(play.SourceLayer));
+            }
+
+            var updatedPlayers = new List<Player>(_players);
+            updatedPlayers[playerIndex] = updatedPlayer;
+
+            var updatedPile = Pile.Add(play);
+
+            return new GameState(updatedPlayers, _drawPile, updatedPile, ActivePlayerIndex, Direction, Constraint, RefRank)
+                as IGameState;
+        }
+
+        public IGameState PickUpPile(int playerIndex)
+        {
+            ValidatePlayerIndex(playerIndex, _players.Count, nameof(playerIndex));
+
+            var player = _players[playerIndex];
+            var updatedHand = player.Hand.Concat(Pile.Cards).ToList();
+            var updatedPlayer = player.WithHand(updatedHand);
+
+            var updatedPlayers = new List<Player>(_players);
+            updatedPlayers[playerIndex] = updatedPlayer;
+
+            return new GameState(updatedPlayers, _drawPile, Pile.Empty, ActivePlayerIndex, Direction, Constraint, RefRank)
+                as IGameState;
+        }
+
+        public IGameState DestroyPile()
+            => WithPile(Pile.Empty);
+
+        public IGameState SetActivePlayer(int playerIndex)
+            => WithActivePlayerIndex(playerIndex);
+
+        public IGameState ReverseDirection()
+            => WithDirection(Direction == PlayDirection.Clockwise
+                ? PlayDirection.CounterClockwise
+                : PlayDirection.Clockwise);
+
+        public IGameState SetConstraint(HeightConstraint constraint, DefRank refRank)
+            => WithConstraint(constraint, refRank);
+
+        public IGameState DrawCards(int playerIndex, int count)
+        {
+            ValidatePlayerIndex(playerIndex, _players.Count, nameof(playerIndex));
+            if (count < 0 || count > _drawPile.Count)
+                throw new ArgumentOutOfRangeException(nameof(count));
+
+            var drawn = _drawPile.Take(count).ToList();
+            var remainingDraw = _drawPile.Skip(count).ToList();
+
+            var player = _players[playerIndex];
+            var updatedHand = player.Hand.Concat(drawn).ToList();
+            var updatedPlayer = player.WithHand(updatedHand);
+
+            var updatedPlayers = new List<Player>(_players);
+            updatedPlayers[playerIndex] = updatedPlayer;
+
+            return new GameState(updatedPlayers, remainingDraw, Pile, ActivePlayerIndex, Direction, Constraint, RefRank)
+                as IGameState;
+        }
+
+        public IGameState AdvancePlayerPhase(int playerIndex)
+        {
+            ValidatePlayerIndex(playerIndex, _players.Count, nameof(playerIndex));
+
+            var player = _players[playerIndex];
+            DefPhase nextPhase = player.CurrentPhase switch
+            {
+                DefPhase.Work => DefPhase.Talent,
+                DefPhase.Talent => DefPhase.Luck,
+                DefPhase.Luck => DefPhase.Finished,
+                _ => player.CurrentPhase
+            };
+
+            var updatedPlayer = player.WithPhase(nextPhase);
+            var updatedPlayers = new List<Player>(_players);
+            updatedPlayers[playerIndex] = updatedPlayer;
+
+            return WithPlayers(updatedPlayers) as IGameState;
+        }
+
+        public IGameState EliminatePlayer(int playerIndex)
+        {
+            ValidatePlayerIndex(playerIndex, _players.Count, nameof(playerIndex));
+
+            var player = _players[playerIndex];
+            var updatedPlayer = player.WithPhase(DefPhase.Finished);
+
+            var updatedPlayers = new List<Player>(_players);
+            updatedPlayers[playerIndex] = updatedPlayer;
+
+            return WithPlayers(updatedPlayers) as IGameState;
+        }
+
+        // --- Helpers privés (nouveaux, strictement mécaniques) ---
+
+        private static List<Card> RemoveCards(IReadOnlyList<Card> source, IReadOnlyList<Card> toRemove)
+        {
+            var result = new List<Card>(source);
+            foreach (var card in toRemove)
+            {
+                if (!result.Remove(card))
+                    throw new InvalidOperationException(
+                        "Une carte du Play n'a pas été trouvée dans la couche source du joueur.");
+            }
+            return result;
+        }
+
+        private int FindPlayerIndexById(int playerId)
+        {
+            for (var index = 0; index < _players.Count; index++)
+                if (_players[index].Id == playerId)
+                    return index;
+
+            throw new ArgumentException($"Aucun joueur avec l'Id {playerId}.", nameof(playerId));
+        }
+
+        private static void ValidatePlayerIndex(int playerIndex, int playerCount, string parameterName)
+        {
+            if (playerIndex < 0 || playerIndex >= playerCount)
+                throw new ArgumentOutOfRangeException(parameterName, playerIndex, "L'index du joueur est hors limites.");
+        }
     }
 }
