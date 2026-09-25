@@ -184,6 +184,10 @@ Les joueurs jouent **à tour de rôle** en posant des cartes de leur **main** ju
 ### Fin de Partie
 - Le jeu se termine quand il ne reste **qu'un seul joueur avec des cartes**.
 - Ce dernier joueur est désigné **"Psycko"** (perdant).
+- Détection hors périmètre de Step6_AdvanceTurnResolver : Step6 avance
+  seulement le tour parmi les joueurs actifs restants. C'est GameOrchestrator,
+  après appel à TurnManager, qui constate qu'un seul joueur a
+  CurrentPhase != DefPhase.Finished et déclenche la fin de partie.
 
 ---
 
@@ -600,9 +604,18 @@ cet ordre IMMUABLE (chaque étape reçoit l'état du précédent, jamais de muta
      - Carré → destruction de la pile + rejeu du poseur
   
   6. AVANCEMENT DU TOUR (Step6_AdvanceTurnResolver) :
-     - SetActivePlayer au joueur suivant
-     - Applique skip/replay si signalé par Step5
-
+     - Recherche ancrée sur ActivePlayerIndex courant, avance selon Direction
+       (PlayDirection.Clockwise / CounterClockwise).
+     - Ne compte et ne s'arrête que sur un joueur actif
+       (CurrentPhase != DefPhase.Finished) ; les joueurs Finished sont
+       traversés sans jamais être ciblés comme "prochain joueur".
+     - Replay : le joueur actif rejoue (aucun avancement).
+     - SkipNext : saute exactement UN joueur actif supplémentaire dans le
+       sens courant (jamais un joueur Finished, qui ne compte pas comme le
+       joueur sauté).
+     - Ne détecte JAMAIS la fin de partie : cette responsabilité revient
+       exclusivement à GameOrchestrator (voir section Fin de Partie).
+ 
 ⚠️ CRITÈRE : Interroger un handler d'effet de main (ex. SevenHandler) à l'étape 1 
 (avant reconstitution) produirait des Dons silencieux à tort. Un 7 en dernière carte 
 doit permettre au joueur de donner la carte qu'il vient de piocher à l'étape 2.
@@ -666,10 +679,8 @@ Trois faits vérifiés dans le repo, à ne pas confondre :
        • GameOrchestrator.cs est une COQUILLE VIDE (5 lignes : public class GameOrchestrator { })
        • TurnManager.cs (Services/TurnManager/, 43 lignes) ne référence ni
          IGameStateCommand ni IGameState
-       • Step0, Step1, Step2, Step3 sont implémentés et clos.
-         Step4 (périmètre résiduel à confirmer) et Step5_PileEffectsResolver
-         restent à l'état de stub.
-
+       • Step0, Step1, Step2, Step3, Step4, Step5 et Step6 sont implémentés et clos.
+         Seul GameOrchestrator.cs reste une coquille vide (T-xx.c, non commencé).
      Autrement dit : le blocage n'est pas « il manque l'implémentation », c'est
      « la chaîne d'exécution mutante n'est câblée nulle part ». Les Steps actuels
      sont conformes à la règle (lecture seule) par vacuité, pas par conception validée.
@@ -697,6 +708,8 @@ Trois faits vérifiés dans le repo, à ne pas confondre :
              • si Step0 décide IsPickup → appelle PickUpPile avant la chaîne
              • appelle TurnManager.ApplyPlay(state, play)
              • applique les mutations décidées par les Steps
+             • détecte la fin de partie (un seul joueur avec
+               CurrentPhase != DefPhase.Finished) — jamais délégué à Step6
              • retourne le nouvel état immuable
 
 ### Règle de câblage — VERROUILLÉE
