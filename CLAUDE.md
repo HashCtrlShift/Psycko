@@ -233,6 +233,7 @@ Les joueurs jouent **à tour de rôle** en posant des cartes de leur **main** ju
 - **Un coup de 4 cartes d'un seul coup valide immédiatement un Carré.**
 - **Futur (PowerCards)** : validé dès que le seuil de 4 est atteint/franchi, peu importe le total final.
 - **Effet** : pile détruite, le joueur qui complète le Carré rejoue, ouvre une nouvelle pile (hauteur libre).
+- **Cas limite — Si le joueur complète le Carré avec sa dernière carte** : il ne rejoue pas, contrairement au cas normal — il gagne sa partie (transition vers Finished) et c'est le joueur suivant qui joue sur la nouvelle pile. Pas de rejeu pour un joueur qui n'a plus de cartes.
 - **Reste actif même à ≤2 joueurs.**
 
 ### Doublon (Pair / Skip)
@@ -241,6 +242,12 @@ Les joueurs jouent **à tour de rôle** en posant des cartes de leur **main** ju
 - **Joker de Verre transparent** : ne casse pas la chaîne, comparaison sautant par-dessus lui.
 - **Joker Noir casse la chaîne** : remet tout à zéro immédiatement.
 - **Désactivé à ≤2 joueurs** — **le Carré, lui, reste actif à ≤2 joueurs.**
+### Source d'autorité — décompte des joueurs actifs
+- Le seuil « ≤2 joueurs » (Doublon désactivé, Carré/Don toujours actifs) se
+calcule exclusivement sur le nombre de joueurs dont CurrentPhase != DefPhase.Finished.
+- Ne jamais utiliser Players.Count brut : ce compte inclut les joueurs déjà
+Finished (ayant gagné leur partie), ce qui fausserait le seuil une fois des
+joueurs éliminés en cours de partie.
 - **Granularité du Doublon** : Le Doublon compare le Play courant au Play précédent (niveau coup, pas niveau carte). Un Play multi-cartes (ex. 2×5) ne peut jamais être un Doublon avec lui-même. Il n'y a Doublon que si sa hauteur effective égale celle du Play précédent. Sur pile vide, aucun Doublon n'est possible (pas de Play précédent).
 
 ### **Exemple**
@@ -611,13 +618,18 @@ GrantsReplay, RequiresGiftResolution) est portée par un With... dédié.
 Aucune fusion OR n'était nécessaire ici car Step2 et Step3 n'exposent pas
 les mêmes drapeaux en conflit.
 
-⚠️ [OUVERT – reporté à l'implémentation de Step5] Fusion Step3/Step5
-Step5_PileEffectsResolver reste un stub (SkipNext: false, Replay: false).
-Le jour où Step5 est réellement implémenté (Doublon/Carré), vérifier que la
-fusion entre GrantsReplay (Step3) et le futur Replay (Step5, cas Carré) se
-fait par OR logique explicite — PAS par écrasement séquentiel via WithState.
-Même classe de risque que celle déjà corrigée pour Step2/Step3 : perte
-silencieuse d'un drapeau de rejeu si les deux Steps l'activent indépendamment.
+✅ [RÉSOLU – Step5 implémenté] Fusion Step3/Step5
+Step5_PileEffectsResolver est implémenté (Doublon/Carré). Signature :
+Resolve(GameState state, Play play, TurnResult incomingResult) — particularité
+volontaire par rapport aux autres Steps, car Step5 doit fusionner son propre
+Replay (cas Carré) avec le GrantsReplay déjà porté par incomingResult (issu de
+Step3, ex. rejeu du Valet). Le TurnResult retourné par Step5 repart de
+incomingResult et applique la fusion par OR logique explicite :
+.WithReplay(incomingResult.GrantsReplay || step5Replay) — JAMAIS par
+écrasement séquentiel via WithState. Même classe de risque que celle déjà
+corrigée pour Step2/Step3 : perte silencieuse d'un drapeau de rejeu si les
+deux Steps l'activent indépendamment.
+---
 ---
 
 ### TODO Immédiat — Blocage IGameStateCommand

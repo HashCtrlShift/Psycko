@@ -57,7 +57,7 @@ namespace Psycko.Core.Services.TurnManager
             // Step3 porte les intentions d'effets (contrainte, direction, destruction
             // de pile, rejeu, Don). Fusion explicite : on ne perd ni les intentions
             // Step2 (non concurrencées par Step3) ni les nouvelles intentions Step3.
-            var step3 = Step3_CardEffectsResolver.Resolve(result.State, play);
+            var step3 = Step3_CardEffectsResolver.Resolve(reconstruction.State, play);
             result = result
                 .WithState(step3.State)
                 .WithNextConstraint(step3.NextConstraint!.Value, step3.NextRefRank!.Value)
@@ -106,8 +106,8 @@ namespace Psycko.Core.Services.TurnManager
                 .WithState(step4.State)
                 .WithFinalReconstruction(step4.FinalReconstruction ?? HandReconstructionResult.None);
 
-            var step5 = Step5_PileEffectsResolver.Resolve(result.State, play);
-            result = result
+            var step5 = Step5_PileEffectsResolver.Resolve(result.State, play, result);
+            result = step5
                 .WithState(step5.State)
                 .WithSkipNext(result.SkipNext || step5.SkipNext)
                 .WithReplay(result.Replay || step5.Replay);
