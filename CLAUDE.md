@@ -557,13 +557,20 @@ GameOrchestrator l'APPLIQUE.
 Lorsqu'un joueur commence son tour, la séquence orchestrée par TurnManager respecte 
 cet ordre IMMUABLE (chaque étape reçoit l'état du précédent, jamais de mutation locale).
 
-  0. RAMASSAGE (branche alternative, pas une étape de la séquence de pose) :
-     - Si le joueur n'a **aucune carte valide** à jouer sur la Pile → ramassage FORCÉ,
-       il ramasse immédiatement la Pile de Jeu, passe son tour sans poser ni piocher.
-     - Si le joueur a au moins une carte jouable mais choisit stratégiquement de ne
-       pas jouer → ramassage VOLONTAIRE (déclenché via le bouton "Ramasser" côté
-       Présentation), même résultat : ramasse la Pile, passe son tour.
-     - Dans les deux cas, la séquence POSE→JOUEUR SUIVANT (étapes 1 à 6 ci-dessous)
+    0. RAMASSAGE WORK/TALENT (branche alternative, pas une étape de la séquence de pose) :
+     - Cette règle s'applique exclusivement aux phases **Work (Phase 1)** et
+       **Talent (Phase 2)**. Elle ne s'applique pas à la phase **Luck (Phase 3)**.
+     - En **début de tour** (`BeginTurn`), avant que le joueur actif ne propose un coup,
+       `TurnManager` vérifie `HasAnyPlayableCard`.
+     - Si `HasAnyPlayableCard == false`, `TurnManager.BeginTurn(state)` décide un
+       ramassage forcé. `GameOrchestrator` exécute ensuite la décision en appelant
+       `ResolvePickup(state, playerId)` puis `PickUpPile(playerIndex)`.
+     - Si `HasAnyPlayableCard == true`, aucun ramassage forcé n'est décidé à ce stade.
+       Le joueur peut toutefois demander explicitement un ramassage volontaire via le
+       bouton **"Ramasser"** côté Présentation pendant qu'il choisit ses cartes.
+     - Dans les deux cas, `TurnManager.ResolvePickup(state, playerId)` décrit la
+       décision de ramassage volontaire ou forcé ; `GameOrchestrator` est le seul à
+       exécuter la mutation. La séquence POSE→JOUEUR SUIVANT (étapes 1 à 6 ci-dessous)
        n'est PAS exécutée : le tour se termine directement sur JOUEUR SUIVANT.
 
   Si le joueur pose une ou plusieurs cartes, l'ordre suivant DOIT être respecté
@@ -623,6 +630,63 @@ doit permettre au joueur de donner la carte qu'il vient de piocher à l'étape 2
 ⚠️ CRITÈRE RAMASSAGE : Le ramassage (forcé ou volontaire) est une branche exclusive 
 qui court-circuite entièrement les étapes 1 à 6. TurnManager doit trancher 
 "le joueur ramasse-t-il ?" AVANT d'entrer dans la séquence POSE, jamais après.
+### Règle verrouillée — Ramassage en phases Work/Talent
+
+Cette règle clôture le squelette de `GameOrchestrator` pour T22 et prépare T23.
+Elle concerne uniquement les phases **Work** et **Talent**. La phase **Luck** possède
+une mécanique distincte et relève de T24.
+
+- **Décision du ramassage forcé** :
+  `TurnManager.BeginTurn(state)` est appelé au début du tour, avant toute proposition
+  de coup. Il vérifie `HasAnyPlayableCard`. Si `HasAnyPlayableCard == false`, il
+  décide le ramassage forcé. La décision appartient à `TurnManager` / `Step0` ;
+  l'exécution appartient à `GameOrchestrator`. Jamais l'inverse.
+
+- **Ramassage volontaire** :
+  si le joueur possède au moins une carte jouable, un ramassage volontaire reste
+  possible via une action explicite de la Présentation, par exemple le bouton
+  **"Ramasser"**, pendant la sélection de ses cartes. Cette action est résolue par
+  `TurnManager.ResolvePickup(state, playerId)` puis exécutée par `GameOrchestrator`.
+
+- **Découpage obligatoire de `TurnManager`** :
+  les responsabilités sont séparées en trois méthodes :
+
+  `BeginTurn(state)` — décide si un ramassage forcé doit avoir lieu ;
+
+  `ResolvePickup(state, playerId)` — décrit et résout la décision de ramassage
+  volontaire ou forcé ;
+
+  `ApplyPlay(state, play)` — applique la chaîne de pose et ne reçoit aucun paramètre
+  `voluntaryPickup`.
+
+  `ApplyPlay` ne doit jamais décider ni exécuter un ramassage. Les Steps restent en
+  lecture seule ; `GameOrchestrator` demeure le seul appelant de `IGameStateCommand`.
+
+- **Réinitialisation de la contrainte après ramassage** :
+  après tout `PickUpPile` ou `DestroyPile`, volontaire ou forcé, la contrainte
+  `(Constraint, RefRank)` DOIT être réinitialisée à `(Normal, Three)`.
+  Cette réinitialisation est nécessaire pour les cas Prêtre, Carré, Bombe et Joker Noir.
+  `GameState.PickUpPile` et `GameState.DestroyPile` restent des mutations mécaniques
+  sans logique de jeu et ne doivent pas porter cette décision. C'est
+  `GameOrchestrator` qui doit appeler `SetConstraint(Normal, Three)` après
+  `PickUpPile`/`DestroyPile`.
+
+- **Résultat exposé à la Présentation** :
+  `PlayResult` expose les ramassages forcés survenus pendant la résolution au moyen
+  du champ :
+
+  `IReadOnlyList<int> ForcedPickupPlayerIds`
+
+  La collection est vide lorsqu'aucun ramassage forcé n'a eu lieu. Elle doit être une
+  liste, et non un `int?`, afin de représenter une chaîne de plusieurs ramassages forcés.
+
+- **Exclusion explicite de Luck / T24** :
+  cette règle ne couvre pas la phase Luck. En Luck, le joueur choisit une carte
+  FaceDown à l'aveugle ; la carte est révélée et rendue visible à tous les joueurs,
+  puis, si elle n'est pas jouable, la pile est ramassée et la carte révélée est
+  fusionnée dans la main. Cette mécanique sera traitée séparément dans T24,
+  `ApplyBlindPlay`. Elle ne doit pas être mélangée avec `BeginTurn` / `Step0`,
+  qui s'appliquent uniquement aux phases Work/Talent.
 
 ⚠️ [RÉSOLU – Step3] Fusion des drapeaux Step2/Step3
 Le TurnManager.ApplyPlay n'écrase plus silencieusement les intentions de Step3.
@@ -699,19 +763,30 @@ Trois faits vérifiés dans le repo, à ne pas confondre :
            PickUpPile respecte l'ordre d'empilement existant.
 
   T-xx.b — Ordre d'implémentation, dicté par les consommateurs réels :
-           1. PickUpPile(playerIndex)              → décidé par Step0, exécuté par GameOrchestrator
-           2. PlayCards(play)                      → consommé après validation Step1
-           3. SetConstraint(constraint, refRank)   → handlers SpecialCards / Jokers
-           4. DestroyPile()                        → Step5 (Carré, Bombe, Joker Noir)
-           5. SetActivePlayer / ReverseDirection   → Step6
-           6. DrawCards / AdvancePlayerPhase / EliminatePlayer → Step2, Step4, fin de partie
+                       1. BeginTurn(state)                     → décide le ramassage forcé en Work/Talent
+            2. ResolvePickup(state, playerId)       → décide/résout le ramassage volontaire ou forcé
+            3. PickUpPile(playerIndex)              → exécuté par GameOrchestrator uniquement
+            4. PlayCards(play)                      → consommé après validation Step1
+            5. SetConstraint(constraint, refRank)   → handlers SpecialCards / Jokers
+            6. DestroyPile()                        → Step5 (Carré, Bombe, Joker Noir), puis
+                                                     SetConstraint(Normal, Three) par l'Orchestrator
+            7. SetActivePlayer / ReverseDirection   → Step6
+            8. DrawCards / AdvancePlayerPhase / EliminatePlayer → Step2, Step4, fin de partie
 
   T-xx.c — Écrire GameOrchestrator (aujourd'hui vide), SEUL point d'entrée
            autorisé à appeler IGameStateCommand. Responsabilités :
              • reçoit le Play proposé (Presentation / Bots)
              • lit l'état via IGameStateQuery, valide via Rules/
-             • si Step0 décide IsPickup → appelle PickUpPile avant la chaîne
-             • appelle TurnManager.ApplyPlay(state, play)
+             • appelle TurnManager.BeginTurn(state) avant toute proposition de coup
+             • si BeginTurn/Step0 décide un ramassage forcé → appelle
+                TurnManager.ResolvePickup(state, playerId), puis PickUpPile(playerIndex)
+             • si la Présentation demande un ramassage volontaire → appelle
+                TurnManager.ResolvePickup(state, playerId), puis PickUpPile(playerIndex)
+             • après PickUpPile ou DestroyPile → appelle SetConstraint(Normal, Three)
+             • appelle TurnManager.ApplyPlay(state, play) uniquement lorsqu'aucun
+                ramassage n'a été résolu
+             • renseigne PlayResult.ForcedPickupPlayerIds pour chaque ramassage forcé
+                survenu, y compris les chaînes de ramassages forcés
              • applique les mutations décidées par les Steps
              • détecte la fin de partie (un seul joueur avec
                CurrentPhase != DefPhase.Finished) — jamais délégué à Step6
