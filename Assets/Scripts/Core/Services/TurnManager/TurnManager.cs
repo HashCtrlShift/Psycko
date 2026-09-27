@@ -23,31 +23,57 @@ namespace Psycko.Core.Services.TurnManager
     /// </summary>
     public static class TurnManager
     {
-        /// <param name="voluntaryPickup">
-        /// True si le joueur a explicitement déclenché le ramassage (bouton "Ramasser"
-        /// côté Présentation), transmis depuis GameOrchestrator.
-        /// </param>
+        private static readonly CardPlayabilityChecker PlayabilityChecker = new CardPlayabilityChecker();
+
+        public static PickupResolution BeginTurn(GameState state)
+        {
+            if (state == null) throw new System.ArgumentNullException(nameof(state));
+
+            var player = state.GetActivePlayer();
+            if (player.CurrentPhase != DefPhase.Work && player.CurrentPhase != DefPhase.Talent)
+                return PickupResolution.NoPickup(state);
+
+            var forced = !PlayabilityChecker.HasAnyPlayableCard(player, state);
+            return forced
+                ? PickupResolution.Accepted(state, isForced: true)
+                : PickupResolution.NoPickup(state);
+        }
+
+        public static PickupResolution ResolvePickup(GameState state, int playerId)
+        {
+            if (state == null) throw new System.ArgumentNullException(nameof(state));
+
+            if (state.GetSeatIndex(playerId) != state.ActivePlayerIndex)
+                return PickupResolution.Rejected(state, PlayRejectionReason.NotYourTurn);
+
+            var player = state.GetActivePlayer();
+            if (player.CurrentPhase == DefPhase.Finished)
+                return PickupResolution.Rejected(state, PlayRejectionReason.PlayerFinished);
+
+            if (IsGameOver(state))
+                return PickupResolution.Rejected(state, PlayRejectionReason.GameAlreadyOver);
+
+            var beginTurn = BeginTurn(state);
+            return PickupResolution.Accepted(state, isForced: beginTurn.IsPickup);
+        }
+
+        private static bool IsGameOver(GameState state)
+        {
+            var activePlayers = 0;
+            for (var i = 0; i < state.Players.Count; i++)
+                if (state.Players[i].CurrentPhase != DefPhase.Finished)
+                    activePlayers++;
+            return activePlayers <= 1;
+        }
+
         /// <remarks>
         /// Exécute Step1 → Step2 → Step3. Si Step3 signale RequiresGiftResolution,
         /// s'arrête immédiatement après Step3 : Step4/Step5/Step6 ne sont ni exécutés
         /// ni devinés. GameOrchestrator doit alors résoudre le Don puis appeler
-        /// ResolveRemainder(result, play) pour obtenir le TurnResult final.
+        /// ResolveRemainder(result, play) pour reprendre à Step4.
         /// </remarks>
-        public static TurnResult ApplyPlay(GameState state, Play play, bool voluntaryPickup)
+        public static TurnResult ApplyPlay(GameState state, Play play)
         {
-            var pickupDecision = Step0_PickupResolver.Resolve(state, play.PlayerId, voluntaryPickup);
-
-            if (pickupDecision.IsPickup)
-            {
-                // Le ramassage réel (IGameStateCommand.PickUpPile) est exécuté par
-                // GameOrchestrator — TurnManager ne mute jamais l'état lui-même.
-                // On enchaîne directement sur Step6 avec l'état reçu.
-                var pickupResult = Step6_AdvanceTurnResolver.Resolve(
-                    pickupDecision.State, pickupDecision.SkipNext, pickupDecision.Replay);
-
-                return pickupResult.WithIsPickup(true);
-            }
-
             var result = Step1_PlaceCardsResolver.Resolve(state, play);
 
             // Step2 porte les intentions de reconstruction (DrawCount, FaceUpPickup, TargetPhase).
@@ -67,11 +93,7 @@ namespace Psycko.Core.Services.TurnManager
                 .WithRequiresGiftResolution(step3.RequiresGiftResolution);
 
             if (result.RequiresGiftResolution)
-            {
-                // Arrêt net : GameOrchestrator résout le Don (IGameStateCommand)
-                // puis appelle ResolveRemainder(result, play) pour reprendre à Step4.
                 return result;
-            }
 
             return ResolveRemainder(result, play);
         }

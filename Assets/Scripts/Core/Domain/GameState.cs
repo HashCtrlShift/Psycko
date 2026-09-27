@@ -277,6 +277,7 @@ namespace Psycko.Core.Domain
             }
             return result;
         }
+        public int GetSeatIndex(int playerId) => FindPlayerIndexById(playerId);
 
         private int FindPlayerIndexById(int playerId)
         {

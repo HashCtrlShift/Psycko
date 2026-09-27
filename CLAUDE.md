@@ -516,7 +516,7 @@ relève EXCLUSIVEMENT de Rules/Phase/, via PhaseResolver.IsLayerPlayable(Player,
     → aucune couche jouable. Voir CardPlayabilityChecker (Rules/Validation/), qui
       retourne false si la phase du joueur n'a pas de resolver dans son dictionnaire.
 
-CONSÉQUENCE POUR LES RESOLVERS (Step0→Step6) :
+CONSÉQUENCE POUR LES RESOLVERS (Step1→Step6) :
 Valider une SourceLayer signifie TOUJOURS interroger le PhaseResolver de la phase
 courante du joueur — jamais réécrire la condition en dur dans un Step.
 
@@ -632,63 +632,50 @@ qui court-circuite entièrement les étapes 1 à 6. TurnManager doit trancher
 "le joueur ramasse-t-il ?" AVANT d'entrer dans la séquence POSE, jamais après.
 ### Règle verrouillée — Ramassage en phases Work/Talent
 
-Cette règle clôture le squelette de `GameOrchestrator` pour T22 et prépare T23.
-Elle concerne uniquement les phases **Work** et **Talent**. La phase **Luck** possède
+Cette règle clôt T23. Elle concerne uniquement les phases **Work** et **Talent**. La phase **Luck** possède
 une mécanique distincte et relève de T24.
 
 - **Décision du ramassage forcé** :
   `TurnManager.BeginTurn(state)` est appelé au début du tour, avant toute proposition
-  de coup. Il vérifie `HasAnyPlayableCard`. Si `HasAnyPlayableCard == false`, il
-  décide le ramassage forcé. La décision appartient à `TurnManager` / `Step0` ;
-  l'exécution appartient à `GameOrchestrator`. Jamais l'inverse.
+  de coup. Il retourne un `PickupResolution` en lecture seule et vérifie
+  `HasAnyPlayableCard`. Le ramassage forcé est décidé uniquement en phases Work/Talent
+  lorsque cette propriété vaut `false`. L'exécution appartient à `GameOrchestrator`.
 
 - **Ramassage volontaire** :
   si le joueur possède au moins une carte jouable, un ramassage volontaire reste
   possible via une action explicite de la Présentation, par exemple le bouton
-  **"Ramasser"**, pendant la sélection de ses cartes. Cette action est résolue par
-  `TurnManager.ResolvePickup(state, playerId)` puis exécutée par `GameOrchestrator`.
+  **"Ramasser"**. Cette action est résolue par `TurnManager.ResolvePickup(state, playerId)`,
+  qui rejette `NotYourTurn`, `PlayerFinished` ou `GameAlreadyOver` avec le
+  `PlayRejectionReason` existant, puis exécutée par `GameOrchestrator`.
 
-- **Découpage obligatoire de `TurnManager`** :
-  les responsabilités sont séparées en trois méthodes :
+- **Découpage de `TurnManager`** :
+  `BeginTurn(state)` et `ResolvePickup(state, playerId)` retournent un
+  `PickupResolution` en lecture seule ; `ApplyPlay(state, play)` applique la chaîne
+  de pose sans paramètre `voluntaryPickup` ; `ResolveRemainder` reprend la chaîne
+  après la résolution du Don. `Step0_PickupResolver` est supprimé : la chaîne est
+  désormais **Step1→Step6**. `PickupResolution.cs` vit dans `Services/TurnManager/`.
 
-  `BeginTurn(state)` — décide si un ramassage forcé doit avoir lieu ;
-
-  `ResolvePickup(state, playerId)` — décrit et résout la décision de ramassage
-  volontaire ou forcé ;
-
-  `ApplyPlay(state, play)` — applique la chaîne de pose et ne reçoit aucun paramètre
-  `voluntaryPickup`.
-
-  `ApplyPlay` ne doit jamais décider ni exécuter un ramassage. Les Steps restent en
-  lecture seule ; `GameOrchestrator` demeure le seul appelant de `IGameStateCommand`.
-
-- **Réinitialisation de la contrainte après ramassage** :
-  après tout `PickUpPile` ou `DestroyPile`, volontaire ou forcé, la contrainte
-  `(Constraint, RefRank)` DOIT être réinitialisée à `(Normal, Three)`.
-  Cette réinitialisation est nécessaire pour les cas Prêtre, Carré, Bombe et Joker Noir.
-  `GameState.PickUpPile` et `GameState.DestroyPile` restent des mutations mécaniques
-  sans logique de jeu et ne doivent pas porter cette décision. C'est
-  `GameOrchestrator` qui doit appeler `SetConstraint(Normal, Three)` après
-  `PickUpPile`/`DestroyPile`.
+- **Orchestration d'un ramassage** :
+  `GameOrchestrator.ApplyPlay(state, play, playerIndex, bool voluntaryPickupRequested)`
+  dispose d'un overload sans le booléen. Sur un ramassage, il exécute
+  `PickUpPile(seatIndex)`, puis `SetConstraint(Normal, Three)`, puis l'avancement
+  de Step6, sans modifier la direction. Aucun enchaînement de ramassages forcés
+  n'est possible : après un ramassage, le joueur suivant a une pile vide et peut
+  toujours jouer.
 
 - **Résultat exposé à la Présentation** :
-  `PlayResult` expose les ramassages forcés survenus pendant la résolution au moyen
-  du champ :
-
-  `IReadOnlyList<int> ForcedPickupPlayerIds`
-
-  La collection est vide lorsqu'aucun ramassage forcé n'a eu lieu. Elle doit être une
-  liste, et non un `int?`, afin de représenter une chaîne de plusieurs ramassages forcés.
+  `PlayResult` expose `ForcedPickupPlayerIds` en `IReadOnlyList<int>` ; la collection
+  n'est jamais `null`. `Accepted` accepte une liste optionnelle.
 
 - **Exclusion explicite de Luck / T24** :
   cette règle ne couvre pas la phase Luck. En Luck, le joueur choisit une carte
   FaceDown à l'aveugle ; la carte est révélée et rendue visible à tous les joueurs,
   puis, si elle n'est pas jouable, la pile est ramassée et la carte révélée est
   fusionnée dans la main. Cette mécanique sera traitée séparément dans T24,
-  `ApplyBlindPlay`. Elle ne doit pas être mélangée avec `BeginTurn` / `Step0`,
-  qui s'appliquent uniquement aux phases Work/Talent.
+  `ApplyBlindPlay`. Elle ne doit pas être mélangée avec `BeginTurn`, qui s'applique
+  uniquement aux phases Work/Talent.
 
-⚠️ [RÉSOLU – Step3] Fusion des drapeaux Step2/Step3
+✅  [RÉSOLU – Step3] Fusion des drapeaux Step2/Step3
 Le TurnManager.ApplyPlay n'écrase plus silencieusement les intentions de Step3.
 Chaque intention (NextConstraint, NextRefRank, NextDirection, DestroysPile,
 GrantsReplay, RequiresGiftResolution) est portée par un With... dédié.
@@ -709,104 +696,31 @@ deux Steps l'activent indépendamment.
 ---
 ---
 
-### TODO Immédiat — Blocage IGameStateCommand
+### État d'implémentation et feuille de route
 
-Trois faits vérifiés dans le repo, à ne pas confondre :
+- **T21 — FAIT** : `GameState` implémente `IGameStateCommand` ; les 9 méthodes
+  délèguent aux `With*` existants et ne portent aucune règle de jeu.
+- **T23 — FAIT** : le câblage `GameOrchestrator`/`TurnManager` du ramassage
+  Work/Talent est terminé. `TurnManager` expose `BeginTurn(state)`,
+  `ResolvePickup(state, playerId)`, `ApplyPlay(state, play)` et
+  `ResolveRemainder`. `GameOrchestrator` est le seul appelant de
+  `IGameStateCommand`. `Step0_PickupResolver` a été supprimé ; la chaîne est
+  `Step1→Step6`.
+- **T24 — À préparer** : phase Luck et `ApplyBlindPlay` : révélation à l'aveugle
+  d'une carte FaceDown, visible par tous, puis pose ou ramassage selon la règle
+  de pose.
 
-  1. Le CONTRAT existe.
-     Assets/Scripts/Core/Interfaces/IGameStateCommand.cs déclare 9 méthodes,
-     toutes de type de retour IGameState (interface composite
-     IGameState : IGameStateQuery, IGameStateCommand — Interfaces/IGameState.cs) :
-
-       IGameState PlayCards(Play play)
-       IGameState PickUpPile(int playerIndex)
-       IGameState DestroyPile()
-       IGameState SetActivePlayer(int playerIndex)
-       IGameState ReverseDirection()
-       IGameState SetConstraint(HeightConstraint constraint, DefRank refRank)
-       IGameState DrawCards(int playerIndex, int count)
-       IGameState AdvancePlayerPhase(int playerIndex)
-       IGameState EliminatePlayer(int playerIndex)
-
-  2. L'IMPLÉMENTATION n'existe pas.
-     Assets/Scripts/Core/Domain/GameState.cs déclare :
-       public sealed class GameState : IGameStateQuery
-     — IGameStateCommand n'est PAS dans la liste des interfaces implémentées,
-     et aucune des 9 méthodes ci-dessus n'existe dans le fichier.
-     GameState expose uniquement des mutateurs immuables de bas niveau, dont
-     les signatures ne correspondent pas 1:1 au contrat (retour GameState, pas IGameState) :
-       WithPlayers, WithPlayer(index), WithDrawPile, WithPile,
-       WithActivePlayerIndex, WithDirection, WithConstraint(constraint, refRank)
-
-  3. AUCUN APPELANT n'existe.
-     Recherche exhaustive de « IGameStateCommand » dans Services/ : zéro occurrence.
-       • GameOrchestrator.cs est une COQUILLE VIDE (5 lignes : public class GameOrchestrator { })
-       • TurnManager.cs (Services/TurnManager/, 43 lignes) ne référence ni
-         IGameStateCommand ni IGameState
-       • Step0, Step1, Step2, Step3, Step4, Step5 et Step6 sont implémentés et clos.
-         Seul GameOrchestrator.cs reste une coquille vide (T-xx.c, non commencé).
-     Autrement dit : le blocage n'est pas « il manque l'implémentation », c'est
-     « la chaîne d'exécution mutante n'est câblée nulle part ». Les Steps actuels
-     sont conformes à la règle (lecture seule) par vacuité, pas par conception validée.
-
-### Séquence de déblocage
-
-    T-xx.a — FAIT (T21). GameState implémente IGameStateCommand
-           (public sealed class GameState : IGameState).
-           Les 9 méthodes délèguent aux With* existants. Aucune règle de jeu
-           dans ces 9 méthodes : transition mécanique brute uniquement
-           (ne vérifie jamais si le coup est légal).
-           Détails actés : PlayCards retire par égalité de valeur (Card = record) ;
-           FindPlayerIndexById lève une exception si l'ID ne correspond à aucun
-           joueur ; AdvancePlayerPhase suit l'ordre fixe Work→Talent→Luck→Finished ;
-           EliminatePlayer force directement DefPhase.Finished ;
-           PickUpPile respecte l'ordre d'empilement existant.
-
-  T-xx.b — Ordre d'implémentation, dicté par les consommateurs réels :
-                       1. BeginTurn(state)                     → décide le ramassage forcé en Work/Talent
-            2. ResolvePickup(state, playerId)       → décide/résout le ramassage volontaire ou forcé
-            3. PickUpPile(playerIndex)              → exécuté par GameOrchestrator uniquement
-            4. PlayCards(play)                      → consommé après validation Step1
-            5. SetConstraint(constraint, refRank)   → handlers SpecialCards / Jokers
-            6. DestroyPile()                        → Step5 (Carré, Bombe, Joker Noir), puis
-                                                     SetConstraint(Normal, Three) par l'Orchestrator
-            7. SetActivePlayer / ReverseDirection   → Step6
-            8. DrawCards / AdvancePlayerPhase / EliminatePlayer → Step2, Step4, fin de partie
-
-  T-xx.c — Écrire GameOrchestrator (aujourd'hui vide), SEUL point d'entrée
-           autorisé à appeler IGameStateCommand. Responsabilités :
-             • reçoit le Play proposé (Presentation / Bots)
-             • lit l'état via IGameStateQuery, valide via Rules/
-             • appelle TurnManager.BeginTurn(state) avant toute proposition de coup
-             • si BeginTurn/Step0 décide un ramassage forcé → appelle
-                TurnManager.ResolvePickup(state, playerId), puis PickUpPile(playerIndex)
-             • si la Présentation demande un ramassage volontaire → appelle
-                TurnManager.ResolvePickup(state, playerId), puis PickUpPile(playerIndex)
-             • après PickUpPile ou DestroyPile → appelle SetConstraint(Normal, Three)
-             • appelle TurnManager.ApplyPlay(state, play) uniquement lorsqu'aucun
-                ramassage n'a été résolu
-             • renseigne PlayResult.ForcedPickupPlayerIds pour chaque ramassage forcé
-                survenu, y compris les chaînes de ramassages forcés
-             • applique les mutations décidées par les Steps
-             • détecte la fin de partie (un seul joueur avec
-               CurrentPhase != DefPhase.Finished) — jamais délégué à Step6
-             • retourne le nouvel état immuable
-
-### Règle de câblage — VERROUILLÉE
-
-  • GameOrchestrator est le SEUL à appeler IGameStateCommand.
-  • TurnManager et les Steps 0→6 ne l'appellent JAMAIS, même indirectement :
-    ils reçoivent un état, DÉCIDENT, et retournent un TurnResult décrivant
-    la décision. Ils ne mutent rien.
-  • Rules/ ne voit que IGameStateQuery — garantie du compilateur qu'aucune
-    règle ne peut muter l'état par erreur.
-  • IGameState (union des deux) n'est utile que là où lecture et écriture
-    cohabitent dans la même expression : en pratique, GameOrchestrator seul.
-
-**Blocage levé après T-xx.c :** la séquence complète devient exécutable
-(validation Rules + mutation IGameStateCommand + retour à TurnManager),
-et T15 (Step1_PlaceCardsResolver) peut être mergé sans dette de câblage.
----
+**Dette technique / tickets futurs :**
+- Renommer le namespace `Psycko.Core.Services.TurnManager` en `Psycko.Core.Services.Turn`.
+- `Step6` modifie `ActivePlayerIndex` hors de `IGameStateCommand`.
+- `IsGameOver` est dupliqué dans `GameOrchestrator` et `TurnManager`.
+- `ApplyPlay` utilise `!.Value` sur des champs nullable de Step3.
+- Envisager une API dédiée `RequestPickup`.
+- `GameOrchestrator` n'exécute pas encore les intentions de Step (`DrawCards`,
+  `DestroyPile`, `Don`, …).
+- Le type `TurnManager` porte le même nom que son namespace et peut provoquer
+  `CS0234` ; utiliser l'alias `using TurnManagerService =
+  Psycko.Core.Services.TurnManager.TurnManager;`.
 
 ### Contrat des Handlers Rules/SpecialCards/
 
@@ -922,43 +836,63 @@ Psycko/
 │   │   │   │   ├── GameState.cs                  Définit l'État d'une partie à un instant donné
 │   │   │   │   ├── Pile.cs                       Définit la Pile
 │   │   │   │   ├── Play.cs                       Définit un "Coup" joué
-│   │   │   │   └── Player.cs                     Définit un Joueur
+│   │   │   │   ├── Player.cs                     Définit un Joueur
+│   │   │   │   └── PlayRejectionReason.cs        Définit le Rejet d'un Play
+│   │   │   │ 
 │   │   │   ├── Rules/
 │   │   │   │   ├── Comparison/
 │   │   │   │   │   └── HeightComparison.cs       Compare la Hauteur de 2 DefRank
+│   │   │   │   │ 
 │   │   │   │   ├── Detection/
 │   │   │   │   │   ├── PairDetection.cs          Définit un "Doublon"
 │   │   │   │   │   └── QuadDetection.cs          Définit un "Carré"
+│   │   │   │   │ 
 │   │   │   │   ├── Validation/
 │   │   │   │   │   ├── CardPlayability.cs        Détermine si une carte est jouable d'après l'état actuel de      │   │   │   │   │   │                             la Partie
 │   │   │   │   │   ├── CardPlayabilityChecker.cs Détecte les cartes jouables d'un joueur
 │   │   │   │   │   ├── HandReconstructionPolicy.cs Contrat de Pioche commun à Step2 et Step4
 │   │   │   │   │   └── LastCardValidator.cs      Valide la règle : interdiction de terminer une phase sur un 2.
+│   │   │   │   │ 
 │   │   │   │   ├── Phase/
 │   │   │   │   │   ├── PhaseResolver.cs          Contrat abstrait commun aux phases de jeu 
 │   │   │   │   │   ├── WorkPhaseResolver.cs      Phase 1 - Le Travail
 │   │   │   │   │   ├── TalentPhaseResolver.cs    Phase 2 - Le Talent
 │   │   │   │   │   └── LuckPhaseResolver.cs      Phase 3 - La Chance
+│   │   │   │   │ 
 │   │   │   │   ├── SpecialCards/
 │   │   │   │   │   ├── JackHandler.cs            Définit le Valet
 │   │   │   │   │   ├── PriestHandler.cs          Définit le Prêtre
-│   │   │   │   │   ├── SevenHandler.cs
+│   │   │   │   │   ├── SevenHandler.cs           Définit le 7
 │   │   │   │   │   └── TwoHandler.cs             Définit le 2
+│   │   │   │   │ 
 │   │   │   │   └── Jokers/
 │   │   │   │       ├── GlassJokerResolver.cs     Définit le Joker de Verre
 │   │   │   │       ├── BlackJokerResolver.cs     Définit le Joker Noir
 │   │   │   │       └── ColorJokerResolver.cs     Définit le Joker Couleur
+│   │   │   │ 
 │   │   │   ├── Interfaces/ 
 │   │   │   │   ├── ICardPlayabilityChecker.cs    Contrat de jouabilité des cartes d'un joueur
 │   │   │   │   ├── IGameState.cs                 Interface composite
 │   │   │   │   ├── IGameStateCommand.cs          Contrat de transition
 │   │   │   │   └── IGameStateQuery.cs            Lecture seule de l'état d'une partie
+│   │   │   │ 
 │   │   │   └── Services/
+│   │   │       ├── TurnManager/
+│   │   │       │   ├── PickupResolution.cs               Résultat immutable de BeginTurn/ResolvePickup
+│   │   │       │   ├── Step1_PlaceCardsResolver.cs       Étape 1 — Pose des cartes sur la pile
+│   │   │       │   ├── Step2_ReconstructionResolver.cs   Étape 2 — Reconstruction de main
+│   │   │       │   ├── Step3_CardEffectsResolver.cs      Étape 3 — Effets des cartes spéciales
+│   │   │       │   ├── Step4_FinalDrawResolver.cs        Étape 4 — Repioche finale après Don éventuel
+│   │   │       │   ├── Step5_PileEffectsResolver.cs      Étape 5 — Effets de pile (Doublon/Carré)
+│   │   │       │   ├── Step6_AdvanceTurnResolver.cs      Étape 6 — Avancement de tour (joueur suivant, skip, rejeu)
+│   │   │       │   ├── TurnManager.cs                    Définit le déroulement d'un tour pour un joueur
+│   │   │       │   └── TurnResult.cs                     Résultat immutable porté entre les Steps (état+intentions)
+│   │   │       │
 │   │   │       ├── GameOrchestrator.cs           Définit le déroulement d'une partie
-│   │   │       ├── TurnManager.cs                Définit le déroulement d'un tour pour un joueur
 │   │   │       ├── GameResultCalculator.cs       Définit la Fin d'un partie.
 │   │   │       ├── GameSeed.cs                   Génération + stockage de la seed RNG d'une partie
-│   │   │       └── GameLogRecorder.cs            Enregistre chaque action/coup avec horodatage/tour
+│   │   │       ├── GameLogRecorder.cs            Enregistre chaque action/coup avec horodatage/tour
+│   │   │       └── PlayResult.cs                 Définit un appel à GameOrchestrator
 │   │   │
 │   │   ├── Bots/                          (C# pur, dépend Core — noEngineReferences: true)
 │   │   │   ├── Psycko.Bots.asmdef
@@ -971,13 +905,16 @@ Psycko/
 │   │       │   ├── ZoneView.cs
 │   │       │   ├── PlayerSeatView.cs
 │   │       │   └── GameTableView.cs
+│   │       │ 
 │   │       ├── Controllers/
 │   │       │   ├── GameplayController.cs
 │   │       │   ├── InputHandler.cs
 │   │       │   └── AnimationController.cs
+│   │       │ 
 │   │       ├── Models/
 │   │       │   ├── CardSkinDefinition.cs
 │   │       │   └── HumanSelectionState.cs
+│   │       │ 
 │   │       └── Scenes/
 │   │           └── GameplayLocal.unity
 │   │

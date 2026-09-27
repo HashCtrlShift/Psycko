@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Psycko.Core.Domain;
 
 namespace Psycko.Core.Services
@@ -13,19 +14,21 @@ namespace Psycko.Core.Services
         public GameState NewState { get; }
         public PlayRejectionReason? RejectionReason { get; }
         public bool IsGameOver { get; }
+        public IReadOnlyList<int> ForcedPickupPlayerIds { get; }
 
-        private PlayResult(bool success, GameState newState, PlayRejectionReason? reason, bool isGameOver)
+        private PlayResult(bool success, GameState newState, PlayRejectionReason? reason, bool isGameOver, IReadOnlyList<int> forcedPickupPlayerIds)
         {
             Success = success;
             NewState = newState;
             RejectionReason = reason;
             IsGameOver = isGameOver;
+            ForcedPickupPlayerIds = forcedPickupPlayerIds ?? new List<int>();
         }
 
-        public static PlayResult Accepted(GameState newState, bool isGameOver)
-            => new PlayResult(true, newState, null, isGameOver);
+        public static PlayResult Accepted(GameState newState, bool isGameOver, IReadOnlyList<int> forcedPickupPlayerIds = null)
+            => new PlayResult(true, newState, null, isGameOver, forcedPickupPlayerIds);
 
         public static PlayResult Rejected(GameState unchangedState, PlayRejectionReason reason)
-            => new PlayResult(false, unchangedState, reason, false);
+            => new PlayResult(false, unchangedState, reason, false, new List<int>());
     }
 }
