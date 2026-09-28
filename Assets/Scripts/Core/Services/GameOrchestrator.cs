@@ -67,9 +67,47 @@ namespace Psycko.Core.Services
             var turnResult = TurnManagerService.ApplyPlay(state, play);
             var newState = turnResult.State;
 
-            // Les intentions de mutation produites par les Steps (DrawCards,
-            // DestroyPile, Don, etc.) nécessitent les résolveurs/contrats non
-            // fournis dans cette passe. Elles ne sont donc pas devinées ici.
+            // Ordre respecté : pioche Step2 (avant Don), effets Step3 (contrainte,
+            // direction, destruction de pile), pioche Step4 (après Don éventuel).
+            // Le Don lui-même (RequiresGiftResolution) reste hors périmètre (T26c) :
+            // si turnResult.RequiresGiftResolution est vrai, TurnManager s'est arrêté
+            // après Step3 et FinalReconstruction est encore null ici.
+
+            if (turnResult.DrawCount > 0)
+            {
+                newState = (GameState)newState.DrawCards(state.ActivePlayerIndex, turnResult.DrawCount);
+            }
+
+            if (turnResult.DestroysPile)
+            {
+                newState = (GameState)newState.DestroyPile();
+            }
+
+            if (turnResult.NextConstraint.HasValue && turnResult.NextRefRank.HasValue)
+            {
+                newState = (GameState)newState.SetConstraint(
+                    turnResult.NextConstraint.Value,
+                    turnResult.NextRefRank.Value);
+            }
+
+            if (turnResult.NextDirection.HasValue)
+            {
+                newState = (GameState)newState.WithDirection(turnResult.NextDirection.Value);
+            }
+
+            if (turnResult.FinalReconstruction.HasValue
+                && turnResult.FinalReconstruction.Value.DrawCount > 0)
+            {
+                newState = (GameState)newState.DrawCards(
+                    state.ActivePlayerIndex,
+                    turnResult.FinalReconstruction.Value.DrawCount);
+            }
+
+            // Le Don du 7 (T28) et les transitions de phase Work→Talent→Luck (T26b)
+            // restent volontairement non exécutés ici : TriggersFaceUpPickup,
+            // TriggersPhaseTransition, TargetPhase et RequiresGiftResolution ne sont
+            // pas traduits en IGameStateCommand par ce ticket.
+
             return PlayResult.Accepted(newState, IsGameOver(newState));
         }
 

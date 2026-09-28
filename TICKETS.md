@@ -4,6 +4,7 @@
 
 - **T21 — FAIT** : `GameState` implémente `IGameStateCommand` ; les 9 méthodes
   délèguent aux `With*` existants et ne portent aucune règle de jeu.
+- **T22 — FAIT** : la gestion fine du ramassage (forcé vs volontaire, remise à (Normal, Three), notification à la Présentation)
 - **T23 — FAIT** : le câblage `GameOrchestrator`/`TurnManager` du ramassage
   Work/Talent est terminé. `TurnManager` expose `BeginTurn(state)`,
   `ResolvePickup(state, playerId)`, `ApplyPlay(state, play)` et
@@ -70,31 +71,33 @@ l'Id joueur comme un index de siège. Divergence Id/siège → mauvais joueur lu
 
 **Hors périmètre (reporté) :** T26c (orchestrateur du Don), T26 à T32, Bots, Présentation, réseau.
 
-### T26a — Pioche / Work
+### T26 — Exécution de l'intention DrawCards (pioche en phase Work) — MERGÉ (à confirmer par Ekinox après compilation locale)
 
-- **Contexte :** la phase Work doit reconstruire la main selon la pioche commune, sans
-  remélange, avant les étapes dépendantes.
-- **Problème :** les intentions de pioche (`DrawCards`) ne sont pas exécutées par
-  `GameOrchestrator` dans le code fourni.
-- **Fichiers concernés :** `Assets/Scripts/Core/Services/GameOrchestrator.cs`,
-  `Assets/Scripts/Core/Domain/GameState.cs`, `IGameStateCommand.cs`,
-  `Step2_ReconstructionResolver.cs` (non fourni).
-- **Règles CLAUDE.md applicables :** reconstruction avant Don et avant pile ; pioche
-  épuisée définitivement ; orchestrateur seul appelant des commandes.
-- **Travail attendu :** appliquer les intentions de Step dans l'ordre, respecter la
-  limite de `DrawPile`, et conserver l'immuabilité.
-- **Hors périmètre :** règles Luck/T24 et transfert du Don.
-- **Dépendances :** T23 ; contrat de `TurnResult`.
-- **Critères d'acceptation :** cartes tirées une seule fois, ordre de pioche conservé,
-  pioche vide gérée sans exception métier, aucun effet observé avant reconstruction.
-- **Questions à trancher :** tirage partiel autorisé quand la pioche contient moins de
-  trois cartes ?
-- **Pistes de tests NUnit EditMode futurs :** pioche 0/1/3 cartes ; main sous le seuil ;
-  conservation de Pile et des autres joueurs.
-- **Squelette de prompt :** « Implémente T26a dans l'orchestrateur en consommant les
-  intentions de reconstruction, sans déplacer les règles hors des resolvers. »
+**Statut** : Code livré, en attente de validation locale (compilation + revue Ekinox) avant merge effectif.
 
-### T26b — Transitions de phase, y compris pendant un rejeu
+**Contenu** :
+- `GameOrchestrator.ApplyPlay` exécute désormais, dans l'ordre strict Step2→Step3→Step4 :
+  1. `DrawCards` pour `turnResult.DrawCount` (reconstruction Step2, avant Don éventuel)
+  2. `DestroyPile` si `turnResult.DestroysPile` (effet Step3, ex. 2/Bombe)
+  3. `SetConstraint` si `NextConstraint`/`NextRefRank` renseignés (Step3)
+  4. `WithDirection` si `NextDirection` renseigné (Step3, Valet)
+  5. `DrawCards` pour `turnResult.FinalReconstruction.Value.DrawCount` (Step4, après Don éventuel)
+- Aucune nouvelle commande créée : `IGameStateCommand.DrawCards(int, int)` existait déjà et sa décision de bornage (`Math.Min(needed, pile)`) est déjà portée en amont par `HandReconstructionPolicy` — pioche insuffisante/vide gérée nativement, sans exception.
+- **Décision DestroysPile** : pas de ticket T26d séparé. Le mécanisme est identique à celui déjà en place dans `ApplyBlindPlay` (phase Luck) et est intégré directement dans T26a au même point d'application que les autres intentions Step3.
+
+**Hors périmètre confirmé (reporté)** :
+- `TriggersFaceUpPickup`, `TriggersPhaseTransition`, `TargetPhase` → transitions de phase Work→Talent→Luck : **T26b**.
+- `RequiresGiftResolution` → Don du 7 : **T26c**.
+
+**Tests NUnit à couvrir plus tard (T26a)** :
+- Complétion normale de main (pioche Step2 = 3 cartes, pile suffisante).
+- Pioche insuffisante (pile < besoin, on pioche le reste sans exception).
+- Pioche vide (DrawCount calculé à 0, aucune mutation).
+- Pioche Step2 puis rejeu (Carré) : ordre pioche → effets pile → rejeu respecté.
+- Aucune pioche appliquée en phase Talent ou Luck (DrawCount = 0 par construction de HandReconstructionPolicy).
+- DestroysPile exécuté en ApplyPlay au même point que dans ApplyBlindPlay (non-régression de cohérence entre les deux méthodes).
+
+### T27 — Transitions de phase, y compris pendant un rejeu
 
 - **Contexte :** chaque joueur progresse Work → Talent → Luck → Finished ; un rejeu
   peut traverser une transition.
@@ -118,7 +121,7 @@ l'Id joueur comme un index de siège. Divergence Id/siège → mauvais joueur lu
 - **Squelette de prompt :** « Trace et corrige T26b dans la chaîne Step, y compris un
   replay qui franchit Talent→Luck ; ajoute des tests de phase individuelle. »
 
-### T26c — Don du 7
+### T28 — Don du 7
 
 - **Contexte :** `SevenHandler` déclare le Don ; l'orchestrateur doit appliquer sa
   transition après reconstruction et avant Doublon/Carré.
@@ -140,7 +143,7 @@ l'Id joueur comme un index de siège. Divergence Id/siège → mauvais joueur lu
 - **Squelette de prompt :** « Implémente T26c après reconstruction, avec un choix de
   carte/destinataire explicite et sans Don automatique inventé. »
 
-### T27 — Step6, `ActivePlayerIndex` et source unique de vérité
+### T29 — Step6, `ActivePlayerIndex` et source unique de vérité
 
 - **Contexte :** Step6 doit avancer selon `Direction`, ignorer les joueurs Finished,
   appliquer replay et skip.
@@ -163,7 +166,7 @@ l'Id joueur comme un index de siège. Divergence Id/siège → mauvais joueur lu
 - **Squelette de prompt :** « Fais de T27 une source unique de vérité pour Step6 et
   ActivePlayerIndex ; prouve l'absence de double avance par des tests. »
 
-### T28 — Supprimer le doublon `IsGameOver`
+### T30 — Supprimer le doublon `IsGameOver`
 
 - **Contexte :** la fin de partie dépend du nombre de joueurs non Finished ; Step6 ne
   doit pas la détecter.
@@ -189,7 +192,7 @@ l'Id joueur comme un index de siège. Divergence Id/siège → mauvais joueur lu
 > `GameResultCalculator.cs` est vide. Le doublon avec `TurnManager` n'est pas vérifiable
 > dans les fichiers fournis.
 
-### T29 — Remplacer les `!.Value` par des gardes explicites
+### T31 — Remplacer les `!.Value` par des gardes explicites
 
 - **Contexte :** un rejet métier doit retourner `PlayResult.Rejected`, pas lever une
   exception de nullabilité.
@@ -211,7 +214,7 @@ l'Id joueur comme un index de siège. Divergence Id/siège → mauvais joueur lu
 - **Squelette de prompt :** « Sécurise T29 sans masquer les bugs : garde explicite,
   PlayResult rejeté pour le métier, exception seulement pour invariant impossible. »
 
-### T30 — Rendre public `RequestPickup`
+### T32 — Rendre public `RequestPickup`
 
 - **Contexte :** le ramassage volontaire est une action distincte de la pose.
 - **Problème :** l'API actuelle passe par `ApplyPlay(..., voluntaryPickupRequested)` ;
@@ -232,7 +235,7 @@ l'Id joueur comme un index de siège. Divergence Id/siège → mauvais joueur lu
 - **Squelette de prompt :** « Ajoute T30 comme API publique mince qui réutilise la
   séquence T23, sans dupliquer la logique de ramassage. »
 
-### T31 — Décider le type de retour avant les Bots
+### T33 — Décider le type de retour avant les Bots
 
 - **Contexte :** T24 doit révéler une carte tout en conservant le résultat d'orchestration.
 - **Problème :** `PlayResult` ne porte pas actuellement `RevealedCard`; le besoin
@@ -253,7 +256,7 @@ l'Id joueur comme un index de siège. Divergence Id/siège → mauvais joueur lu
 - **Squelette de prompt :** « Décide T31 avant toute implémentation Bot : compare les
   deux modèles et migre les appels avec un contrat de révélation explicite. »
 
-### T32 — Renommer le namespace TurnManager
+### T34 — Renommer le namespace TurnManager
 
 - **Contexte :** le type `TurnManager` et le namespace
   `Psycko.Core.Services.TurnManager` portent le même nom.
