@@ -103,8 +103,11 @@ namespace Psycko.Core.Rules.SpecialCards
             if (play.SourceLayer == CardLayer.FaceDown)
                 return false;
 
+            // Résolution du siège par Id joueur — jamais l'Id comme index direct.
+            var seatIndex = state.GetSeatIndex(play.PlayerId);
+
             // Exception 2 : Main vide → aucune carte à donner
-            if (state.Players[play.PlayerId].Hand.Count == 0)
+            if (state.Players[seatIndex].Hand.Count == 0)
                 return false;
 
             // Sinon, Don obligatoire

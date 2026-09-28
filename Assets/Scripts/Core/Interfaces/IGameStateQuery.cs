@@ -42,5 +42,12 @@ namespace Psycko.Core.Interfaces
         /// Aucune logique de tour ici — la progression du tour relève de TurnManager.
         /// </summary>
         Player GetActivePlayer();
+
+        /// <summary>
+        /// Résout l'index de siège (dans Players) correspondant à un Id de joueur stable.
+        /// Lecture pure. Lève ArgumentException si aucun joueur ne porte cet Id
+        /// (anomalie d'état, jamais un cas métier normal à ce stade de la chaîne).
+        /// </summary>
+        int GetSeatIndex(int playerId);
     }
 }
