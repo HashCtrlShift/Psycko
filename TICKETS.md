@@ -97,6 +97,35 @@ l'Id joueur comme un index de siège. Divergence Id/siège → mauvais joueur lu
 - Aucune pioche appliquée en phase Talent ou Luck (DrawCount = 0 par construction de HandReconstructionPolicy).
 - DestroysPile exécuté en ApplyPlay au même point que dans ApplyBlindPlay (non-régression de cohérence entre les deux méthodes).
 
+## T26bis — Correctif Step5 replay projection
+
+**Statut :** mergé
+
+### Contexte
+
+`Step5_PileEffectsResolver` calcule le rejeu accordé au poseur d'un Carré via
+`poseur.HasCards`. Ce champ est lu sur `state`, un état dans lequel aucune
+pioche n'a encore été réellement appliquée : Step2 (`DrawCount`) et Step4
+(`FinalReconstruction.DrawCount`) ne portent que des intentions, jamais de
+mutation — conformément à la doctrine TurnManager (Steps en lecture seule,
+GameOrchestrator seul exécuteur de `IGameStateCommand`).
+
+### Bug
+
+Un poseur qui vide sa main en complétant un Carré, mais pour qui une pioche
+est déjà décidée (Step2 ou Step4), se voyait refuser à tort le rejeu, car
+`HasCards` était évalué avant l'application de cette pioche par
+GameOrchestrator.
+
+### Correctif
+
+Projection des intentions de pioche déjà connues avant de statuer sur le rejeu :
+
+```csharp
+var willDraw = incomingResult.DrawCount > 0
+    || (incomingResult.FinalReconstruction?.DrawCount ?? 0) > 0;
+step5Replay = poseur.HasCards || willDraw;
+
 ### T27 — Transitions de phase, y compris pendant un rejeu
 
 - **Contexte :** chaque joueur progresse Work → Talent → Luck → Finished ; un rejeu

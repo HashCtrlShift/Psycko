@@ -56,7 +56,17 @@ namespace Psycko.Core.Services.TurnManager
             if (quadDetected)
             {
                 var poseur = state.Players.First(p => p.Id == play.PlayerId);
-                step5Replay = poseur.HasCards;
+
+                // CORRECTIF T26a : HasCards seul est insuffisant car lu avant
+                // toute pioche réellement appliquée. On projette les intentions
+                // de pioche déjà portées par Step2 (DrawCount) et Step4
+                // (FinalReconstruction.DrawCount) : si l'une ou l'autre est
+                // positive, le poseur aura des cartes une fois la commande
+                // exécutée par GameOrchestrator, même si HasCards est faux ici.
+                var willDraw = incomingResult.DrawCount > 0
+                    || (incomingResult.FinalReconstruction?.DrawCount ?? 0) > 0;
+
+                step5Replay = poseur.HasCards || willDraw;
             }
             else
             {
