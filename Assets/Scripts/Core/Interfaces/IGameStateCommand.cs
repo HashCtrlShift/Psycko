@@ -38,5 +38,13 @@ namespace Psycko.Core.Interfaces
 
         /// <summary>Marque le joueur comme sorti de la partie (plus aucune carte).</summary>
         IGameState EliminatePlayer(int playerIndex);
+        
+        /// <summary>
+        /// Transfère une carte de la Hand du joueur source vers la Hand du destinataire.
+        /// Hand→Hand uniquement : cette commande ne doit jamais être utilisée pour FaceUp
+        /// ou FaceDown. Elle n'exprime aucune règle de « Don obligatoire » ; elle décrit
+        /// seulement un mouvement mécanique d'état, comme les autres commandes.
+        /// </summary>
+        IGameState TransferCard(int fromPlayerIndex, int toPlayerIndex, Card card);
     }
 }

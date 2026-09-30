@@ -1,6 +1,8 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Psycko.Core.Domain;
+using Psycko.Core.Interfaces;
 using Psycko.Core.Services.TurnManager;
 using TurnManagerService = Psycko.Core.Services.TurnManager.TurnManager;
 
@@ -69,9 +71,9 @@ namespace Psycko.Core.Services
 
             // Ordre respecté : pioche Step2 (avant Don), effets Step3 (contrainte,
             // direction, destruction de pile), pioche Step4 (après Don éventuel).
-            // Le Don lui-même (RequiresGiftResolution) reste hors périmètre (T26c) :
-            // si turnResult.RequiresGiftResolution est vrai, TurnManager s'est arrêté
-            // après Step3 et FinalReconstruction est encore null ici.
+            // Si RequiresGiftResolution est vrai, TurnManager s'est arrêté après Step3.
+            // La résolution du Don est explicite via ResolveGiftAndContinue : elle exécute
+            // TransferCard puis réinjecte l'état avant ResolveRemainder.
 
             if (turnResult.DrawCount > 0)
             {
@@ -110,6 +112,57 @@ namespace Psycko.Core.Services
             return PlayResult.Accepted(newState, IsGameOver(newState));
         }
 
+        /// <summary>
+        /// Résout le Don obligatoire puis reprend exactement à Step4.
+        /// Cette réinjection structurelle corrige T18-bis : TransferCard est exécuté
+        /// avant ResolveRemainder, de sorte que Step4_FinalDrawResolver ne lit jamais
+        /// l'état obsolète produit par Step3. Le cas « RequiresGiftResolution vrai
+        /// mais main déjà vide » ne peut donc plus produire un état incohérent : la
+        /// main est réellement mutée avant la repioche finale.
+        /// </summary>
+        public PlayResult ResolveGiftAndContinue(
+            GameState state,
+            Play play,
+            TurnResult pendingResult,
+            GiftResolutionChoice choice)
+        {
+            if (!pendingResult.RequiresGiftResolution)
+                throw new InvalidOperationException(
+                    "ResolveGiftAndContinue requiert un TurnResult en attente de Don.");
+
+            var donorIndex = pendingResult.State.ActivePlayerIndex;
+            var donor = pendingResult.State.Players[donorIndex];
+            if (!donor.Hand.Contains(choice.CardToGive))
+                return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
+
+            var transferred = (GameState)((IGameStateCommand)pendingResult.State).TransferCard(
+                donorIndex, choice.RecipientSeatIndex, choice.CardToGive);
+            var remainder = TurnManagerService.ResolveRemainder(
+                pendingResult.WithState(transferred), play);
+            var newState = remainder.State;
+
+            if (remainder.DrawCount > 0)
+                newState = (GameState)newState.DrawCards(
+                    pendingResult.State.ActivePlayerIndex, remainder.DrawCount);
+            if (remainder.DestroysPile)
+                newState = (GameState)newState.DestroyPile();
+            if (remainder.NextConstraint.HasValue && remainder.NextRefRank.HasValue)
+                newState = (GameState)newState.SetConstraint(
+                    remainder.NextConstraint.Value, remainder.NextRefRank.Value);
+            if (remainder.NextDirection.HasValue)
+                newState = (GameState)newState.WithDirection(
+                    remainder.NextDirection.Value);
+            if (remainder.FinalReconstruction.HasValue
+                && remainder.FinalReconstruction.Value.DrawCount > 0)
+                newState = (GameState)newState.DrawCards(
+                    pendingResult.State.ActivePlayerIndex,
+                    remainder.FinalReconstruction.Value.DrawCount);
+            if (remainder.TriggersPhaseTransition)
+                newState = (GameState)newState.AdvancePlayerPhase(
+                    pendingResult.State.ActivePlayerIndex);
+
+            return PlayResult.Accepted(newState, IsGameOver(newState));
+        }
 
         /// <summary>
         /// Révèle et résout une carte de la couche FaceDown en phase Luck.
@@ -189,4 +242,4 @@ namespace Psycko.Core.Services
             return stillPlaying <= 1;
         }
     }
-}
+} 

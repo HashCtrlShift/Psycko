@@ -139,29 +139,37 @@ if (turnResult.TriggersPhaseTransition)
     newState = (GameState)newState.AdvancePlayerPhase(state.ActivePlayerIndex);
 }
 
-### T28 — Don du 7
+## T28 — Don du 7 (résolution explicite)
 
-- **Contexte :** `SevenHandler` déclare le Don ; l'orchestrateur doit appliquer sa
-  transition après reconstruction et avant Doublon/Carré.
-- **Problème :** le code fourni n'exécute pas encore les intentions `Don` ; aucune
-  commande de transfert n'existe dans `IGameStateCommand`.
-- **Fichiers concernés :** `SevenHandler.cs`, `GameOrchestrator.cs`,
-  `IGameStateCommand.cs`, `GameState.cs`, interfaces de sélection (non fournies).
-- **Règles CLAUDE.md applicables :** Don obligatoire si possible, une seule carte par
-  coup, choix de la carte et du destinataire, aucun Don FaceDown, avant pile.
-- **Travail attendu :** exposer une résolution de choix puis appliquer le transfert
-  immuable ; ne pas laisser l'orchestrateur deviner un choix utilisateur.
-- **Hors périmètre :** T25 (résolution du siège), UI, bots.
-- **Dépendances :** T25, T26/T27, T31 pour le type final éventuellement.
-- **Critères d'acceptation :** exactement une carte ; Don avant Doublon/Carré ; refus
-  impossible quand le Don est dû ; FaceDown silencieux.
-- **Questions à trancher :** API de sélection synchrone ou résolution en deux temps ?
-- **Pistes de tests NUnit EditMode futurs :** 7 avec main restante ; dernier 7 ; carré
-  de 7 ; 7 FaceDown ; deux joueurs.
-- **Squelette de prompt :** « Implémente T28 après reconstruction, avec un choix de
-  carte/destinataire explicite et sans Don automatique inventé. »
+**Statut : ✅ Mergé**
 
-### T29 — Step6, `ActivePlayerIndex` et source unique de vérité
+**Dépendances :** T25 (résolution du siège via GetSeatIndex), T26/T26bis
+(fusion OR SkipNext/Replay), T27 (transitions de phase via AdvancePlayerPhase).
+
+**Résumé :**
+Le Don du 7 était déclaré par `SevenHandler` (`RequiresGiftResolution` sur
+`TurnResult`) mais jamais exécuté : aucune commande de transfert n'existait
+dans `IGameStateCommand`, et `GameOrchestrator.ApplyPlay` ignorait
+silencieusement le flag en continuant à appliquer les intentions post-Step3
+sur un état où le Don n'avait pas eu lieu.
+
+**Livré :**
+- `PlayResult.PendingGift` (champ `TurnResult?`, pas de nouveau statut enum) :
+  signale un Don en attente sans être un rejet (`Success == true`).
+- Early-return dans `ApplyPlay` : si `turnResult.RequiresGiftResolution`,
+  retourne immédiatement `PlayResult.AwaitingGift(turnResult)` avant toute
+  application d'intention.
+- `GameOrchestrator.ResolveGiftAndContinue(state, play, pendingResult, choice)` :
+  - Garde `InvalidOperationException` hors contexte de Don.
+  - Rejette (`InvalidCards`) si la carte choisie n'est pas dans la main
+    de l'actif.
+  - Exécute le transfert réel, réinjecte l'état muté.
+  - Reprend Step4 → Step5 → Step6 via `TurnManager.ResolveRemainder`.
+  - Applique le reste des intentions comme `ApplyPlay` standard.
+- Correction structurelle de T18-bis : `Step4_FinalDrawResolver` ne peut
+  plus recevoir un état obsolète d'avant-Don.
+
+## T29 — Step6, `ActivePlayerIndex` et source unique de vérité
 
 - **Contexte :** Step6 doit avancer selon `Direction`, ignorer les joueurs Finished,
   appliquer replay et skip.

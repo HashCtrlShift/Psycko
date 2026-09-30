@@ -36,6 +36,7 @@ Psycko/
 │   │   │   │   ├── DefLayer.cs                   Enum de l'Origine d'une carte lorsqu'elle est jouée
 │   │   │   │   ├── DefPhase.cs                   Enum des Phases de Jeu
 │   │   │   │   ├── GameState.cs                  Définit l'État d'une partie à un instant donné
+│   │   │   │   ├── GiftResolutionChoice.cs       Définit la Carte Donnée et le Joueur Choisi
 │   │   │   │   ├── Pile.cs                       Définit la Pile
 │   │   │   │   ├── Play.cs                       Définit un "Coup" joué
 │   │   │   │   ├── Player.cs                     Définit un Joueur

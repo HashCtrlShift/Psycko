@@ -263,6 +263,38 @@ namespace Psycko.Core.Domain
 
             return WithPlayers(updatedPlayers) as IGameState;
         }
+                /// <summary>
+        /// Transfert mécanique strict Hand→Hand. Les couches FaceUp/FaceDown ne sont
+        /// volontairement pas représentées par cette commande.
+        /// </summary>
+        public IGameState TransferCard(int fromPlayerIndex, int toPlayerIndex, Card card)
+        {
+            ValidatePlayerIndex(fromPlayerIndex, _players.Count, nameof(fromPlayerIndex));
+            ValidatePlayerIndex(toPlayerIndex, _players.Count, nameof(toPlayerIndex));
+            if (card is null) throw new ArgumentNullException(nameof(card));
+
+            var source = _players[fromPlayerIndex];
+            var remainingHand = RemoveCards(source.Hand, new List<Card> { card });
+            var updatedPlayers = new List<Player>(_players);
+
+            if (fromPlayerIndex == toPlayerIndex)
+            {
+                // Mouvement mécanique sur le même siège : retirer puis réinsérer
+                // la carte conserve exactement la main, sans duplication.
+                updatedPlayers[fromPlayerIndex] = source.WithHand(
+                    remainingHand.Concat(new[] { card }).ToList());
+            }
+            else
+            {
+                var destination = _players[toPlayerIndex];
+                updatedPlayers[fromPlayerIndex] = source.WithHand(remainingHand);
+                updatedPlayers[toPlayerIndex] = destination.WithHand(
+                    destination.Hand.Concat(new[] { card }).ToList());
+            }
+
+            return new GameState(updatedPlayers, _drawPile, Pile, ActivePlayerIndex, Direction, Constraint, RefRank)
+                as IGameState;
+        }
 
         // --- Helpers privés (nouveaux, strictement mécaniques) ---
 

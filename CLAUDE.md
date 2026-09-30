@@ -326,16 +326,16 @@ Lorsqu'un joueur pose un 7 :
 
   **Cas B — 7 révélé depuis Face Cachée (CardLayer.FaceDown) en Phase 3** :
     • AUCUN DON n'est déclenché (effet silencieux).
-    • Raison : Une carte Face Cachée n'a jamais transité par la main du joueur 
-      — elle est révélée directement sur la pile. Il n'existe donc aucune main 
+    • Raison : Une carte Face Cachée n'a jamais transité par la main du joueur
+      — elle est révélée directement sur la pile. Il n'existe donc aucune main
       « constituée pour ce 7 » à partir de laquelle on pourrait donner.
 
 Cette distinction s'exprime via :
   • play.SourceLayer == CardLayer.Hand   → Don possible (si main non vide)
   • play.SourceLayer == CardLayer.FaceDown → Don impossible (effet silencieux)
 
-**Corollaire critique** : Un joueur en Phase 3 ne peut JAMAIS donner une carte 
-Face Cachée, même s'il en a en Couche 3. Il ne peut donner que des cartes de sa 
+**Corollaire critique** : Un joueur en Phase 3 ne peut JAMAIS donner une carte
+Face Cachée, même s'il en a en Couche 3. Il ne peut donner que des cartes de sa
 main reconstituée.
 
 #### Cas général (pas de transition de phase)
@@ -351,6 +351,37 @@ main reconstituée.
 ### Destinataire du Don
 - Le joueur qui pose le 7 choisit le destinataire parmi tous les adversaires restants (y compris ceux en Phase 3), **sauf ceux qui ont déjà gagné**.
 - Le joueur en Phase 3 qui reçoit une carte reste en Phase 3 mais doit se débarrasser de sa main avant de pouvoir retourner une nouvelle carte face cachée.
+
+### Don du 7 — Règle verrouillée (synthèse d'exécution)
+
+Quand le Don est applicable (cf. sections ci-dessus), il est **obligatoire** :
+il ne peut jamais être silencieusement ignoré, ni par le moteur, ni par un
+appelant. Quand il n'est pas applicable (transitions Phase 2→3, main vide sans
+récupération possible, source FaceDown), le 7 reste sur la pile sans effet —
+ce n'est pas une omission mais l'état attendu.
+
+**Contraintes de choix :**
+- Exactement une carte donnée par Don, jamais zéro, jamais plus.
+- Le choix de la carte et du destinataire appartient exclusivement au
+  joueur qui doit donner — jamais deviné, jamais automatisé, jamais de
+  valeur par défaut côté moteur.
+- Une carte FaceDown ne peut jamais être proposée ni acceptée comme objet
+  du Don (cohérent avec le Cas B ci-dessus : ces cartes n'ont jamais transité
+  par la main).
+- Le refus n'est pas une réponse valide : un Don dû doit être résolu
+  avant que le tour ne puisse se terminer.
+
+**Ordre strict imposé :**
+Reconstruction de main → Don du 7 → résolution Doublon/Carré.
+Le Don s'exécute toujours avant toute résolution de Doublon/Carré, jamais
+après, jamais en parallèle.
+
+**Séparation des responsabilités :**
+Le moteur (Core) ne connaît que l'intention "Don requis" et l'exécution du
+transfert une fois le choix fourni. Il ne contient et ne contiendra jamais
+de stratégie de sélection automatique — celle-ci relève exclusivement de
+la couche Bots (stratégie explicite, jamais une valeur par défaut du
+moteur) ou de la Présentation (choix humain).
 
 ---
 
@@ -617,9 +648,10 @@ doit permettre au joueur de donner la carte qu'il vient de piocher à l'étape 2
 ⚠️ CRITÈRE RAMASSAGE : Le ramassage (forcé ou volontaire) est une branche exclusive 
 qui court-circuite entièrement les étapes 1 à 6. TurnManager doit trancher 
 "le joueur ramasse-t-il ?" AVANT d'entrer dans la séquence POSE, jamais après.
+
 ### Règle verrouillée — Ramassage en phases Work/Talent
 
-Cette règle clôt T23. Elle concerne uniquement les phases **Work** et **Talent**. La phase **Luck** possède
+Elle concerne uniquement les phases **Work** et **Talent**. La phase **Luck** possède
 une mécanique distincte et relève de T24.
 
 - **Décision du ramassage forcé** :
@@ -678,18 +710,6 @@ Step3, ex. rejeu du Valet). Le TurnResult retourné par Step5 repart de
 incomingResult et applique la fusion par OR logique explicite :
 .WithReplay(incomingResult.GrantsReplay || step5Replay) — JAMAIS par
 écrasement séquentiel via WithState. Même classe de risque que celle déjà corrigée pour Step2/Step3 : perte silencieuse d'un drapeau de rejeu si les deux Steps l'activent indépendamment. ⚠️ Depuis T26a, step5Replay n'est plus une lecture simple de poseur.HasCards : c'est elle-même une projection OR (poseur.HasCards || DrawCount>0 || FinalReconstruction.DrawCount>0), fusionnée ensuite avec GrantsReplay. Voir bloc T26bis dans TICKETS.md pour le détail de cette projection — ne pas la confondre avec la fusion Step3/Step5 documentée ici, qui reste inchangée.
-
----
-
-✅ [RÉSOLU – T27] Transitions de phase dans ApplyPlay et pendant un rejeu
-
-`GameOrchestrator.ApplyPlay` applique désormais les transitions de phase avec
-`AdvancePlayerPhase(state.ActivePlayerIndex)` lorsque
-`turnResult.TriggersPhaseTransition` est vrai :
-if (turnResult.TriggersPhaseTransition)
-{
-    newState = (GameState)newState.AdvancePlayerPhase(state.ActivePlayerIndex);
-}
 
 ---
 

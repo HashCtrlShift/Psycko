@@ -57,7 +57,7 @@ namespace Psycko.Core.Services.TurnManager
             {
                 var poseur = state.Players.First(p => p.Id == play.PlayerId);
 
-                // CORRECTIF T26a : HasCards seul est insuffisant car lu avant
+                // CORRECTIF T26 : HasCards seul est insuffisant car lu avant
                 // toute pioche réellement appliquée. On projette les intentions
                 // de pioche déjà portées par Step2 (DrawCount) et Step4
                 // (FinalReconstruction.DrawCount) : si l'une ou l'autre est
