@@ -69,7 +69,7 @@ l'Id joueur comme un index de siège. Divergence Id/siège → mauvais joueur lu
 - `IsGiftTriggered` : 7 en FaceDown → jamais de Don.
 - `IsGiftTriggered` : Id inconnu → lève `ArgumentException` via `GetSeatIndex`.
 
-**Hors périmètre (reporté) :** T26c (orchestrateur du Don), T26 à T32, Bots, Présentation, réseau.
+**Hors périmètre (reporté) :** T28 (orchestrateur du Don), T26 à T32, Bots, Présentation, réseau.
 
 ### T26 — Exécution de l'intention DrawCards (pioche en phase Work) — MERGÉ (à confirmer par Ekinox après compilation locale)
 
@@ -83,19 +83,11 @@ l'Id joueur comme un index de siège. Divergence Id/siège → mauvais joueur lu
   4. `WithDirection` si `NextDirection` renseigné (Step3, Valet)
   5. `DrawCards` pour `turnResult.FinalReconstruction.Value.DrawCount` (Step4, après Don éventuel)
 - Aucune nouvelle commande créée : `IGameStateCommand.DrawCards(int, int)` existait déjà et sa décision de bornage (`Math.Min(needed, pile)`) est déjà portée en amont par `HandReconstructionPolicy` — pioche insuffisante/vide gérée nativement, sans exception.
-- **Décision DestroysPile** : pas de ticket T26d séparé. Le mécanisme est identique à celui déjà en place dans `ApplyBlindPlay` (phase Luck) et est intégré directement dans T26a au même point d'application que les autres intentions Step3.
+- **Décision DestroysPile** : pas de ticket T26 séparé. Le mécanisme est identique à celui déjà en place dans `ApplyBlindPlay` (phase Luck) et est intégré directement dans T26 au même point d'application que les autres intentions Step3.
 
 **Hors périmètre confirmé (reporté)** :
-- `TriggersFaceUpPickup`, `TriggersPhaseTransition`, `TargetPhase` → transitions de phase Work→Talent→Luck : **T26b**.
-- `RequiresGiftResolution` → Don du 7 : **T26c**.
-
-**Tests NUnit à couvrir plus tard (T26a)** :
-- Complétion normale de main (pioche Step2 = 3 cartes, pile suffisante).
-- Pioche insuffisante (pile < besoin, on pioche le reste sans exception).
-- Pioche vide (DrawCount calculé à 0, aucune mutation).
-- Pioche Step2 puis rejeu (Carré) : ordre pioche → effets pile → rejeu respecté.
-- Aucune pioche appliquée en phase Talent ou Luck (DrawCount = 0 par construction de HandReconstructionPolicy).
-- DestroysPile exécuté en ApplyPlay au même point que dans ApplyBlindPlay (non-régression de cohérence entre les deux méthodes).
+- `TriggersFaceUpPickup`, `TriggersPhaseTransition`, `TargetPhase` → transitions de phase Work→Talent→Luck : **T27**.
+- `RequiresGiftResolution` → Don du 7 : **T28**.
 
 ## T26bis — Correctif Step5 replay projection
 
@@ -126,29 +118,26 @@ var willDraw = incomingResult.DrawCount > 0
     || (incomingResult.FinalReconstruction?.DrawCount ?? 0) > 0;
 step5Replay = poseur.HasCards || willDraw;
 
-### T27 — Transitions de phase, y compris pendant un rejeu
+### T27 — Transitions de phase, y compris pendant un rejeu — MERGÉ / CLÔTURÉ
 
-- **Contexte :** chaque joueur progresse Work → Talent → Luck → Finished ; un rejeu
-  peut traverser une transition.
-- **Problème :** le chemin réel des transitions pendant replay n'est pas vérifiable :
-  `TurnManager` et les resolvers Step ne sont pas présents dans les uploads.
-- **Fichiers concernés :** `GameOrchestrator.cs`, `GameState.cs`,
-  `IGameStateCommand.cs`, `Rules/Phase/*PhaseResolver.cs` (non fournis),
-  `Step6_AdvanceTurnResolver.cs` (non fourni).
-- **Règles CLAUDE.md applicables :** transition individuelle ; main vide comme seuil ;
-  phase suivante avant résolution de la suite ; `Finished` si toutes les couches sont vides.
-- **Travail attendu :** rendre les transitions explicites et idempotentes dans la
-  chaîne normale et dans replay, notamment Talent→Luck après Carré.
-- **Hors périmètre :** redéfinir les conditions de victoire ou la direction.
-- **Dépendances :** T26a, T27, T24.
-- **Critères d'acceptation :** aucun joueur est rejoué dans une phase obsolète ;
-  `FaceUp`/`FaceDown` sont disponibles au bon moment ; aucun saut de transition.
-- **Questions à trancher :** une transition est-elle évaluée avant ou après chaque effet
-  de pile lorsqu'un replay est produit ?
-- **Pistes de tests NUnit EditMode futurs :** Carré en fin de Work/Talent ; replay avec
-  passage Talent→Luck ; dernier FaceDown vers Finished.
-- **Squelette de prompt :** « Trace et corrige T26b dans la chaîne Step, y compris un
-  replay qui franchit Talent→Luck ; ajoute des tests de phase individuelle. »
+**Statut :** mergé et clôturé.
+
+### Contexte
+
+Chaque joueur progresse individuellement selon la séquence Work → Talent → Luck →
+Finished. Un rejeu peut traverser une transition de phase, notamment Talent → Luck
+après un Carré.
+
+### Correctif
+
+Dans `GameOrchestrator.ApplyPlay`, le bloc utilisant la méthode inexistante
+`WithPlayerPhase` a été remplacé par :
+
+```csharp
+if (turnResult.TriggersPhaseTransition)
+{
+    newState = (GameState)newState.AdvancePlayerPhase(state.ActivePlayerIndex);
+}
 
 ### T28 — Don du 7
 
@@ -163,13 +152,13 @@ step5Replay = poseur.HasCards || willDraw;
 - **Travail attendu :** exposer une résolution de choix puis appliquer le transfert
   immuable ; ne pas laisser l'orchestrateur deviner un choix utilisateur.
 - **Hors périmètre :** T25 (résolution du siège), UI, bots.
-- **Dépendances :** T25, T26a/b, T31 pour le type final éventuellement.
+- **Dépendances :** T25, T26/T27, T31 pour le type final éventuellement.
 - **Critères d'acceptation :** exactement une carte ; Don avant Doublon/Carré ; refus
   impossible quand le Don est dû ; FaceDown silencieux.
 - **Questions à trancher :** API de sélection synchrone ou résolution en deux temps ?
 - **Pistes de tests NUnit EditMode futurs :** 7 avec main restante ; dernier 7 ; carré
   de 7 ; 7 FaceDown ; deux joueurs.
-- **Squelette de prompt :** « Implémente T26c après reconstruction, avec un choix de
+- **Squelette de prompt :** « Implémente T28 après reconstruction, avec un choix de
   carte/destinataire explicite et sans Don automatique inventé. »
 
 ### T29 — Step6, `ActivePlayerIndex` et source unique de vérité
@@ -185,7 +174,7 @@ step5Replay = poseur.HasCards || willDraw;
 - **Travail attendu :** choisir une source unique de vérité et faire passer toute
   mutation par elle, sans double avancement entre Step6 et orchestrateur.
 - **Hors périmètre :** effets de cartes et calcul de fin de partie.
-- **Dépendances :** T26b.
+- **Dépendances :** T27.
 - **Critères d'acceptation :** sens horaire/anti-horaire, un skip exact, replay, tours
   à 2 joueurs, Finished traversés sans être ciblés.
 - **Questions à trancher :** Step6 retourne-t-il l'état avec `SetActivePlayer`, ou

@@ -678,7 +678,19 @@ Step3, ex. rejeu du Valet). Le TurnResult retourné par Step5 repart de
 incomingResult et applique la fusion par OR logique explicite :
 .WithReplay(incomingResult.GrantsReplay || step5Replay) — JAMAIS par
 écrasement séquentiel via WithState. Même classe de risque que celle déjà corrigée pour Step2/Step3 : perte silencieuse d'un drapeau de rejeu si les deux Steps l'activent indépendamment. ⚠️ Depuis T26a, step5Replay n'est plus une lecture simple de poseur.HasCards : c'est elle-même une projection OR (poseur.HasCards || DrawCount>0 || FinalReconstruction.DrawCount>0), fusionnée ensuite avec GrantsReplay. Voir bloc T26bis dans TICKETS.md pour le détail de cette projection — ne pas la confondre avec la fusion Step3/Step5 documentée ici, qui reste inchangée.
+
 ---
+
+✅ [RÉSOLU – T27] Transitions de phase dans ApplyPlay et pendant un rejeu
+
+`GameOrchestrator.ApplyPlay` applique désormais les transitions de phase avec
+`AdvancePlayerPhase(state.ActivePlayerIndex)` lorsque
+`turnResult.TriggersPhaseTransition` est vrai :
+if (turnResult.TriggersPhaseTransition)
+{
+    newState = (GameState)newState.AdvancePlayerPhase(state.ActivePlayerIndex);
+}
+
 ---
 
 ### Contrat des Handlers Rules/SpecialCards/

@@ -102,11 +102,10 @@ namespace Psycko.Core.Services
                     state.ActivePlayerIndex,
                     turnResult.FinalReconstruction.Value.DrawCount);
             }
-
-            // Le Don du 7 (T28) et les transitions de phase Work→Talent→Luck (T26b)
-            // restent volontairement non exécutés ici : TriggersFaceUpPickup,
-            // TriggersPhaseTransition, TargetPhase et RequiresGiftResolution ne sont
-            // pas traduits en IGameStateCommand par ce ticket.
+            if (turnResult.TriggersPhaseTransition)
+            {
+                newState = (GameState)newState.AdvancePlayerPhase(state.ActivePlayerIndex);
+            }
 
             return PlayResult.Accepted(newState, IsGameOver(newState));
         }

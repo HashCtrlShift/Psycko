@@ -1,4 +1,7 @@
-﻿<Solution>
+<Solution>
   <Project Path="Psycko.Core.csproj" />
+  <Folder Name="/Tools/">
+    <Project Path="Tools/PsyckoConsole/PsyckoConsole.csproj" />
+  </Folder>
   <Project Path="Psycko.Bots.csproj" />
 </Solution>
