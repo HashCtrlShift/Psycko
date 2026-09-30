@@ -1,3 +1,4 @@
+using System;
 using Psycko.Core.Domain;
 using Psycko.Core.Rules.Validation;
 
@@ -24,6 +25,9 @@ namespace Psycko.Core.Services.TurnManager
         public bool SkipNext { get; }
         public bool Replay { get; }
         public bool IsPickup { get; }
+
+        /// <summary>Intention Step6 : prochain siège actif ; null = aucun changement.</summary>
+        public int? NextActivePlayerIndex { get; }
 
         // --- Intentions Step2 (reconstruction) ---
 
@@ -91,7 +95,8 @@ namespace Psycko.Core.Services.TurnManager
             bool destroysPile = false,
             bool grantsReplay = false,
             bool requiresGiftResolution = false,
-            HandReconstructionResult? finalReconstruction = null)
+            HandReconstructionResult? finalReconstruction = null,
+            int? nextActivePlayerIndex = null)
         {
             State = state;
             SkipNext = skipNext;
@@ -108,6 +113,7 @@ namespace Psycko.Core.Services.TurnManager
             GrantsReplay = grantsReplay;
             RequiresGiftResolution = requiresGiftResolution;
             FinalReconstruction = finalReconstruction;
+            NextActivePlayerIndex = nextActivePlayerIndex;
         }
 
         /// <summary>Copie sélective : chaque paramètre null conserve la valeur courante.</summary>
@@ -118,7 +124,8 @@ namespace Psycko.Core.Services.TurnManager
             DefPhase? target = null, bool clearTarget = false,
             HeightConstraint? cons = null, DefRank? refRank = null, PlayDirection? dir = null,
             bool? destroys = null, bool? grants = null, bool? gift = null,
-            HandReconstructionResult? finalReconstruction = null)
+            HandReconstructionResult? finalReconstruction = null,
+            int? nextActivePlayerIndex = null)
         {
             return new TurnResult(
                 state ?? State,
@@ -135,29 +142,58 @@ namespace Psycko.Core.Services.TurnManager
                 destroys ?? DestroysPile,
                 grants ?? GrantsReplay,
                 gift ?? RequiresGiftResolution,
-                finalReconstruction ?? FinalReconstruction);
+                finalReconstruction ?? FinalReconstruction,
+                nextActivePlayerIndex ?? NextActivePlayerIndex);
         }
 
         // --- Flux ---
+
         public TurnResult WithState(GameState state) => Copy(state: state);
+
+        public TurnResult WithNextActivePlayerIndex(int? index)
+            => Copy(nextActivePlayerIndex: index);
+
         public TurnResult WithSkipNext(bool skipNext) => Copy(skipNext: skipNext);
+
         public TurnResult WithReplay(bool replay) => Copy(replay: replay);
+
         public TurnResult WithIsPickup(bool isPickup) => Copy(isPickup: isPickup);
 
         // --- Reconstruction (Step2 / Step4) ---
-        public TurnResult WithDrawCount(int drawCount) => Copy(drawCount: drawCount);
-        public TurnResult WithFaceUpPickup(bool triggersFaceUpPickup) => Copy(faceUp: triggersFaceUpPickup);
-        public TurnResult WithPhaseTransition(DefPhase targetPhase) => Copy(phaseTr: true, target: targetPhase);
-        public TurnResult WithoutPhaseTransition() => Copy(phaseTr: false, clearTarget: true);
+
+        public TurnResult WithDrawCount(int drawCount)
+            => Copy(drawCount: drawCount);
+
+        public TurnResult WithFaceUpPickup(bool triggersFaceUpPickup)
+            => Copy(faceUp: triggersFaceUpPickup);
+
+        public TurnResult WithPhaseTransition(DefPhase targetPhase)
+            => Copy(phaseTr: true, target: targetPhase);
+
+        public TurnResult WithoutPhaseTransition()
+            => Copy(phaseTr: false, clearTarget: true);
 
         /// <summary>Appelée exclusivement par Step4_FinalDrawResolver, après ou en l'absence de Don.</summary>
-        public TurnResult WithFinalReconstruction(HandReconstructionResult r) => Copy(finalReconstruction: r);
+        public TurnResult WithFinalReconstruction(HandReconstructionResult r)
+            => Copy(finalReconstruction: r);
 
         // --- Effets (Step3) ---
-        public TurnResult WithNextConstraint(HeightConstraint constraint, DefRank refRank) => Copy(cons: constraint, refRank: refRank);
-        public TurnResult WithNextDirection(PlayDirection direction) => Copy(dir: direction);
-        public TurnResult WithDestroysPile(bool destroysPile) => Copy(destroys: destroysPile);
-        public TurnResult WithGrantsReplay(bool grantsReplay) => Copy(grants: grantsReplay);
-        public TurnResult WithRequiresGiftResolution(bool requiresGift) => Copy(gift: requiresGift);
+
+        public TurnResult WithNextConstraint(
+            HeightConstraint constraint,
+            DefRank refRank)
+            => Copy(cons: constraint, refRank: refRank);
+
+        public TurnResult WithNextDirection(PlayDirection direction)
+            => Copy(dir: direction);
+
+        public TurnResult WithDestroysPile(bool destroysPile)
+            => Copy(destroys: destroysPile);
+
+        public TurnResult WithGrantsReplay(bool grantsReplay)
+            => Copy(grants: grantsReplay);
+
+        public TurnResult WithRequiresGiftResolution(bool requiresGift)
+            => Copy(gift: requiresGift);
     }
 }

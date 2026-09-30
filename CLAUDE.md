@@ -800,3 +800,19 @@ TurnManager → PhaseResolver (jamais l'inverse).
 Aucun effet spécial n'est câblé ici (SevenHandler, TwoHandler, etc.) —
 ces resolvers sont purement déclaratifs.
 
+## Convention de compilation — Nullable reference types
+
+Le nullable reference context est **désactivé globalement** dans tout le
+projet via `Assets/csc.rsp` (`-nullable:disable`). Cette règle est la source
+unique de vérité pour éviter toute divergence de diagnostics entre Unity et
+VS Code/OmniSharp.
+
+- Ne jamais utiliser `?` sur un type référence (ex : `GameState?`,
+  `IReadOnlyList<int>?`) dans le code Core/Bots/Presentation.
+- L'utilisation de `?` reste valide et attendue sur les **value types**
+  (`enum`, `struct`) via `Nullable<T>` classique (ex : `PlayRejectionReason?`,
+  `TurnResult?`), car indépendant du nullable reference context.
+- Toute réactivation future du nullable reference context doit être une
+  décision explicite, documentée ici, et appliquée de façon uniforme à tout
+  le projet (jamais fichier par fichier).
+- Voir T29 (TICKETS.md) pour l'historique de cette décision.

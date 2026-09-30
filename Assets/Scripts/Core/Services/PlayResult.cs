@@ -22,7 +22,7 @@ namespace Psycko.Core.Services
         public IReadOnlyList<int> ForcedPickupPlayerIds { get; }
         public TurnResult? PendingGift { get; }
 
-        private PlayResult(bool success, GameState newState, PlayRejectionReason? reason, bool isGameOver, IReadOnlyList<int>? forcedPickupPlayerIds, TurnResult? pendingGift)
+        private PlayResult(bool success, GameState newState, PlayRejectionReason? reason, bool isGameOver, IReadOnlyList<int> forcedPickupPlayerIds, TurnResult? pendingGift)
         {
             Success = success;
             NewState = newState;
@@ -32,7 +32,7 @@ namespace Psycko.Core.Services
             PendingGift = pendingGift;
         }
 
-        public static PlayResult Accepted(GameState newState, bool isGameOver, IReadOnlyList<int>? forcedPickupPlayerIds = null)
+        public static PlayResult Accepted(GameState newState, bool isGameOver, IReadOnlyList<int> forcedPickupPlayerIds = null)
             => new PlayResult(true, newState, null, isGameOver, forcedPickupPlayerIds, null);
 
         public static PlayResult Rejected(GameState unchangedState, PlayRejectionReason reason)

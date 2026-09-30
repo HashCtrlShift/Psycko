@@ -67,5 +67,7 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "Psycko.slnx"
+    "dotnet.defaultSolution": "Psycko.slnx",
+    "omnisharp.enableRoslynAnalyzers": true,
+    "omnisharp.useModernNet": true
 }

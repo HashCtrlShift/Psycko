@@ -9,7 +9,8 @@ using TurnManagerService = Psycko.Core.Services.TurnManager.TurnManager;
 namespace Psycko.Core.Services
 {
     /// <summary>
-    /// Seul point d'entrée autorisé à appeler IGameStateCommand.
+    /// Source unique d'exécution des intentions, notamment Step6 : le resolver
+    /// calcule, cet orchestrateur appelle SetActivePlayer au plus une fois.
     /// </summary>
     public sealed class GameOrchestrator
     {
@@ -58,12 +59,17 @@ namespace Psycko.Core.Services
                     afterPickup,
                     skipNext: false,
                     replay: false);
-                afterPickup = advance.State;
+
+                afterPickup = ExecuteActivePlayerIntent(afterPickup, advance);
 
                 IReadOnlyList<int> forcedIds = forcedPickup
                     ? new List<int> { play.PlayerId }
                     : new List<int>();
-                return PlayResult.Accepted(afterPickup, IsGameOver(afterPickup), forcedIds);
+
+                return PlayResult.Accepted(
+                    afterPickup,
+                    IsGameOver(afterPickup),
+                    forcedIds);
             }
 
             var turnResult = TurnManagerService.ApplyPlay(state, play);
@@ -77,7 +83,9 @@ namespace Psycko.Core.Services
 
             if (turnResult.DrawCount > 0)
             {
-                newState = (GameState)newState.DrawCards(state.ActivePlayerIndex, turnResult.DrawCount);
+                newState = (GameState)newState.DrawCards(
+                    state.ActivePlayerIndex,
+                    turnResult.DrawCount);
             }
 
             if (turnResult.DestroysPile)
@@ -85,7 +93,8 @@ namespace Psycko.Core.Services
                 newState = (GameState)newState.DestroyPile();
             }
 
-            if (turnResult.NextConstraint.HasValue && turnResult.NextRefRank.HasValue)
+            if (turnResult.NextConstraint.HasValue
+                && turnResult.NextRefRank.HasValue)
             {
                 newState = (GameState)newState.SetConstraint(
                     turnResult.NextConstraint.Value,
@@ -94,7 +103,8 @@ namespace Psycko.Core.Services
 
             if (turnResult.NextDirection.HasValue)
             {
-                newState = (GameState)newState.WithDirection(turnResult.NextDirection.Value);
+                newState = (GameState)newState.WithDirection(
+                    turnResult.NextDirection.Value);
             }
 
             if (turnResult.FinalReconstruction.HasValue
@@ -104,12 +114,19 @@ namespace Psycko.Core.Services
                     state.ActivePlayerIndex,
                     turnResult.FinalReconstruction.Value.DrawCount);
             }
+
             if (turnResult.TriggersPhaseTransition)
             {
-                newState = (GameState)newState.AdvancePlayerPhase(state.ActivePlayerIndex);
+                newState = (GameState)newState.AdvancePlayerPhase(
+                    state.ActivePlayerIndex);
             }
 
-            return PlayResult.Accepted(newState, IsGameOver(newState));
+            // GameOrchestrator est la source unique d'exécution de l'intention Step6.
+            newState = ExecuteActivePlayerIntent(newState, turnResult);
+
+            return PlayResult.Accepted(
+                newState,
+                IsGameOver(newState));
         }
 
         /// <summary>
@@ -132,36 +149,69 @@ namespace Psycko.Core.Services
 
             var donorIndex = pendingResult.State.ActivePlayerIndex;
             var donor = pendingResult.State.Players[donorIndex];
-            if (!donor.Hand.Contains(choice.CardToGive))
-                return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
 
-            var transferred = (GameState)((IGameStateCommand)pendingResult.State).TransferCard(
-                donorIndex, choice.RecipientSeatIndex, choice.CardToGive);
+            if (!donor.Hand.Contains(choice.CardToGive))
+                return PlayResult.Rejected(
+                    state,
+                    PlayRejectionReason.InvalidCards);
+
+            var transferred = (GameState)((IGameStateCommand)pendingResult.State)
+                .TransferCard(
+                    donorIndex,
+                    choice.RecipientSeatIndex,
+                    choice.CardToGive);
+
             var remainder = TurnManagerService.ResolveRemainder(
-                pendingResult.WithState(transferred), play);
+                pendingResult.WithState(transferred),
+                play);
+
             var newState = remainder.State;
 
             if (remainder.DrawCount > 0)
+            {
                 newState = (GameState)newState.DrawCards(
-                    pendingResult.State.ActivePlayerIndex, remainder.DrawCount);
+                    pendingResult.State.ActivePlayerIndex,
+                    remainder.DrawCount);
+            }
+
             if (remainder.DestroysPile)
+            {
                 newState = (GameState)newState.DestroyPile();
-            if (remainder.NextConstraint.HasValue && remainder.NextRefRank.HasValue)
+            }
+
+            if (remainder.NextConstraint.HasValue
+                && remainder.NextRefRank.HasValue)
+            {
                 newState = (GameState)newState.SetConstraint(
-                    remainder.NextConstraint.Value, remainder.NextRefRank.Value);
+                    remainder.NextConstraint.Value,
+                    remainder.NextRefRank.Value);
+            }
+
             if (remainder.NextDirection.HasValue)
+            {
                 newState = (GameState)newState.WithDirection(
                     remainder.NextDirection.Value);
+            }
+
             if (remainder.FinalReconstruction.HasValue
                 && remainder.FinalReconstruction.Value.DrawCount > 0)
+            {
                 newState = (GameState)newState.DrawCards(
                     pendingResult.State.ActivePlayerIndex,
                     remainder.FinalReconstruction.Value.DrawCount);
+            }
+
             if (remainder.TriggersPhaseTransition)
+            {
                 newState = (GameState)newState.AdvancePlayerPhase(
                     pendingResult.State.ActivePlayerIndex);
+            }
 
-            return PlayResult.Accepted(newState, IsGameOver(newState));
+            newState = ExecuteActivePlayerIntent(newState, remainder);
+
+            return PlayResult.Accepted(
+                newState,
+                IsGameOver(newState));
         }
 
         /// <summary>
@@ -169,77 +219,172 @@ namespace Psycko.Core.Services
         /// L'index est l'index courant dans FaceDown : aucune sélection par Id de siège
         /// n'est déduite implicitement.
         /// </summary>
-        public PlayResult ApplyBlindPlay(GameState state, int playerIndex, int faceDownIndex)
+        public PlayResult ApplyBlindPlay(
+            GameState state,
+            int playerIndex,
+            int faceDownIndex)
         {
-            if (state == null) throw new ArgumentNullException(nameof(state));
+            if (state == null)
+                throw new ArgumentNullException(nameof(state));
+
             if (playerIndex < 0 || playerIndex >= state.Players.Count)
                 throw new ArgumentOutOfRangeException(nameof(playerIndex));
-            if (faceDownIndex < 0) throw new ArgumentOutOfRangeException(nameof(faceDownIndex));
+
+            if (faceDownIndex < 0)
+                throw new ArgumentOutOfRangeException(nameof(faceDownIndex));
 
             if (IsGameOver(state))
-                return PlayResult.Rejected(state, PlayRejectionReason.GameAlreadyOver);
+                return PlayResult.Rejected(
+                    state,
+                    PlayRejectionReason.GameAlreadyOver);
+
             if (playerIndex != state.ActivePlayerIndex)
-                return PlayResult.Rejected(state, PlayRejectionReason.NotYourTurn);
+                return PlayResult.Rejected(
+                    state,
+                    PlayRejectionReason.NotYourTurn);
 
             var player = state.Players[playerIndex];
+
             if (player.CurrentPhase != DefPhase.Luck)
-                return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
+                return PlayResult.Rejected(
+                    state,
+                    PlayRejectionReason.InvalidCards);
+
             if (player.Hand.Count != 0)
-                return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
+                return PlayResult.Rejected(
+                    state,
+                    PlayRejectionReason.InvalidCards);
+
             if (faceDownIndex >= player.FaceDown.Count)
-                return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
+                return PlayResult.Rejected(
+                    state,
+                    PlayRejectionReason.InvalidCards);
 
             var card = player.FaceDown[faceDownIndex];
-            var play = Play.CreateSingle(player.Id, card, CardLayer.FaceDown);
+            var play = Play.CreateSingle(
+                player.Id,
+                card,
+                CardLayer.FaceDown);
 
             // The revealed card is evaluated before mutation. A final 2 is forbidden
             // in Luck, just like in Work and Talent; it therefore follows pickup flow.
-            var playable = Psycko.Core.Rules.Validation.CardPlayability.IsPlayable(card, state);
-            var terminatesOnTwo = play.EffectiveRank == DefRank.Two && player.FaceDown.Count == 1;
+            var playable =
+                Psycko.Core.Rules.Validation.CardPlayability.IsPlayable(card, state);
+
+            var terminatesOnTwo =
+                play.EffectiveRank == DefRank.Two
+                && player.FaceDown.Count == 1;
+
             if (!playable || terminatesOnTwo)
             {
                 var revealed = (GameState)state.PlayCards(play);
                 var picked = (GameState)revealed.PickUpPile(playerIndex);
-                picked = (GameState)picked.SetConstraint(HeightConstraint.Normal, DefRank.Three);
-                var advance = Step6_AdvanceTurnResolver.Resolve(picked, false, false);
-                return PlayResult.Accepted(advance.State, IsGameOver(advance.State));
+
+                picked = (GameState)picked.SetConstraint(
+                    HeightConstraint.Normal,
+                    DefRank.Three);
+
+                var advance = Step6_AdvanceTurnResolver.Resolve(
+                    picked,
+                    skipNext: false,
+                    replay: false);
+
+                picked = ExecuteActivePlayerIntent(picked, advance);
+
+                return PlayResult.Accepted(
+                    picked,
+                    IsGameOver(picked));
             }
 
             var revealedState = (GameState)state.PlayCards(play);
-            var effects = Step3_CardEffectsResolver.Resolve(revealedState, play);
+            var effects = Step3_CardEffectsResolver.Resolve(
+                revealedState,
+                play);
+
             // Step 5 must inspect the revealed card while it is still on the pile.
             // Destruction (2/quad) is applied only after quad/pair detection.
             var pileEffects = Step5_PileEffectsResolver.Resolve(
-                revealedState, play, effects.WithState(revealedState));
+                revealedState,
+                play,
+                effects.WithState(revealedState));
+
             var next = pileEffects.State;
+
             if (effects.DestroysPile || pileEffects.DestroysPile)
+            {
                 next = (GameState)next.DestroyPile();
-            if (effects.NextConstraint.HasValue && effects.NextRefRank.HasValue)
-                next = (GameState)next.SetConstraint(effects.NextConstraint.Value, effects.NextRefRank.Value);
+            }
+
+            if (effects.NextConstraint.HasValue
+                && effects.NextRefRank.HasValue)
+            {
+                next = (GameState)next.SetConstraint(
+                    effects.NextConstraint.Value,
+                    effects.NextRefRank.Value);
+            }
+
             if (effects.NextDirection.HasValue)
-                next = (GameState)next.WithDirection(effects.NextDirection.Value);
+            {
+                next = (GameState)next.WithDirection(
+                    effects.NextDirection.Value);
+            }
 
             var updatedPlayer = next.Players[playerIndex];
+
             if (!updatedPlayer.HasCards)
+            {
                 next = (GameState)next.AdvancePlayerPhase(playerIndex);
+            }
 
             var advanceValid = Step6_AdvanceTurnResolver.Resolve(
-                next, pileEffects.SkipNext, pileEffects.Replay);
-            return PlayResult.Accepted(advanceValid.State, IsGameOver(advanceValid.State));
+                next,
+                pileEffects.SkipNext,
+                pileEffects.Replay);
+
+            next = ExecuteActivePlayerIntent(next, advanceValid);
+
+            return PlayResult.Accepted(
+                next,
+                IsGameOver(next));
         }
 
-        public PlayResult ApplyPlay(GameState state, Play play, int playerIndex)
-            => ApplyPlay(state, play, playerIndex, voluntaryPickupRequested: false);
+        /// <summary>
+        /// Exécute une seule fois l'intention calculée par Step6. Une intention nulle
+        /// (rejeu) signifie que l'index reste strictement inchangé et ne déclenche
+        /// aucun SetActivePlayer.
+        /// </summary>
+        private static GameState ExecuteActivePlayerIntent(
+            GameState state,
+            TurnResult step6Result)
+        {
+            if (!step6Result.NextActivePlayerIndex.HasValue)
+                return state;
+
+            return (GameState)((IGameStateCommand)state).SetActivePlayer(
+                step6Result.NextActivePlayerIndex.Value);
+        }
+
+        public PlayResult ApplyPlay(
+            GameState state,
+            Play play,
+            int playerIndex)
+            => ApplyPlay(
+                state,
+                play,
+                playerIndex,
+                voluntaryPickupRequested: false);
 
         internal static bool IsGameOver(GameState state)
         {
             int stillPlaying = 0;
+
             for (int i = 0; i < state.Players.Count; i++)
             {
                 if (state.Players[i].CurrentPhase != DefPhase.Finished)
                     stillPlaying++;
             }
+
             return stillPlaying <= 1;
         }
     }
-} 
+}

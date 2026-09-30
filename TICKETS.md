@@ -111,9 +111,10 @@ GameOrchestrator.
 
 ### Correctif
 
+### Correctif
+
 Projection des intentions de pioche déjà connues avant de statuer sur le rejeu :
 
-```csharp
 var willDraw = incomingResult.DrawCount > 0
     || (incomingResult.FinalReconstruction?.DrawCount ?? 0) > 0;
 step5Replay = poseur.HasCards || willDraw;
@@ -128,18 +129,17 @@ Chaque joueur progresse individuellement selon la séquence Work → Talent → 
 Finished. Un rejeu peut traverser une transition de phase, notamment Talent → Luck
 après un Carré.
 
-### Correctif
+## Correctif
 
 Dans `GameOrchestrator.ApplyPlay`, le bloc utilisant la méthode inexistante
 `WithPlayerPhase` a été remplacé par :
 
-```csharp
 if (turnResult.TriggersPhaseTransition)
 {
     newState = (GameState)newState.AdvancePlayerPhase(state.ActivePlayerIndex);
 }
 
-## T28 — Don du 7 (résolution explicite)
+### T28 — Don du 7 (résolution explicite)
 
 **Statut : ✅ Mergé**
 
@@ -169,28 +169,48 @@ sur un état où le Don n'avait pas eu lieu.
 - Correction structurelle de T18-bis : `Step4_FinalDrawResolver` ne peut
   plus recevoir un état obsolète d'avant-Don.
 
-## T29 — Step6, `ActivePlayerIndex` et source unique de vérité
+### T29 — Step6 ActivePlayerIndex + Correction erreurs de compilation nullable (CS8625/CS8632/CS8604)
 
-- **Contexte :** Step6 doit avancer selon `Direction`, ignorer les joueurs Finished,
-  appliquer replay et skip.
-- **Problème :** la mutation de `ActivePlayerIndex` hors de `IGameStateCommand` est
-  signalée par la dette existante ; l'implémentation Step6 n'est pas fournie.
-- **Fichiers concernés :** `Step6_AdvanceTurnResolver.cs` (non fourni), `GameState.cs`,
-  `IGameStateCommand.cs`, `GameOrchestrator.cs`.
-- **Règles CLAUDE.md applicables :** siège fixe ; direction ; skip d'un actif ; replay
-  sans avancement ; Finished jamais ciblé ; orchestrateur seul mutateur.
-- **Travail attendu :** choisir une source unique de vérité et faire passer toute
-  mutation par elle, sans double avancement entre Step6 et orchestrateur.
-- **Hors périmètre :** effets de cartes et calcul de fin de partie.
-- **Dépendances :** T27.
-- **Critères d'acceptation :** sens horaire/anti-horaire, un skip exact, replay, tours
-  à 2 joueurs, Finished traversés sans être ciblés.
-- **Questions à trancher :** Step6 retourne-t-il l'état avec `SetActivePlayer`, ou
-  produit-il une intention consommée par l'orchestrateur ?
-- **Pistes de tests NUnit EditMode futurs :** 2/3/4 joueurs, chaque direction, suites
-  de Finished, skip+replay.
-- **Squelette de prompt :** « Fais de T27 une source unique de vérité pour Step6 et
-  ActivePlayerIndex ; prouve l'absence de double avance par des tests. »
+**Statut : ✅ Mergé**
+
+### Partie 1 — Step6 : ActivePlayerIndex
+
+- **Contexte :** mise en place/finalisation de la gestion de `ActivePlayerIndex`
+  dans le flux de résolution de tour (Step6), nécessaire à l'enchaînement
+  correct des tours entre joueurs.
+- **Fichiers concernés :** `Assets/Scripts/Core/Services/TurnManager/TurnResult.cs`
+  et services associés à la résolution de tour.
+- **Résultat :** l'index du joueur actif est correctement propagé/mis à jour
+  à chaque résolution de tour, sans effet de bord sur les autres services.
+
+### Partie 2 — Correction erreurs de compilation nullable
+
+- **Contexte :** `PlayResult.cs` et `TurnResult.cs` utilisaient des annotations
+  nullable (`?`) sur des types référence (`GameState?`, `IReadOnlyList<int>?`)
+  hors de tout contexte `#nullable`, provoquant des erreurs/avertissements
+  incohérents entre Unity (CS8632, CS8604) et VS Code/OmniSharp (CS8625).
+- **Cause racine :** absence de configuration explicite du nullable context
+  au niveau du projet — Unity et OmniSharp déduisaient chacun une configuration
+  différente en l'absence de directive commune.
+- **Fichiers concernés :** `Assets/Scripts/Core/Services/PlayResult.cs`,
+  `Assets/Scripts/Core/Services/TurnManager/TurnResult.cs`,
+  `Assets/csc.rsp` (créé), `.vscode/settings.json`.
+- **Solution appliquée :**
+  - Ajout de `Assets/csc.rsp` avec `-nullable:disable` pour forcer un contexte
+    nullable désactivé et cohérent sur toute la compilation Unity.
+  - Régénération des `.csproj` via Unity après ajout du `csc.rsp`.
+  - Suppression des annotations `?` superflues sur les types référence dans
+    `PlayResult.cs` et `TurnResult.cs` (les `?` sur `PlayRejectionReason?` et
+    `TurnResult?` sont conservés : ce sont des value types, donc `Nullable<T>`
+    classique, indépendant du nullable reference context).
+  - Alignement de `.vscode/settings.json` avec `omnisharp.enableRoslynAnalyzers`
+    et `omnisharp.useModernNet` pour que VS Code suive la même configuration
+    que la compilation Unity réelle.
+- **Résultat :** zéro erreur/avertissement dans Unity et dans VS Code après
+  recompilation des deux côtés.
+- **Hors périmètre :** pas de réactivation future du nullable reference
+  context sans décision explicite documentée ici.
+- **Dépendances :** aucune.
 
 ### T30 — Supprimer le doublon `IsGameOver`
 
