@@ -48,8 +48,12 @@ namespace Psycko.Core.Rules.Detection
                     break; // Noir/Couleur : rupture de la chaîne
                 }
 
-                var rank = card.Rank!.Value;
+                if (!card.Rank.HasValue)
+                    throw new System.InvalidOperationException(
+                        "Invariant violé : une carte non-Joker de la pile doit toujours avoir un rang.");
 
+                var rank = card.Rank.Value;
+ 
                 if (referenceRank is null)
                 {
                     referenceRank = rank;

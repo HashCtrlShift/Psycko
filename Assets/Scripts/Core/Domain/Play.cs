@@ -94,12 +94,18 @@ namespace Psycko.Core.Domain
             }
 
             // Cas standard : toutes les cartes doivent partager la même hauteur.
-            var rank = list[0].Rank!.Value;
+            foreach (var card in list)
+                if (!card.Rank.HasValue)
+                    throw new InvalidOperationException(
+                        "Invariant violé : toutes les cartes standard d'un Play doivent porter un rang.");
 
-            if (list.Any(c => c.Rank!.Value != rank))
-                throw new ArgumentException(
-                    "Toutes les cartes d'un Play doivent avoir la même hauteur.",
-                    nameof(cards));
+            var rank = list[0].Rank.Value;
+
+            foreach (var card in list)
+                if (card.Rank.Value != rank)
+                    throw new ArgumentException(
+                        "Toutes les cartes d'un Play doivent avoir la même hauteur.",
+                        nameof(cards));
 
             return new Play(
                 cards: list,

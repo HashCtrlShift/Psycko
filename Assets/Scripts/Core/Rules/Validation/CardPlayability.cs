@@ -29,8 +29,13 @@ namespace Psycko.Core.Rules.Validation
                 return true;
             }
 
-            // card.Rank est garanti non-null ici (IsJoker == false).
-            DefRank candidate = card.Rank!.Value;
+            // Une carte standard sans rang est une corruption de l'état interne,
+            // pas un rejet métier : les Card sont construites par leurs factories.
+            if (!card.Rank.HasValue)
+                throw new System.InvalidOperationException(
+                    "Invariant violé : une carte non-Joker doit toujours avoir un rang.");
+
+            DefRank candidate = card.Rank.Value;
 
             return state.Constraint switch
             {

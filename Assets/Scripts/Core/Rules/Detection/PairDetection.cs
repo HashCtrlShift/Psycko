@@ -51,8 +51,13 @@ namespace Psycko.Core.Rules.Detection
                     return false; // Noir/Couleur : rupture, pas de Doublon
                 }
 
-                // Premier coup à hauteur rencontré en remontant.
-                return play.EffectiveRank!.Value == lastRank;
+                // Premier coup standard rencontré : son rang est un invariant
+                // de Play.Create et sa disparition indique une corruption interne.
+                if (!play.EffectiveRank.HasValue)
+                    throw new System.InvalidOperationException(
+                        "Invariant violé : un Play non-Joker doit toujours avoir une hauteur effective.");
+
+                return play.EffectiveRank.Value == lastRank;
             }
 
             return false;

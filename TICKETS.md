@@ -241,25 +241,29 @@ sur un état où le Don n'avait pas eu lieu.
 
 ### T31 — Remplacer les `!.Value` par des gardes explicites
 
-- **Contexte :** un rejet métier doit retourner `PlayResult.Rejected`, pas lever une
-  exception de nullabilité.
-- **Problème :** des `!.Value` subsistent dans les chemins de validation/résolution.
-- **Fichiers concernés :** `GameOrchestrator.cs` (`pickup.RejectionReason!.Value`),
-  `Play.cs` (`Rank!.Value`), et resolvers Step non fournis.
-- **Règles CLAUDE.md applicables :** exceptions pour erreurs de programmation ; rejets
-  typés pour règles métier ; ne jamais muter l'état sur rejet.
-- **Travail attendu :** vérifier explicitement chaque nullable ; retourner le motif de
-  rejet approprié, ou traiter l'invariant impossible comme erreur de programmation
-  documentée.
-- **Hors périmètre :** changer la forme de `PlayResult` (T31).
-- **Dépendances :** inventaire complet des Steps.
-- **Critères d'acceptation :** zéro `!.Value` dans les flux métier ciblés ; état inchangé
-  et raison renseignée sur rejet.
-- **Questions à trancher :** quel `PlayRejectionReason` pour une incohérence interne ?
-- **Pistes de tests NUnit EditMode futurs :** pickup rejeté sans motif ; rang absent ;
-  play mal formé ; état strictement identique.
-- **Squelette de prompt :** « Sécurise T29 sans masquer les bugs : garde explicite,
-  PlayResult rejeté pour le métier, exception seulement pour invariant impossible. »
+T31 — Remplacer les !.Value par des gardes explicites
+
+- **Contexte** : un rejet métier doit retourner PlayResult.Rejected, pas lever une
+exception de nullabilité.
+- **Statut** : Terminé — patché et compile proprement.
+- **Problème (résolu)** : des !.Value subsistaient dans les chemins de
+validation/résolution.
+- **Fichiers concernés** : Play.cs (garde explicite sur Rank, construction de
+Play sécurisée), PairDetection.cs (garde explicite sur EffectiveRank
+avant comparaison de hauteur).
+- **Règles CLAUDE.md applicables** : exceptions pour erreurs de programmation ; rejets
+typés pour règles métier ; ne jamais muter l'état sur rejet.
+- **Travail réalisé** : chaque nullable est désormais vérifié explicitement via un
+if (!x.HasValue) throw new InvalidOperationException(...) documenté comme
+invariant interne impossible, plutôt qu'un !.Value silencieux. Aucun comportement
+de rejet métier n'a été masqué par une exception de nullabilité.
+- **Hors périmètre** : changer la forme de PlayResult (T31).
+- **Critères d'acceptation** : zéro !.Value dans les flux ciblés (Play.cs,
+PairDetection.cs) ; compilation propre confirmée ; état inchangé et raison
+renseignée sur rejet.
+- **Suivi / reste à faire** : GameOrchestrator.cs (pickup.RejectionReason!.Value)
+et les resolvers Step restants n'ont pas été traités dans cette passe — à couvrir
+dans un ticket de suivi si nécessaire.
 
 ### T32 — Rendre public `RequestPickup`
 

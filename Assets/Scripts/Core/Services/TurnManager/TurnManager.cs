@@ -84,10 +84,17 @@ namespace Psycko.Core.Services.TurnManager
             // de pile, rejeu, Don). Fusion explicite : on ne perd ni les intentions
             // Step2 (non concurrencées par Step3) ni les nouvelles intentions Step3.
             var step3 = Step3_CardEffectsResolver.Resolve(reconstruction.State, play);
+            if (!step3.NextConstraint.HasValue
+                || !step3.NextRefRank.HasValue
+                || !step3.NextDirection.HasValue)
+            {
+                throw new System.InvalidOperationException(
+                    "Invariant violé : Step3 doit toujours produire une contrainte, un rang de référence et une direction.");
+            }
             result = result
                 .WithState(step3.State)
-                .WithNextConstraint(step3.NextConstraint!.Value, step3.NextRefRank!.Value)
-                .WithNextDirection(step3.NextDirection!.Value)
+                .WithNextConstraint(step3.NextConstraint!.Value, step3.NextRefRank.Value)
+                .WithNextDirection(step3.NextDirection.Value)
                 .WithDestroysPile(step3.DestroysPile)
                 .WithGrantsReplay(step3.GrantsReplay)
                 .WithRequiresGiftResolution(step3.RequiresGiftResolution);

@@ -47,8 +47,14 @@ namespace Psycko.Core.Services
             {
                 var pickup = TurnManagerService.ResolvePickup(state, play.PlayerId);
                 if (!pickup.IsAccepted)
-                    return PlayResult.Rejected(state, pickup.RejectionReason!.Value);
+                {
+                    if (!pickup.RejectionReason.HasValue)
+                        throw new InvalidOperationException(
+                            "Invariant violé : un PickupResolution rejeté doit fournir une raison.");
 
+                    return PlayResult.Rejected(state, pickup.RejectionReason.Value);
+                }
+                
                 var seatIndex = state.GetSeatIndex(play.PlayerId);
                 var afterPickup = (GameState)state.PickUpPile(seatIndex);
                 afterPickup = (GameState)afterPickup.SetConstraint(
