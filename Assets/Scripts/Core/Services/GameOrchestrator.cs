@@ -27,7 +27,7 @@ namespace Psycko.Core.Services
                 throw new ArgumentOutOfRangeException(nameof(playerIndex));
 
             // --- Rejets métier → résultat typé ---
-            if (IsGameOver(state))
+            if (GameResultCalculator.IsGameOver(state))
                 return PlayResult.Rejected(state, PlayRejectionReason.GameAlreadyOver);
 
             if (playerIndex != state.ActivePlayerIndex)
@@ -68,7 +68,7 @@ namespace Psycko.Core.Services
 
                 return PlayResult.Accepted(
                     afterPickup,
-                    IsGameOver(afterPickup),
+                    GameResultCalculator.IsGameOver(afterPickup),
                     forcedIds);
             }
 
@@ -126,7 +126,7 @@ namespace Psycko.Core.Services
 
             return PlayResult.Accepted(
                 newState,
-                IsGameOver(newState));
+                GameResultCalculator.IsGameOver(newState));
         }
 
         /// <summary>
@@ -211,7 +211,7 @@ namespace Psycko.Core.Services
 
             return PlayResult.Accepted(
                 newState,
-                IsGameOver(newState));
+                GameResultCalculator.IsGameOver(newState));
         }
 
         /// <summary>
@@ -233,7 +233,7 @@ namespace Psycko.Core.Services
             if (faceDownIndex < 0)
                 throw new ArgumentOutOfRangeException(nameof(faceDownIndex));
 
-            if (IsGameOver(state))
+            if (GameResultCalculator.IsGameOver(state))
                 return PlayResult.Rejected(
                     state,
                     PlayRejectionReason.GameAlreadyOver);
@@ -293,7 +293,7 @@ namespace Psycko.Core.Services
 
                 return PlayResult.Accepted(
                     picked,
-                    IsGameOver(picked));
+                    GameResultCalculator.IsGameOver(picked));
             }
 
             var revealedState = (GameState)state.PlayCards(play);
@@ -345,7 +345,7 @@ namespace Psycko.Core.Services
 
             return PlayResult.Accepted(
                 next,
-                IsGameOver(next));
+                GameResultCalculator.IsGameOver(next));
         }
 
         /// <summary>
@@ -373,18 +373,5 @@ namespace Psycko.Core.Services
                 play,
                 playerIndex,
                 voluntaryPickupRequested: false);
-
-        internal static bool IsGameOver(GameState state)
-        {
-            int stillPlaying = 0;
-
-            for (int i = 0; i < state.Players.Count; i++)
-            {
-                if (state.Players[i].CurrentPhase != DefPhase.Finished)
-                    stillPlaying++;
-            }
-
-            return stillPlaying <= 1;
-        }
     }
 }

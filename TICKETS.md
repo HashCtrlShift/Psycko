@@ -212,31 +212,32 @@ sur un état où le Don n'avait pas eu lieu.
   context sans décision explicite documentée ici.
 - **Dépendances :** aucune.
 
-### T30 — Supprimer le doublon `IsGameOver`
+## T30 — GameResultCalculator (calcul de fin de partie)
 
-- **Contexte :** la fin de partie dépend du nombre de joueurs non Finished ; Step6 ne
-  doit pas la détecter.
-- **Problème :** la responsabilité est annoncée comme dupliquée, mais le calculateur
-  fourni est vide.
-- **Fichiers concernés :** `GameOrchestrator.cs`, `GameResultCalculator.cs`,
-  `TurnManager.cs` (non fourni).
-- **Règles CLAUDE.md applicables :** un seul Psycko restant ; Step6 hors périmètre ;
-  état immuable et résultat explicite.
-- **Travail attendu :** implémenter/valider `GameResultCalculator`, déplacer le calcul
-  unique, puis supprimer l'autre implémentation et ses appels redondants.
-- **Hors périmètre :** règles de phase et élimination.
-- **Dépendances :** décision d'API de T27.
-- **Critères d'acceptation :** 0/1/2 joueurs actifs calculés correctement ; aucune
-  détection dans Step6 ; résultat cohérent après replay et pickup.
-- **Questions à trancher :** `IsGameOver` booléen ou résultat de partie nommé ?
-- **Pistes de tests NUnit EditMode futurs :** deux joueurs, plusieurs Finished, état
-  initial, transition du pénultième.
-- **Squelette de prompt :** « Implémente T28 autour de GameResultCalculator (actuellement
-  vide), puis retire toute copie de IsGameOver. »
+**Statut : Clos (code)**
 
-> **Vérification :** `GameOrchestrator.cs` contient `IsGameOver`;
-> `GameResultCalculator.cs` est vide. Le doublon avec `TurnManager` n'est pas vérifiable
-> dans les fichiers fournis.
+### Résumé
+
+`GameResultCalculator` implémenté comme source unique de vérité pour la détection de fin de partie, remplaçant toute logique dispersée précédente.
+
+### Décision A/B appliquée
+
+**Option A retenue** : fin de partie = 1 seul joueur actif restant (`CurrentPhase != DefPhase.Finished`). Ce joueur restant est désigné "Psycko" (perdant).
+
+### Implémentation
+
+- `Psycko.Core/Services/GameResultCalculator.cs` — pur, déterministe, zéro dépendance Unity.
+- `GameOrchestrator` délègue entièrement le calcul de fin de partie à `GameResultCalculator`, sur tous les chemins (normal, replay, pickup).
+- Aucune détection résiduelle de fin de partie dans les Steps (1-6) — restent lecture seule.
+- Une seule source de vérité pour `IsGameOver` dans tout le code.
+
+### Critères d'acceptation — statut
+
+- `GameResultCalculator` implémenté, pur, déterministe, sans dépendance Unity.
+- Une seule implémentation de la règle de fin de partie dans tout le code.
+- `GameOrchestrator` délègue entièrement, sans doublon résiduel.
+- Aucun calcul de fin de partie dans les Steps.
+- Calcul effectué sur l'état final post-résolution (normal, replay, pickup).
 
 ### T31 — Remplacer les `!.Value` par des gardes explicites
 
