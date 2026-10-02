@@ -81,7 +81,7 @@ Psycko/
 │   │   │   │   └── IGameStateQuery.cs            Lecture seule de l'état d'une partie
 │   │   │   │ 
 │   │   │   └── Services/
-│   │   │       ├── TurnManager/
+│   │   │       ├── Turn/
 │   │   │       │   ├── PickupResolution.cs               Résultat immutable de BeginTurn/ResolvePickup
 │   │   │       │   ├── Step1_PlaceCardsResolver.cs       Étape 1 — Pose des cartes sur la pile
 │   │   │       │   ├── Step2_ReconstructionResolver.cs   Étape 2 — Reconstruction de main

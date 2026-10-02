@@ -673,7 +673,7 @@ inchangée.
   `PickupResolution` en lecture seule ; `ApplyPlay(state, play, playerIndex) applique la chaîne
   de pose, `ResolveRemainder` reprend la chaîne
   après la résolution du Don. `Step0_PickupResolver` est supprimé : la chaîne est
-  désormais **Step1→Step6**. `PickupResolution.cs` vit dans `Services/TurnManager/`.
+  désormais **Step1→Step6**. `PickupResolution.cs` vit dans `Services/Turn/`.
 
 - **Orchestration d'un ramassage** :
   `GameOrchestrator.ApplyPlay(state, play, playerIndex)` ne gère plus que la pose de
