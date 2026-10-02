@@ -5,7 +5,7 @@ using Psycko.Core.Interfaces;
 using Psycko.Core.Rules.Phase;
 using Psycko.Core.Rules.Validation;
 
-namespace Psycko.Core.Services.TurnManager
+namespace Psycko.Core.Services.Turn
 {
     /// <summary>
     /// Étape 1 — Pose des Cartes (PLACE CARDS).

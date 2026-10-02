@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Psycko.Core.Domain;
-using Psycko.Core.Services.TurnManager;
+using Psycko.Core.Services.Turn;
 
 namespace Psycko.Core.Services
 {

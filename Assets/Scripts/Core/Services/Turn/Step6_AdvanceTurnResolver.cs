@@ -1,7 +1,7 @@
 using System;
 using Psycko.Core.Domain;
 
-namespace Psycko.Core.Services.TurnManager
+namespace Psycko.Core.Services.Turn
 {
     /// <summary>
     /// Step6 — source unique de calcul de l'intention d'avancement.

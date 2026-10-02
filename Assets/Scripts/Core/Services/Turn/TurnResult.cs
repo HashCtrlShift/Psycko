@@ -2,7 +2,7 @@ using System;
 using Psycko.Core.Domain;
 using Psycko.Core.Rules.Validation;
 
-namespace Psycko.Core.Services.TurnManager
+namespace Psycko.Core.Services.Turn
 {
     /// <summary>
     /// Résultat immutable d'une étape de résolution de tour.

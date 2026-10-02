@@ -2,7 +2,7 @@ using System;
 using Psycko.Core.Domain;
 using Psycko.Core.Rules.Validation;
 
-namespace Psycko.Core.Services.TurnManager
+namespace Psycko.Core.Services.Turn
 {
     /// <summary>
     /// Étape 2 — Reconstruction de la main. Couche mince : gardes d'orchestration,

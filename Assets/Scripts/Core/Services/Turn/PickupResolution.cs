@@ -1,6 +1,6 @@
 using Psycko.Core.Domain;
 
-namespace Psycko.Core.Services.TurnManager
+namespace Psycko.Core.Services.Turn
 {
     /// <summary>
     /// Décision immuable d'un ramassage. La mutation réelle reste du ressort de

@@ -2,7 +2,7 @@ using System.Linq;
 using Psycko.Core.Domain;
 using Psycko.Core.Rules.Detection;
 
-namespace Psycko.Core.Services.TurnManager
+namespace Psycko.Core.Services.Turn
 {
     /// <summary>
     /// Résout le sous-temps 5 de l'ordre strict d'un tour : les effets de la pile

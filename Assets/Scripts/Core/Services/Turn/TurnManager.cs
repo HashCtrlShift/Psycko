@@ -1,7 +1,7 @@
 using Psycko.Core.Domain;
 using Psycko.Core.Rules.Validation;
 
-namespace Psycko.Core.Services.TurnManager
+namespace Psycko.Core.Services.Turn
 {
     /// <summary>
     /// Orchestrateur du tour : enchaîne les 7 étapes de l'Ordre Strict

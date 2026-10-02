@@ -330,27 +330,25 @@ dans un ticket de suivi si nécessaire.
   encapsule le `PlayResult` existant + la donnée additionnelle. Les rejets précoces
   lèvent une exception plutôt que de forcer un état incomplet dans le nouveau type.
 
-### T34 — Renommer le namespace TurnManager
+### T34 — Renommer le namespace TurnManager — **TERMINÉ**
 
-- **Contexte :** le type `TurnManager` et le namespace
-  `Psycko.Core.Services.TurnManager` portent le même nom.
-- **Problème :** cette collision peut provoquer `CS0234` et impose aujourd'hui un alias.
-- **Fichiers concernés :** tous les fichiers `Assets/Scripts/Core/Services/TurnManager/*.cs`,
-  `GameOrchestrator.cs`, tests EditMode et références dans `CLAUDE.md`. Aucun fichier
-  TurnManager n'était fourni pour migration directe.
-- **Règles CLAUDE.md applicables :** dépendance TurnManager→Phase, orchestrateur seul
-  appelant les commandes, aucune règle perdue lors du renommage.
-- **Travail attendu :** renommer en `Psycko.Core.Services.Turn`, supprimer l'alias,
-  mettre à jour namespaces/usings, asmdefs et tests, puis vérifier les références.
-- **Hors périmètre :** refactor fonctionnel de la chaîne Step.
-- **Dépendances :** T27–T31 stabilisés, compilation complète disponible.
-- **Critères d'acceptation :** aucune référence à l'ancien namespace hors historique ;
-  plus d'alias `TurnManagerService` ; compilation et tests EditMode verts.
-- **Questions à trancher :** nom final de l'assembly ou seuls namespaces ?
-- **Pistes de tests NUnit EditMode futurs :** compilation de tous les Steps, contrats
-  BeginTurn/ApplyPlay/ResolveRemainder, tests d'intégration GameOrchestrator.
-- **Squelette de prompt :** « Effectue T32 en renommage mécanique vérifié par recherche
-  globale et compilation ; ne change aucun comportement. »
+- **Contexte :** le type `TurnManager` et le namespace `Psycko.Core.Services.Turn` portaient le même nom.
+- **Problème :** cette collision provoquait un risque `CS0234` et imposait un alias (`TurnManagerService`).
+- **Fichiers concernés :** tous les fichiers `Assets/Scripts/Core/Services/TurnManager/*.cs`, `GameOrchestrator.cs`, tests EditMode et références dans `CLAUDE.md`.
+- **Règles CLAUDE.md applicables :** dépendance TurnManager→Phase respectée, orchestrateur seul appelant les commandes, aucune règle métier perdue lors du renommage.
+- **Travail effectué :** namespace renommé en `Psycko.Core.Services.Turn`, alias `TurnManagerService` supprimé, `GameOrchestrator.cs` et `PlayResult.cs` mis à jour (usings + appels directs), les 9 fichiers `Services/TurnManager/` (`TurnManager.cs`, `Step1` à `Step6`, `TurnResult.cs`, `PickupResolution.cs`) migrés — uniquement la ligne `namespace`.
+- **Décision tranchée :** namespace uniquement — aucun asmdef renommé (un seul asmdef global `Psycko.Core`, pas de collision d’assembly).
+- **Hors périmètre respecté :** aucun refactor fonctionnel de la chaîne Step, aucun changement de comportement `BeginTurn/ApplyPlay/ResolveRemainder/ResolvePickup`.
+- **Dépendances :** T27–T31 stabilisés — non bloquantes, confirmé.
+- **Critères d’acceptation :**
+  - Aucune référence à l’ancien namespace hors historique Git / `v0-legacy` (recherche globale confirmée)
+  - Alias `TurnManagerService` supprimé partout
+  - Compilation du projet verte (confirmée par Ekinox)
+  - Pas de tests NUnit nouveaux cette session (conforme au scope)
+- **Point ouvert :** référence à l’ancien namespace dans `CLAUDE.md` — à corriger séparément, CLAUDE.md étant verrouillé (confirmation explicite requise avant modification).
+- **Pistes de tests NUnit EditMode futurs :** compilation de tous les Steps, contrats `BeginTurn/ApplyPlay/ResolveRemainder`, tests d’intégration `GameOrchestrator`.
+
+Juste créer le fichier, pas de traitement supplémentaire. Confirmer que le fichier a bien été créé avec le contenu exact.
 
 ### MOMENT D'APPEL — CRITIQUE
 

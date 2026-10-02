@@ -2,7 +2,7 @@ using System;
 using Psycko.Core.Domain;
 using Psycko.Core.Rules.SpecialCards;
 
-namespace Psycko.Core.Services.TurnManager
+namespace Psycko.Core.Services.Turn
 {
     /// <summary>
     /// Étape 3 — Effets spéciaux. Appelée APRÈS Step2 (main reconstituée) et AVANT Step4.

@@ -3,8 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Psycko.Core.Domain;
 using Psycko.Core.Interfaces;
-using Psycko.Core.Services.TurnManager;
-using TurnManagerService = Psycko.Core.Services.TurnManager.TurnManager;
+using Psycko.Core.Services.Turn;
 
 namespace Psycko.Core.Services
 {
@@ -38,11 +37,11 @@ public PlayResult ApplyPlay(
     if (state.GetSeatIndex(play.PlayerId) != playerIndex)
         return PlayResult.Rejected(state, PlayRejectionReason.NotYourTurn);
 
-    var beginTurn = TurnManagerService.BeginTurn(state);
+    var beginTurn = TurnManager.BeginTurn(state);
 
     if (beginTurn.IsPickup)
     {
-        var pickup = TurnManagerService.ResolvePickup(state, play.PlayerId);
+        var pickup = TurnManager.ResolvePickup(state, play.PlayerId);
         if (!pickup.IsAccepted)
         {
             if (!pickup.RejectionReason.HasValue)
@@ -60,7 +59,7 @@ public PlayResult ApplyPlay(
             forcedPickupPlayerIds: new List<int> { play.PlayerId });
     }
 
-            var turnResult = TurnManagerService.ApplyPlay(state, play);
+            var turnResult = TurnManager.ApplyPlay(state, play);
             var newState = turnResult.State;
 
             // Ordre respecté : pioche Step2 (avant Don), effets Step3 (contrainte,
@@ -149,7 +148,7 @@ public PlayResult ApplyPlay(
                     choice.RecipientSeatIndex,
                     choice.CardToGive);
 
-            var remainder = TurnManagerService.ResolveRemainder(
+            var remainder = TurnManager.ResolveRemainder(
                 pendingResult.WithState(transferred),
                 play);
 
@@ -327,7 +326,7 @@ public PlayResult ApplyPlay(
         /// </summary>
         public static PlayResult RequestPickup(GameState state, int playerId)
         {
-            var pickup = TurnManagerService.ResolvePickup(state, playerId);
+            var pickup = TurnManager.ResolvePickup(state, playerId);
             if (!pickup.IsAccepted)
             {
                 if (!pickup.RejectionReason.HasValue)
