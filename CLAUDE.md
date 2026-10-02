@@ -586,9 +586,7 @@ cet ordre IMMUABLE (chaque étape reçoit l'état du précédent, jamais de muta
      - Si `HasAnyPlayableCard == true`, aucun ramassage forcé n'est décidé à ce stade.
        Le joueur peut toutefois demander explicitement un ramassage volontaire via le
        bouton **"Ramasser"** côté Présentation pendant qu'il choisit ses cartes.
-     - Dans les deux cas, `TurnManager.ResolvePickup(state, playerId)` décrit la
-       décision de ramassage volontaire ou forcé ; `GameOrchestrator` est le seul à
-       exécuter la mutation. La séquence POSE→JOUEUR SUIVANT (étapes 1 à 6 ci-dessous)
+     - La séquence POSE→JOUEUR SUIVANT (étapes 1 à 6 ci-dessous)
        n'est PAS exécutée : le tour se termine directement sur JOUEUR SUIVANT.
 
   Si le joueur pose une ou plusieurs cartes, l'ordre suivant DOIT être respecté
@@ -663,23 +661,28 @@ une mécanique distincte et relève de T24.
 - **Ramassage volontaire** :
   si le joueur possède au moins une carte jouable, un ramassage volontaire reste
   possible via une action explicite de la Présentation, par exemple le bouton
-  **"Ramasser"**. Cette action est résolue par `TurnManager.ResolvePickup(state, playerId)`,
-  qui rejette `NotYourTurn`, `PlayerFinished` ou `GameAlreadyOver` avec le
-  `PlayRejectionReason` existant, puis exécutée par `GameOrchestrator`.
+  **"Ramasser"**. Cette action est exposée par `GameOrchestrator.RequestPickup(GameState state, int playerId)`
+(statique, public). Qu'il soit volontaire (via RequestPickup) ou forcé (via ApplyPlay en
+cas d'absence de coup jouable), le ramassage converge vers la même séquence T23 exécutée
+par `ExecutePickup` : rejet de NotYourTurn / PlayerFinished / GameAlreadyOver, puis
+`PickUpPile(seatIndex)` → `SetConstraint(Normal, Three)` → avancement Step6, direction
+inchangée.
 
 - **Découpage de `TurnManager`** :
   `BeginTurn(state)` et `ResolvePickup(state, playerId)` retournent un
-  `PickupResolution` en lecture seule ; `ApplyPlay(state, play)` applique la chaîne
-  de pose sans paramètre `voluntaryPickup` ; `ResolveRemainder` reprend la chaîne
+  `PickupResolution` en lecture seule ; `ApplyPlay(state, play, playerIndex) applique la chaîne
+  de pose, `ResolveRemainder` reprend la chaîne
   après la résolution du Don. `Step0_PickupResolver` est supprimé : la chaîne est
   désormais **Step1→Step6**. `PickupResolution.cs` vit dans `Services/TurnManager/`.
 
 - **Orchestration d'un ramassage** :
-  `GameOrchestrator.ApplyPlay(state, play, playerIndex, bool voluntaryPickupRequested)`
-  dispose d'un overload sans le booléen. Sur un ramassage, il exécute
-  `PickUpPile(seatIndex)`, puis `SetConstraint(Normal, Three)`, puis l'avancement
-  de Step6, sans modifier la direction. Aucun enchaînement de ramassages forcés
-  n'est possible : après un ramassage, le joueur suivant a une pile vide et peut
+  `GameOrchestrator.ApplyPlay(state, play, playerIndex)` ne gère plus que la pose de
+  carte. Le ramassage volontaire est une API dédiée : `GameOrchestrator.RequestPickup
+  (state, playerId)` (statique). Les deux chemins (forcé via BeginTurn dans ApplyPlay,
+  ou volontaire via RequestPickup) convergent vers la même séquence T23, exécutée par
+  `ExecutePickup` : `PickUpPile(seatIndex)`, puis `SetConstraint(Normal, Three)`, puis
+  l'avancement de Step6, sans modifier la direction. Aucun enchaînement de ramassages
+  forcés n'est possible : après un ramassage, le joueur suivant a une pile vide et peut
   toujours jouer.
 
 - **Résultat exposé à la Présentation** :

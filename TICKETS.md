@@ -280,11 +280,15 @@ dans un ticket de suivi si nécessaire.
 - **Dépendances :** T27, T29.
 - **Critères d'acceptation :** volontaire/forcé cohérents ; même résultat d'état ; aucun
   appel à ApplyPlay nécessaire pour demander le pickup.
-- **Questions à trancher :** paramètre d'ID joueur ou index de siège ?
+- **Décision prise :** paramètre = `playerId` (pas de siège), conformément à
+  `TurnManager.ResolvePickup(state, playerId)`.
+- **Résolution :** `RequestPickup(GameState, int playerId)` est public, statique, et
+  réutilise `ExecutePickup` (séquence T23) sans duplication. L'overload de compatibilité
+  `ApplyPlay(..., voluntaryPickupRequested)` a été entièrement supprimé — `ApplyPlay`
+  n'a plus qu'une seule signature `(state, play, playerIndex)`. Compilation validée.
+  Tests NUnit reportés à une passe ultérieure dédiée (hors scope de cette session).
 - **Pistes de tests NUnit EditMode futurs :** pickup autorisé/interdit, contrainte reset,
   direction, Step6, Finished et mauvais siège.
-- **Squelette de prompt :** « Ajoute T30 comme API publique mince qui réutilise la
-  séquence T23, sans dupliquer la logique de ramassage. »
 
 ### T33 — Décider le type de retour avant les Bots
 

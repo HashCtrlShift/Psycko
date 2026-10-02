@@ -14,69 +14,51 @@ namespace Psycko.Core.Services
     /// </summary>
     public sealed class GameOrchestrator
     {
-        public PlayResult ApplyPlay(
-            GameState state,
-            Play play,
-            int playerIndex,
-            bool voluntaryPickupRequested)
+public PlayResult ApplyPlay(
+    GameState state,
+    Play play,
+    int playerIndex)
+{
+    // --- Erreurs de programmation → exceptions ---
+    if (state == null) throw new ArgumentNullException(nameof(state));
+    if (play == null) throw new ArgumentNullException(nameof(play));
+    if (playerIndex < 0 || playerIndex >= state.Players.Count)
+        throw new ArgumentOutOfRangeException(nameof(playerIndex));
+
+    // --- Rejets métier → résultat typé ---
+    if (GameResultCalculator.IsGameOver(state))
+        return PlayResult.Rejected(state, PlayRejectionReason.GameAlreadyOver);
+
+    if (playerIndex != state.ActivePlayerIndex)
+        return PlayResult.Rejected(state, PlayRejectionReason.NotYourTurn);
+
+    if (state.Players[playerIndex].CurrentPhase == DefPhase.Finished)
+        return PlayResult.Rejected(state, PlayRejectionReason.PlayerFinished);
+
+    if (state.GetSeatIndex(play.PlayerId) != playerIndex)
+        return PlayResult.Rejected(state, PlayRejectionReason.NotYourTurn);
+
+    var beginTurn = TurnManagerService.BeginTurn(state);
+
+    if (beginTurn.IsPickup)
+    {
+        var pickup = TurnManagerService.ResolvePickup(state, play.PlayerId);
+        if (!pickup.IsAccepted)
         {
-            // --- Erreurs de programmation → exceptions ---
-            if (state == null) throw new ArgumentNullException(nameof(state));
-            if (play == null) throw new ArgumentNullException(nameof(play));
-            if (playerIndex < 0 || playerIndex >= state.Players.Count)
-                throw new ArgumentOutOfRangeException(nameof(playerIndex));
+            if (!pickup.RejectionReason.HasValue)
+                throw new InvalidOperationException(
+                    "Invariant violé : un PickupResolution rejeté doit fournir une raison.");
 
-            // --- Rejets métier → résultat typé ---
-            if (GameResultCalculator.IsGameOver(state))
-                return PlayResult.Rejected(state, PlayRejectionReason.GameAlreadyOver);
+            return PlayResult.Rejected(state, pickup.RejectionReason.Value);
+        }
 
-            if (playerIndex != state.ActivePlayerIndex)
-                return PlayResult.Rejected(state, PlayRejectionReason.NotYourTurn);
+        var seatIndex = state.GetSeatIndex(play.PlayerId);
 
-            if (state.Players[playerIndex].CurrentPhase == DefPhase.Finished)
-                return PlayResult.Rejected(state, PlayRejectionReason.PlayerFinished);
-
-            if (state.GetSeatIndex(play.PlayerId) != playerIndex)
-                return PlayResult.Rejected(state, PlayRejectionReason.NotYourTurn);
-
-            var beginTurn = TurnManagerService.BeginTurn(state);
-            var forcedPickup = beginTurn.IsPickup;
-            var pickupRequested = forcedPickup || voluntaryPickupRequested;
-
-            if (pickupRequested)
-            {
-                var pickup = TurnManagerService.ResolvePickup(state, play.PlayerId);
-                if (!pickup.IsAccepted)
-                {
-                    if (!pickup.RejectionReason.HasValue)
-                        throw new InvalidOperationException(
-                            "Invariant violé : un PickupResolution rejeté doit fournir une raison.");
-
-                    return PlayResult.Rejected(state, pickup.RejectionReason.Value);
-                }
-                
-                var seatIndex = state.GetSeatIndex(play.PlayerId);
-                var afterPickup = (GameState)state.PickUpPile(seatIndex);
-                afterPickup = (GameState)afterPickup.SetConstraint(
-                    HeightConstraint.Normal,
-                    DefRank.Three);
-
-                var advance = Step6_AdvanceTurnResolver.Resolve(
-                    afterPickup,
-                    skipNext: false,
-                    replay: false);
-
-                afterPickup = ExecuteActivePlayerIntent(afterPickup, advance);
-
-                IReadOnlyList<int> forcedIds = forcedPickup
-                    ? new List<int> { play.PlayerId }
-                    : new List<int>();
-
-                return PlayResult.Accepted(
-                    afterPickup,
-                    GameResultCalculator.IsGameOver(afterPickup),
-                    forcedIds);
-            }
+        return ExecutePickup(
+            state,
+            seatIndex,
+            forcedPickupPlayerIds: new List<int> { play.PlayerId });
+    }
 
             var turnResult = TurnManagerService.ApplyPlay(state, play);
             var newState = turnResult.State;
@@ -284,22 +266,11 @@ namespace Psycko.Core.Services
             if (!playable || terminatesOnTwo)
             {
                 var revealed = (GameState)state.PlayCards(play);
-                var picked = (GameState)revealed.PickUpPile(playerIndex);
 
-                picked = (GameState)picked.SetConstraint(
-                    HeightConstraint.Normal,
-                    DefRank.Three);
-
-                var advance = Step6_AdvanceTurnResolver.Resolve(
-                    picked,
-                    skipNext: false,
-                    replay: false);
-
-                picked = ExecuteActivePlayerIntent(picked, advance);
-
-                return PlayResult.Accepted(
-                    picked,
-                    GameResultCalculator.IsGameOver(picked));
+                return ExecutePickup(
+                    revealed,
+                    playerIndex,
+                    forcedPickupPlayerIds: new List<int>());
             }
 
             var revealedState = (GameState)state.PlayCards(play);
@@ -355,6 +326,30 @@ namespace Psycko.Core.Services
         }
 
         /// <summary>
+        /// Déclenche un ramassage volontaire de la pile pour le joueur donné.
+        /// Réutilise la séquence T23 (PickUpPile → SetConstraint(Normal, Three) → Step6)
+        /// via ExecutePickup, sans passer par ApplyPlay.
+        /// </summary>
+        public static PlayResult RequestPickup(GameState state, int playerId)
+        {
+            var pickup = TurnManagerService.ResolvePickup(state, playerId);
+            if (!pickup.IsAccepted)
+            {
+                if (!pickup.RejectionReason.HasValue)
+                    throw new InvalidOperationException(
+                        "Invariant violé : un PickupResolution rejeté doit fournir une raison.");
+
+                return PlayResult.Rejected(state, pickup.RejectionReason.Value);
+            }
+
+            var seatIndex = state.GetSeatIndex(playerId);
+
+            return ExecutePickup(
+                state,
+                seatIndex,
+                forcedPickupPlayerIds: new List<int>());
+        }
+        /// <summary>
         /// Exécute une seule fois l'intention calculée par Step6. Une intention nulle
         /// (rejeu) signifie que l'index reste strictement inchangé et ne déclenche
         /// aucun SetActivePlayer.
@@ -369,15 +364,36 @@ namespace Psycko.Core.Services
             return (GameState)((IGameStateCommand)state).SetActivePlayer(
                 step6Result.NextActivePlayerIndex.Value);
         }
-
-        public PlayResult ApplyPlay(
+                /// <summary>
+        /// Séquence de ramassage T23, en un seul endroit :
+        /// PickUpPile → SetConstraint(Normal, Three) → Step6 → intention SetActivePlayer.
+        /// La direction de jeu n'est jamais modifiée.
+        /// Les validations (tour, phase, partie terminée) restent à l'appelant.
+        /// L'état reçu est l'état juste avant le ramassage : pour ApplyBlindPlay,
+        /// c'est l'état où la carte FaceDown a déjà été révélée sur la pile.
+        /// </summary>
+        private static PlayResult ExecutePickup(
             GameState state,
-            Play play,
-            int playerIndex)
-            => ApplyPlay(
-                state,
-                play,
-                playerIndex,
-                voluntaryPickupRequested: false);
+            int seatIndex,
+            IReadOnlyList<int> forcedPickupPlayerIds)
+        {
+            var afterPickup = (GameState)state.PickUpPile(seatIndex);
+
+            afterPickup = (GameState)afterPickup.SetConstraint(
+                HeightConstraint.Normal,
+                DefRank.Three);
+
+            var advance = Step6_AdvanceTurnResolver.Resolve(
+                afterPickup,
+                skipNext: false,
+                replay: false);
+
+            afterPickup = ExecuteActivePlayerIntent(afterPickup, advance);
+
+            return PlayResult.Accepted(
+                afterPickup,
+                GameResultCalculator.IsGameOver(afterPickup),
+                forcedPickupPlayerIds);
+        }
     }
 }
