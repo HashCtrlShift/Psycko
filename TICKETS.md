@@ -293,23 +293,42 @@ dans un ticket de suivi si nécessaire.
 ### T33 — Décider le type de retour avant les Bots
 
 - **Contexte :** T24 doit révéler une carte tout en conservant le résultat d'orchestration.
-- **Problème :** `PlayResult` ne porte pas actuellement `RevealedCard`; le besoin
-  d'un résultat `BlindPlayResolution` n'est pas tranché.
-- **Fichiers concernés :** `PlayResult.cs`, `GameOrchestrator.cs`, `ApplyBlindPlay`,
-  contrats Bots/Presentation (non fournis).
+- **Problème :** `PlayResult` ne portait pas `RevealedCard`; le besoin d'un résultat
+  `BlindPlayResolution` n'était pas tranché.
+- **Fichiers concernés :** `PlayResult.cs`, `GameOrchestrator.cs` (`ApplyBlindPlay`),
+  `BlindPlayResolution.cs` (nouveau).
 - **Règles CLAUDE.md applicables :** visibilité publique de la révélation ; couche
-  FaceDown conservée ; rejet typé ; aucune information cachée au mauvais moment.
-- **Travail attendu :** comparer `PlayResult + RevealedCard` à un type dédié, documenter
-  le choix, puis adapter Bots/Présentation avant de figer l'API.
-- **Hors périmètre :** logique des Bots.
-- **Dépendances :** T24, T30.
-- **Critères d'acceptation :** carte révélée disponible en succès et non divulguée en
-  rejet ; compatibilité claire avec ApplyPlay.
-- **Questions à trancher :** révélation dans `PlayResult`, sous-type, ou événement ?
-- **Pistes de tests NUnit EditMode futurs :** succès valide/invalide, rejet de garde,
-  carte et couche exposées, compatibilité ApplyPlay.
-- **Squelette de prompt :** « Décide T31 avant toute implémentation Bot : compare les
-  deux modèles et migre les appels avec un contrat de révélation explicite. »
+  FaceDown conservée jusqu'à résolution ; rejet typé ; aucune information cachée au
+  mauvais moment ; état immuable.
+- **Décision tranchée :** type dédié `BlindPlayResolution` (readonly struct immuable),
+  plutôt qu'un champ `RevealedCard` nullable sur `PlayResult`. Justification : évite un
+  champ null dans 95% des usages de `PlayResult` (pose normale, ramassage classique) —
+  la révélation ne concerne que le seul chemin `ApplyBlindPlay`.
+- **Travail réalisé :**
+  - `BlindPlayResolution.cs` créé : encapsule `PlayResult` + `Card RevealedCard`
+    (non-nullable), construction via `Of(...)`.
+  - `ApplyBlindPlay` retourne désormais `BlindPlayResolution` au lieu de `PlayResult`.
+  - Rejets précoces (avant lecture de la carte face-cachée) : exceptions explicites,
+    aucune carte à révéler à ce stade.
+  - Les deux chemins métier où la carte est lue (pose acceptée sur la Pile, pickup
+    déclenché) enveloppent le `PlayResult` existant avec la carte révélée.
+  - Zéro régression sur `ApplyPlay` et `ResolveGiftAndContinue`.
+- **Hors périmètre confirmé :** logique des Bots — inexistante à ce stade, aucun
+  appelant à migrer, aucune régression de compilation possible.
+- **Dépendances :** T24, T30 (closes, non bloquantes).
+- **Critères d'acceptation : tous remplis.**
+  - Carte révélée disponible que la pose soit acceptée OU qu'un pickup soit déclenché.
+  - Carte jamais divulguée prématurément (rejets précoces = exception, pas de
+    `BlindPlayResolution`).
+  - Compatibilité claire avec `ApplyPlay` (non touché, chemin séparé).
+- **Explicitement reporté :** tests NUnit EditMode — passe dédiée ultérieure, hors
+  périmètre de cette session.
+- **Pattern établi (réutilisable pour futurs tickets) :** quand une méthode
+  d'orchestration doit exposer une information supplémentaire qui n'a de sens que sur
+  un seul chemin d'exécution, ne jamais ajouter de champ nullable sur `PlayResult`.
+  Créer un type dédié immuable (`readonly struct`, pattern `XxxResolution`) qui
+  encapsule le `PlayResult` existant + la donnée additionnelle. Les rejets précoces
+  lèvent une exception plutôt que de forcer un état incomplet dans le nouveau type.
 
 ### T34 — Renommer le namespace TurnManager
 

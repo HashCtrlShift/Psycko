@@ -51,7 +51,8 @@ Psycko/
 │   │   │   │   │   └── QuadDetection.cs          Définit un "Carré"
 │   │   │   │   │ 
 │   │   │   │   ├── Validation/
-│   │   │   │   │   ├── CardPlayability.cs        Détermine si une carte est jouable d'après l'état actuel de      │   │   │   │   │   │                             la Partie
+│   │   │   │   │   ├── CardPlayability.cs        Détermine si une carte est jouable d'après l'état actuel de    
+│   │   │   │   │   │                             la Partie       
 │   │   │   │   │   ├── CardPlayabilityChecker.cs Détecte les cartes jouables d'un joueur
 │   │   │   │   │   ├── HandReconstructionPolicy.cs Contrat de Pioche commun à Step2 et Step4
 │   │   │   │   │   └── LastCardValidator.cs      Valide la règle : interdiction de terminer une phase sur un 2.
@@ -91,6 +92,7 @@ Psycko/
 │   │   │       │   ├── TurnManager.cs                    Définit le déroulement d'un tour pour un joueur
 │   │   │       │   └── TurnResult.cs                     Résultat immutable porté entre les Steps (état+intentions)
 │   │   │       │
+│   │   │       ├── BlindPlayResolutions.cs       Carte Révélée en Luck
 │   │   │       ├── GameOrchestrator.cs           Définit le déroulement d'une partie
 │   │   │       ├── GameResultCalculator.cs       Définit la Fin d'un partie.
 │   │   │       ├── GameSeed.cs                   Génération + stockage de la seed RNG d'une partie
