@@ -142,10 +142,39 @@ public PlayResult ApplyPlay(
                     state,
                     PlayRejectionReason.InvalidCards);
 
+            // Résolution Id → seat index (T25) : le choix produit par l'agent/joueur
+            // porte un Id stable (IOpponentVisibleInfo.PlayerId), jamais un seat index.
+            int recipientSeatIndex;
+            try
+            {
+                recipientSeatIndex = pendingResult.State.GetSeatIndex(choice.RecipientPlayerId);
+            }
+            catch (ArgumentException)
+            {
+                // Aucun joueur ne porte cet Id : anomalie du choix fourni, pas une
+                // anomalie d'état (GetSeatIndex lève pour un Id inexistant).
+                return PlayResult.Rejected(
+                    state,
+                    PlayRejectionReason.InvalidCards);
+            }
+
+            if (recipientSeatIndex == donorIndex)
+                return PlayResult.Rejected(
+                    state,
+                    PlayRejectionReason.InvalidCards);
+
+            var recipient = pendingResult.State.Players[recipientSeatIndex];
+
+            // CLAUDE.md : "On ne peut pas faire de don à un joueur qui a fini sa partie."
+            if (recipient.CurrentPhase == DefPhase.Finished)
+                return PlayResult.Rejected(
+                    state,
+                    PlayRejectionReason.InvalidCards);
+
             var transferred = (GameState)((IGameStateCommand)pendingResult.State)
                 .TransferCard(
                     donorIndex,
-                    choice.RecipientSeatIndex,
+                    recipientSeatIndex,
                     choice.CardToGive);
 
             var remainder = TurnManager.ResolveRemainder(

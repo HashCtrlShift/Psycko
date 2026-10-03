@@ -2,21 +2,29 @@ using System;
 
 namespace Psycko.Core.Domain
 {
-    /// <summary>Choix explicite et immuable de la carte et du siège destinataire du Don.</summary>
+    /// <summary>Choix explicite et immuable de la carte et du joueur destinataire du Don.</summary>
     public readonly struct GiftResolutionChoice
     {
         public Card CardToGive { get; }
-        public int RecipientSeatIndex { get; }
 
-        public GiftResolutionChoice(Card cardToGive, int recipientSeatIndex)
+        /// <summary>
+        /// Id stable du joueur destinataire (jamais un seat index) : seul le
+        /// donneur connaît la carte donnée et le destinataire choisi ; la
+        /// résolution Id → seat index est une responsabilité de Core
+        /// (GameOrchestrator, via IGameStateQuery.GetSeatIndex), jamais de
+        /// l'agent qui produit ce choix.
+        /// </summary>
+        public int RecipientPlayerId { get; }
+
+        public GiftResolutionChoice(Card cardToGive, int recipientPlayerId)
         {
             if (cardToGive is null)
                 throw new ArgumentNullException(nameof(cardToGive));
-            if (recipientSeatIndex < 0)
-                throw new ArgumentOutOfRangeException(nameof(recipientSeatIndex));
+            if (recipientPlayerId < 0)
+                throw new ArgumentOutOfRangeException(nameof(recipientPlayerId));
 
             CardToGive = cardToGive;
-            RecipientSeatIndex = recipientSeatIndex;
+            RecipientPlayerId = recipientPlayerId;
         }
     }
 }

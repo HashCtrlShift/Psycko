@@ -16,9 +16,23 @@ namespace Psycko.Core.Rules.Validation
         /// Consommateur : TurnManager — valide un Play précis soumis par joueur/bot.
         /// </summary>
         public static bool IsPlayable(Card card, IGameStateQuery state)
+            => IsPlayable(card, state.Pile, state.Constraint, state.RefRank);
+
+        /// <summary>
+        /// Consommateur : Bots/Presentation — valide un coup à partir de la vue filtrée
+        /// d'un joueur (IPlayerVisibleState), sans jamais exposer l'état complet.
+        /// </summary>
+        public static bool IsPlayable(Card card, IPlayerVisibleState state)
+            => IsPlayable(card, state.Pile, state.Constraint, state.RefRank);
+
+        /// <summary>
+        /// Cœur unique de la règle de jouabilité, partagé par les deux surcharges
+        /// publiques ci-dessus. Ne doit jamais être dupliqué ailleurs.
+        /// </summary>
+        private static bool IsPlayable(Card card, Pile pile, HeightConstraint constraint, DefRank refRank)
         {
             // Pile vide : aucune contrainte de hauteur, tout est jouable.
-            if (state.Pile.IsEmpty)
+            if (pile.IsEmpty)
             {
                 return true;
             }
@@ -37,10 +51,10 @@ namespace Psycko.Core.Rules.Validation
 
             DefRank candidate = card.Rank.Value;
 
-            return state.Constraint switch
+            return constraint switch
             {
-                HeightConstraint.PriestReversed => HeightComparison.IsLessOrEqual(candidate, state.RefRank),
-                _ => HeightComparison.IsGreaterOrEqual(candidate, state.RefRank),
+                HeightConstraint.PriestReversed => HeightComparison.IsLessOrEqual(candidate, refRank),
+                _ => HeightComparison.IsGreaterOrEqual(candidate, refRank),
             };
         }
 
@@ -49,6 +63,12 @@ namespace Psycko.Core.Rules.Validation
         /// (main, FaceUp, ou FaceDown) pour mise en valeur visuelle.
         /// </summary>
         public static IEnumerable<Card> GetPlayableCards(IReadOnlyList<Card> cards, IGameStateQuery state)
+        {
+            return cards.Where(card => IsPlayable(card, state));
+        }
+
+        /// <summary>Surcharge Bots/Presentation de GetPlayableCards, via IPlayerVisibleState.</summary>
+        public static IEnumerable<Card> GetPlayableCards(IReadOnlyList<Card> cards, IPlayerVisibleState state)
         {
             return cards.Where(card => IsPlayable(card, state));
         }

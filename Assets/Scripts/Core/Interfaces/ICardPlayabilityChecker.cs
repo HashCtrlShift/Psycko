@@ -14,5 +14,20 @@ namespace Psycko.Core.Interfaces
 
         /// <summary>Ce joueur a-t-il au moins une carte jouable, toutes couches confondues, dans l'état courant ?</summary>
         bool HasAnyPlayableCard(Player player, IGameStateQuery state);
+
+        /// <summary>
+        /// Une carte précise est-elle jouable, évaluée depuis une vue filtrée
+        /// (Bots/Presentation). Applique strictement la même règle que la
+        /// surcharge IGameStateQuery : la jouabilité d'une carte connue ne
+        /// dépend jamais des cartes cachées d'autrui (Pile, Constraint, RefRank,
+        /// Direction suffisent dans les deux cas).
+        /// </summary>
+        bool IsPlayable(Card card, IPlayerVisibleState state);
+
+        /// <summary>
+        /// Le joueur représenté par cette vue filtrée a-t-il au moins une carte
+        /// jouable, toutes couches confondues (Hand, puis FaceUp si Hand vide) ?
+        /// </summary>
+        bool HasAnyPlayableCard(IPlayerVisibleState state);
     }
 }

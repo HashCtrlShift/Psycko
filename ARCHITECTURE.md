@@ -78,7 +78,8 @@ Psycko/
 │   │   │   │   ├── ICardPlayabilityChecker.cs    Contrat de jouabilité des cartes d'un joueur
 │   │   │   │   ├── IGameState.cs                 Interface composite
 │   │   │   │   ├── IGameStateCommand.cs          Contrat de transition
-│   │   │   │   └── IGameStateQuery.cs            Lecture seule de l'état d'une partie
+│   │   │   │   ├── IGameStateQuery.cs            Lecture seule de l'état d'une partie
+│   │   │   │   └── IPlayerVisibleState.cs        Vue Filtrée pour les joueurs.
 │   │   │   │ 
 │   │   │   └── Services/
 │   │   │       ├── Turn/

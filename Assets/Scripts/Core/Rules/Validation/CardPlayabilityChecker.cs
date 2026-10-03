@@ -46,5 +46,27 @@ namespace Psycko.Core.Rules.Validation
 
             return false;
         }
+        public bool IsPlayable(Card card, IPlayerVisibleState state)
+        {
+            if (state is null) throw new System.ArgumentNullException(nameof(state));
+            return CardPlayability.IsPlayable(card, state);
+        }
+
+        public bool HasAnyPlayableCard(IPlayerVisibleState state)
+        {
+            if (state is null) throw new System.ArgumentNullException(nameof(state));
+
+            // IPlayerVisibleState ne porte pas la phase du joueur self : HasAnyPlayableCard
+            // côté Bots/Presentation vérifie donc les deux couches jouables (Hand et
+            // FaceDown) sans passer par PhaseResolver, qui attend un Player complet
+            // non disponible ici. Si une couche est vide, Any() retourne naturellement false.
+            if (CardPlayability.GetPlayableCards(state.SelfHand, state).Any())
+                return true;
+
+            if (CardPlayability.GetPlayableCards(state.SelfFaceDown, state).Any())
+                return true;
+
+            return false;
+        }
     }
 }

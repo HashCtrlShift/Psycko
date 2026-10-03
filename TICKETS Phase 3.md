@@ -5,19 +5,16 @@
 Psycko.Core.Interfaces/IPlayerVisibleState.cs (+ IOpponentVisibleInfo)
 Psycko.Bots/IPlayerAgent.cs (remplace le stub)
 
-
 - Décision actée : vue filtrée retenue (pas d'accès au GameState complet). Règle de masquage validée :
     - Main et FaceDown adverses → quantité visible, contenu caché.
     - FaceUp adverses → contenu visible pour tous, tant qu'elles ne sont pas ramassées.
     - Propre main/FaceUp/FaceDown du joueur → contenu complet visible pour lui-même.
 
-
 - Contrat final IPlayerAgent (4 méthodes, zéro dépendance Unity, XML doc complète) :
-Play? ProposeNormalPlay(IPlayerVisibleState state) — pose normale (Work/Talent). null = aucun coup proposé.
-bool DecidePickup(IPlayerVisibleState state, bool isForced) — réponse à un pickup forcé/volontaire.
-Play? ProposeFaceDownPlay(IPlayerVisibleState state) — pose FaceDown (phase Luck).
-GiftResolutionChoice ResolveGift(IPlayerVisibleState state) — résolution du Don quand RequiresGiftResolution est vrai.
-
+- Play? ProposeNormalPlay(IPlayerVisibleState state) — pose normale (Work/Talent). null = aucun coup proposé.
+- bool DecidePickup(IPlayerVisibleState state, bool isForced) — réponse à un pickup forcé/volontaire.
+- Play? ProposeFaceDownPlay(IPlayerVisibleState state) — pose FaceDown (phase Luck).
+- GiftResolutionChoice ResolveGift(IPlayerVisibleState state) — résolution du Don quand RequiresGiftResolution est vrai.
 
 - Type de retour : toujours une intention brute (Play?, bool, GiftResolutionChoice), jamais un résultat déjà validé (PlayResult, PickupResolution) — validation métier restant strictement centralisée dans GameOrchestrator/TurnManager.
 - Fallback si aucun coup valide : porté par l'appelant (GameOrchestrator), jamais par l'agent — un agent renvoie null, il ne décide jamais du ramassage forcé à sa place.
@@ -27,22 +24,21 @@ GiftResolutionChoice ResolveGift(IPlayerVisibleState state) — résolution du D
 
 ### T36 — Implémentation RandomBot
 
-- Contexte : Premher agent concret, utilisé pour valider IPlayerAgent en conditions réelles et faire tourner la simulation console.
+- Contexte : Premier agent concret, utilisé pour valider IPlayerAgent en conditions réelles et faire tourner la simulation console.
 - Fichiers concernés : Psycko.Bots/RandomBot.cs.
 - Règles CLAUDE.md applicables : aucune logique métier dans Bots (délègue toute validation à Core) ; déterminisme reproductible requis pour les simulations (dépendance à GameSeed, voir T37).
 - Travail attendu :
-
     - Implémenter IPlayerAgent : sélection aléatoire parmi les coups légaux disponibles (via ICardPlayabilityChecker ou équivalent exposé par Core).
     - Gérer les 3 cas de décision : pose normale, pickup (si aucun coup jouable → forcé, sinon jamais volontaire pour RandomBot v1), choix de Don (sélection aléatoire d'une carte à donner + destinataire aléatoire), pose FaceDown en phase Luck.
     - Injection d'un System.Random (ou seed dédiée issue de GameSeed) dans le constructeur — jamais de new Random() interne non traçable.
 
+
 - Hors périmètre : toute stratégie non aléatoire (StrategicBot, MCTSBot — bots futurs mentionnés dans ARCHITECTURE.md).
 - Dépendances : T35 (contrat IPlayerAgent figé).
 - Critères d'acceptation :
-
-    - RandomBot capable de jouer une partie complète à 4 joueurs sans exception, jusqu'à IsGameOver.
-    - Déterminisme : même seed → même séquence de décisions.
-    - Compilation verte, zéro dépendance Unity.
+- RandomBot capable de jouer une partie complète à 4 joueurs sans exception, jusqu'à IsGameOver.
+- Déterminisme : même seed → même séquence de décisions.
+- Compilation verte, zéro dépendance Unity.
 
 - Pistes de tests NUnit futurs : partie complète simulée avec seed fixe → résultat reproductible ; comportement sur main vide ; comportement sur Don obligatoire.
 
@@ -203,13 +199,10 @@ Supprimer tout résidu de l'ancien deck (si CardFormatter date d'avant le reset)
 Créer une vue dédiée et plus stricte pour ProposeFaceDownPlay (ex. n'exposant que SelfFaceDownCount, sans accès au contenu des cartes), distincte de IPlayerVisibleState standard.
 Ou documenter formellement et définitivement le compromis actuel comme acceptable si le coût d'un nouveau type est jugé disproportionné.
 
-
 - Fichiers concernés (pressentis) : Psycko.Core.Interfaces/IPlayerVisibleState.cs, Psycko.Bots/IPlayerAgent.cs.
 Hors périmètre : toute réécriture des bots existants tant que ce ticket n'est pas tranché.
 - Dépendances : T35 (clos).
 - Statut : 🔵 Dette technique notée, non bloquante pour T36 (RandomBot). À trancher avant qu'un bot stratégique (MCTS, heuristique) soit implémenté.
-
-
 
 ### Résumé de l'ordre d'exécution recommandé :
 T35 → T36 → T37 → T39/T40 (en parallèle, indépendants) → T38a → T38b → T38c → T38d → T41a → T41b → T41c → T41d → T42 → T43
