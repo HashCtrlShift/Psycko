@@ -68,36 +68,39 @@ Psycko.Bots/IPlayerAgent.cs (remplace le stub)
 - Statut : Noyau terminé (GameSeed.cs + Deck.Shuffle(Random random) alignés). Reste en suspens : écriture réelle du code Console (génération + log de seed), à traiter dans T40+.
 - Pistes de tests NUnit futurs (non prioritaires pour l'instant) : même seed → même ordre de Deck ; seeds différentes → ordres différents (non-garantie absolue, vérification de non-trivialité).
 
-### T38 — GameLogRecorder (ticket parent — à décomposer)
+T38 — GameLogRecorder (ticket parent — à décomposer)
 
-- Contexte : Fichier déjà présent (Assets/Scripts/Core/Services/GameLogRecorder.cs), rôle pressenti : tracer chaque action d'une partie pour permettre le débogage post-simulation (1M parties) et la détection de cas exceptionnels. Ticket volumineux — découpage recommandé en sous-tickets :
+Contexte : Fichier déjà présent (Assets/Scripts/Core/Services/GameLogRecorder.cs), rôle pressenti : tracer chaque action d'une partie pour permettre le débogage post-simulation (1M parties) et la détection de cas exceptionnels. Ticket volumineux — découpage recommandé en sous-tickets :
 
-#### T38a — Modèle de données du log
+T38a — Modèle de données du log
 
-- Définir la structure immuable d'une entrée de log (ex. GameLogEntry : type d'action, playerId, Play ou décision, état avant/après résumé, timestamp logique = numéro de tour).
-- Définir le format d'un log de partie complet (GameLog : seed, liste ordonnée d'entrées, résultat final).
-- Critères d'acceptation : types immuables, zéro dépendance Unity, compilation verte.
+Définir la structure immuable d'une entrée de log (ex. GameLogEntry : type d'action, playerId, Play ou décision, état avant/après résumé, timestamp logique = numéro de tour).
+Définir le format d'un log de partie complet (GameLog : seed, liste ordonnée d'entrées, résultat final).
+Critères d'acceptation : types immuables, zéro dépendance Unity, compilation verte.
 
-#### T38b — Intégration GameLogRecorder dans GameOrchestrator
+T38b — Intégration GameLogRecorder dans GameOrchestrator
 
-- Décider : enregistrement opt-in (paramètre/flag injecté) ou toujours actif avec coût mémoire accepté ?
-- Brancher l'enregistrement sur chaque point de décision de GameOrchestrator (ApplyPlay, RequestPickup, ApplyBlindPlay, ResolveGiftAndContinue) sans altérer leur comportement (principe : logging = side-effect pur, jamais de branche logique conditionnée par le log).
-- Critères d'acceptation : GameOrchestrator produit un GameLog cohérent et complet pour une partie test, sans changement de comportement observable sur PlayResult.
+Décider : enregistrement opt-in (paramètre/flag injecté) ou toujours actif avec coût mémoire accepté ?
+Brancher l'enregistrement sur chaque point de décision de GameOrchestrator (ApplyPlay, RequestPickup, ApplyBlindPlay, ResolveGiftAndContinue) sans altérer leur comportement (principe : logging = side-effect pur, jamais de branche logique conditionnée par le log).
+Critères d'acceptation : GameOrchestrator produit un GameLog cohérent et complet pour une partie test, sans changement de comportement observable sur PlayResult.
 
-#### T38c — Sérialisation / export du log
+T38c — Sérialisation / export du log
 
-- Format de sortie pour analyse post-simulation (JSON ? CSV ? texte structuré ?) — à trancher selon l'usage prévu par la Console (T41).
-- Export vers fichier, avec nommage incluant la seed pour traçabilité directe.
-- Critères d'acceptation : un GameLog peut être sérialisé et rechargé/relu sans perte d'information exploitable.
+Format de sortie pour analyse post-simulation (JSON ? CSV ? texte structuré ?) — à trancher selon l'usage prévu par la Console (T41).
+Export vers fichier, avec nommage incluant la seed pour traçabilité directe.
+Critères d'acceptation : un GameLog peut être sérialisé et rechargé/relu sans perte d'information exploitable.
 
-#### T38d — Détection et extraction des cas exceptionnels
+T38d — Détection et extraction des cas exceptionnels
 
-- Définir ce qu'est un "cas exceptionnel" loggable à part (exception levée, invariant violé, partie anormalement longue, etc.).
-- Mécanisme d'extraction automatique : si une partie simulée lève une exception ou dépasse un seuil de tours, son GameLog + sa seed sont isolés dans un dossier/fichier dédié pour rejouabilité immédiate.
-- Critères d'acceptation : une partie en échec est identifiable et rejouable seule via sa seed, sans re-simuler le million de parties.
+Définir ce qu'est un "cas exceptionnel" loggable à part (exception levée, invariant violé, partie anormalement longue, etc.).
 
-- Dépendances globales T38 : T37 (GameSeed) pour la traçabilité, T35/T36 pour qu'il y ait des parties à logger.
-- Hors périmètre global T38 : interface graphique de visualisation des logs (Presentation, hors scope actuel).
+Mécanisme d'extraction automatique : si une partie simulée lève une exception ou dépasse un seuil de tours, son GameLog + sa seed sont isolés dans un dossier/fichier dédié pour rejouabilité immédiate.
+
+Critères d'acceptation : une partie en échec est identifiable et rejouable seule via sa seed, sans re-simuler le million de parties.
+
+Dépendances globales T38 : T37 (GameSeed) pour la traçabilité, T35/T36 pour qu'il y ait des parties à logger.
+
+Hors périmètre global T38 : interface graphique de visualisation des logs (Presentation, hors scope actuel).
 
 ### T39 — Mise à jour de CardFormatter
 
