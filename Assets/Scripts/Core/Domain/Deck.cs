@@ -42,15 +42,13 @@ namespace Psycko.Core.Domain
         }
 
         /// <summary>
-        /// Mélange le paquet de façon déterministe via une seed.
-        /// La même seed reproduit toujours le même ordre (essentiel pour la relecture
-        /// de parties bugguées et la génération de logs via GameSeed.cs).
+        /// Mélange le paquet selon l'ordre produit par le Random fourni.
+        /// Le Random doit être créé via GameSeed.CreateRandom(seed) par l'appelant
+        /// (Console ou GameOrchestrator) — Deck n'a aucune notion de seed,
+        /// aucune création de Random en interne.
         /// </summary>
-        public void Shuffle(int seed)
+        public void Shuffle(Random random)
         {
-            var random = new Random(seed);
-
-            // Fisher-Yates shuffle
             for (int i = _cards.Count - 1; i > 0; i--)
             {
                 int j = random.Next(i + 1);

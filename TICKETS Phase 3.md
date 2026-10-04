@@ -44,24 +44,29 @@ Psycko.Bots/IPlayerAgent.cs (remplace le stub)
 
 ### T37 — GameSeed
 
-- Contexte : Fichier déjà présent dans l'arborescence (Assets/Scripts/Core/Services/GameSeed.cs) mais son rôle exact dans la reproductibilité des simulations (1M parties) doit être validé/complété.
-- Fichiers concernés : Psycko.Core/Services/GameSeed.cs, points d'injection dans GameOrchestrator, Deck (mélange), RandomBot.
-- Règles CLAUDE.md applicables : Core = C# pur ; aucune dépendance à UnityEngine.Random ; toute source d'aléatoire doit être traçable et rejouable pour la validation en masse.
+- Contexte : Core/Services/GameSeed.cs centralise la seed utilisée pour reproduire la distribution initiale du Deck. Ne sert pas à reproduire une partie entière — RandomBot n'utilise pas la seed, ses décisions seront tracées plus tard via un système de logs d'actions séparé.
+- Fichiers concernés : Psycko.Core/Services/GameSeed.cs, Psycko.Core/Domain/Deck.cs (point d'injection via Shuffle(Random random)).
+- Règles CLAUDE.md applicables : Core = C# pur ; aucune dépendance à UnityEngine.Random ; toute source d'aléatoire liée au Deck doit être traçable et rejouable.
 - Travail attendu :
+    - Garantir que GameSeed est l'unique point d'entrée d'aléatoire pour le mélange du Deck.
+    - Exposer GameSeed.CreateRandom(long seed), utilisable identiquement par Core et Console.
+    - Garantir qu'une seed identique reproduit toujours le même ordre de Deck.
+    - Documenter que la Console génère une seed aléatoire au lancement de chaque partie simulée, puis la logge (pas de seed incrémentale).
 
-    - Vérifier/garantir que GameSeed est l'unique point d'entrée d'aléatoire pour : mélange du Deck, décisions RandomBot, tout tirage aléatoire futur (ex. résolution de Jokers si applicable).
-    - Exposer une API simple : GameSeed.CreateRandom(long seed) ou équivalent, utilisable identiquement par Core, Bots et Console.
-    - Garantir qu'une seed identique produit une partie strictement identique (ordre de deck + décisions bot).
-    - Documenter comment la Console doit faire varier la seed entre les N parties simulées (incrémentale ? aléatoire au lancement puis loggée ?).
+- Hors périmètre :
+    - Génération cryptographique.
+    - Seed persistée en base/PlayFab.
+    - Reproductibilité des décisions RandomBot (hors sujet — géré par logs d'actions, ticket séparé à créer).
+    - Aléatoire pour les Jokers (aucun n'en nécessite).
 
-- Hors périmètre : génération cryptographique, seed persistée en base/PlayFab (hors sujet Core).
-- Dépendances : aucune bloquante ; utilisé par T36 (RandomBot) et T40+ (Console/Simulation).
+- Dépendances : aucune bloquante ; utilisé par Deck (mélange) et T40+ (Console/Simulation).
 - Critères d'acceptation :
+    - Une seed donnée produit toujours le même ordre de Deck.
+    - Aucun System.Random ou UnityEngine.Random non traçable ailleurs dans Core pour ce qui concerne le Deck.
+    - Deck.Shuffle ne crée aucun Random en interne — reçoit uniquement celui fourni par GameSeed.
 
-    - Une seed donnée produit toujours la même partie, vérifié par un test de reproductibilité.
-    - Aucun System.Random ou UnityEngine.Random non traçable ailleurs dans Core/Bots.
-
-- Pistes de tests NUnit futurs : deux parties avec même seed → états finaux identiques ; deux seeds différentes → séquences différentes (non-garantie absolue mais vérification de non-trivialité).
+- Statut : Noyau terminé (GameSeed.cs + Deck.Shuffle(Random random) alignés). Reste en suspens : écriture réelle du code Console (génération + log de seed), à traiter dans T40+.
+- Pistes de tests NUnit futurs (non prioritaires pour l'instant) : même seed → même ordre de Deck ; seeds différentes → ordres différents (non-garantie absolue, vérification de non-trivialité).
 
 ### T38 — GameLogRecorder (ticket parent — à décomposer)
 
