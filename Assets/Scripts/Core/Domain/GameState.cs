@@ -71,13 +71,13 @@ namespace Psycko.Core.Domain
 
         /// <summary>
         /// Construit l'état initial d'une partie : joueurs déjà distribués (Hand/FaceUp/FaceDown),
-        /// pioche restante après distribution, pile vide, premier joueur actif, sens horaire,
-        /// contrainte normale.
+        /// pioche restante après distribution, pile vide, sens horaire, contrainte normale.
+        /// Le premier joueur est DÉSIGNÉ par FirstPlayerResolver (plus petite carte en main) ;
+        /// il n'est plus fourni par l'appelant.
         /// </summary>
         public static GameState CreateInitial(
             IEnumerable<Player> players,
-            IEnumerable<Card> drawPile,
-            int firstPlayerIndex)
+            IEnumerable<Card> drawPile)
         {
             if (players is null) throw new ArgumentNullException(nameof(players));
             if (drawPile is null) throw new ArgumentNullException(nameof(drawPile));
@@ -86,8 +86,7 @@ namespace Psycko.Core.Domain
             if (playerList.Count < 2)
                 throw new ArgumentException("Une partie nécessite au moins 2 joueurs.", nameof(players));
 
-            if (firstPlayerIndex < 0 || firstPlayerIndex >= playerList.Count)
-                throw new ArgumentOutOfRangeException(nameof(firstPlayerIndex));
+            var firstPlayerIndex = FirstPlayerResolver.Resolve(playerList);
 
             return new GameState(
                 playerList,

@@ -126,8 +126,70 @@ Le recorder est un paramètre **optionnel, injecté à l'appel** : `IGameLogReco
 
 ## Dette identifiée → T38bis
 
-- **T38bis-a :** `ApplyPlay` ne teste pas `RequiresGiftResolution` et ne renvoie jamais `PlayResult.AwaitingGift(...)`. Le flux du Don du 7 est incomplet. À traiter avec la décision sur le moment où logger l'entrée `Play` d'un 7.
-- **T38bis-b :** désignation du premier joueur (plus petite carte en main, ordre Trèfle < Carreau < Cœur < Pique, rang par rang ; 2 = hauteur la plus élevée ; Jokers exclus ; main seule après la phase d'échange ; la carte désigne seulement qui commence, sans obligation de la jouer ; chaque nouvelle partie redétermine son premier joueur).
+- **T38bis :** `ApplyPlay` ne teste pas `RequiresGiftResolution` et ne renvoie jamais `PlayResult.AwaitingGift(...)`. Le flux du Don du 7 est incomplet. À traiter avec la décision sur le moment où logger l'entrée `Play` d'un 7.
+- **T38bis :** désignation du premier joueur (plus petite carte en main, ordre Trèfle < Carreau < Cœur < Pique, rang par rang ; 2 = hauteur la plus élevée ; Jokers exclus ; main seule après la phase d'échange ; la carte désigne seulement qui commence, sans obligation de la jouer ; chaque nouvelle partie redétermine son premier joueur).
+
+### T38bis — FirstPlayerResolver + ApplyPlay Don du 7
+
+**Statut : Clos (code)**
+
+#### Résumé
+
+Deux changements complémentaires pour finaliser le setup et déboguer le Don du 7 :
+1. Création de `FirstPlayerResolver.cs` pour désigner le premier joueur automatiquement.
+2. Ajout du test `RequiresGiftResolution` dans `ApplyPlay` pour capturer l'état suspendu du Don.
+
+#### Changements effectués
+
+**Fichier 1 : `Core/Domain/FirstPlayerResolver.cs` (nouveau)**
+
+- Classe statique publique `FirstPlayerResolver` avec méthode `Resolve(IReadOnlyList<Player> players)`.
+- Désigne le premier joueur : celui qui détient la **plus petite carte en main**.
+- Ordre : rang croissant (3 … As, 2), puis couleur Trèfle < Carreau < Cœur < Pique.
+- Jokers exclus (aucune hauteur attribuée). Chaque carte étant unique, pas d'égalité.
+- Retourne l'index de siège du premier joueur.
+- Levée `InvalidOperationException` si aucune carte standard ne reste en main (cas impossible en pratique, mais garde-fou).
+
+**Fichier 2 : `GameState.CreateInitial` (modification)**
+
+- **Suppression du troisième paramètre** `int firstPlayerIndex`.
+- Corps remplacé : appel automatique `FirstPlayerResolver.Resolve(playerList)` pour calculer le siège du premier joueur.
+- Signature : `public static GameState CreateInitial(IEnumerable<Player> players, IEnumerable<Card> drawPile)`.
+- Invariants conservés : joueurs déjà distribués (Hand/FaceUp/FaceDown), pioche restante, pile vide, sens horaire, contrainte normale.
+
+**Fichier 3 : `GameOrchestrator.ApplyPlay` (correction)**
+
+- Après `var turnResult = TurnManager.ApplyPlay(state, play);`, ajout du test `if (turnResult.RequiresGiftResolution)`.
+- Si vrai : enregistrement immédiat du coup dans le log (avec effets Step3 détectés à ce stade), puis retour de `PlayResult.AwaitingGift(turnResult)`.
+- Aucune mutation d'état (pioche, destruction, changement de joueur) tant que le Don n'est pas résolu.
+- Séquence logée : **Play (le 7), puis GiftCard (après résolution), puis effets restants**.
+- Le flow `ResolveGiftAndContinue` reprend ensuite `ResolveRemainder` (Step4→Step6) sans duplication.
+
+#### Règles CLAUDE.md applicables
+
+- Core = C# pur ; `FirstPlayerResolver` n'a aucune dépendance Unity.
+- GameState reste immuable : `CreateInitial` crée l'état initial déterministe.
+- GameOrchestrator seul habilité à muter : le Don ne met à jour l'état que via `ResolveGiftAndContinue`.
+
+#### Dépendances
+
+- **T35** (IPlayerAgent) : pas de dépendance directe.
+- **T37** (GameSeed) : `CreateInitial` accepte une pioche déjà mélangée ; pas de seed intégrée.
+- **T24** (ApplyBlindPlay) : immuable, pas d'interaction.
+
+#### Hors périmètre
+
+- Phase d'échange pré-partie : `CreateInitial` est appelée après, avec mains finalisées. Le branchement du tirage initial / de l'échange relève d'un autre ticket.
+- Tests NUnit : aucun (demande utilisateur).
+- Bots / Présentation : pas d'impact direct.
+
+#### Critères d'acceptation
+
+- `FirstPlayerResolver` compile et retourne l'index du siège correct (petit rang, petite couleur).
+- `GameState.CreateInitial` compile avec deux paramètres, appelle le resolver automatiquement.
+- `ApplyPlay` capture `RequiresGiftResolution` et retourne `AwaitingGift` sans muter l'état.
+- Aucune référence résiduelle à l'ancien `CreateInitial(players, drawPile, firstPlayerIndex)`.
+- Tous les appelants de `CreateInitial` recompilent (Console, tests, futurs helpers).
 
 T38c — Sérialisation / export du log
 

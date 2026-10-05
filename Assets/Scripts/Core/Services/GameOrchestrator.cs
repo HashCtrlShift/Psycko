@@ -64,6 +64,27 @@ namespace Psycko.Core.Services
             }
 
             var turnResult = TurnManager.ApplyPlay(state, play);
+
+            // Don du 7 : le tour est suspendu après Step3. Aucune mutation n'est appliquée ici
+            // (ni pioche, ni destruction, ni changement de joueur) : tout est rejoué par
+            // ResolveGiftAndContinue via ResolveRemainder. Le coup est loggé tout de suite,
+            // avec la pile telle qu'elle est à ce stade (une destruction éventuelle viendra après le Don).
+            if (turnResult.RequiresGiftResolution)
+            {
+                recorder?.Record(GameLogEntry.PlayerAction(
+                    play.PlayerId,
+                    ActionKind.Play,
+                    play.Cards,
+                    PileSnapshot(turnResult.State),
+                    effects: GameLogEffectDetector.Detect(
+                        play,
+                        turnResult.DestroysPile,
+                        turnResult.NextConstraint,
+                        turnResult.NextDirection?.ToString())));
+
+                return PlayResult.AwaitingGift(turnResult);
+            }
+
             var newState = turnResult.State;
 
             if (turnResult.DrawCount > 0)
