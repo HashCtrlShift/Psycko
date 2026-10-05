@@ -78,11 +78,56 @@ Définir la structure immuable d'une entrée de log (ex. GameLogEntry : type d'a
 Définir le format d'un log de partie complet (GameLog : seed, liste ordonnée d'entrées, résultat final).
 Critères d'acceptation : types immuables, zéro dépendance Unity, compilation verte.
 
-T38b — Intégration GameLogRecorder dans GameOrchestrator
+# T38b — Intégration GameLogRecorder dans GameOrchestrator ✅ CLOS
 
-Décider : enregistrement opt-in (paramètre/flag injecté) ou toujours actif avec coût mémoire accepté ?
-Brancher l'enregistrement sur chaque point de décision de GameOrchestrator (ApplyPlay, RequestPickup, ApplyBlindPlay, ResolveGiftAndContinue) sans altérer leur comportement (principe : logging = side-effect pur, jamais de branche logique conditionnée par le log).
-Critères d'acceptation : GameOrchestrator produit un GameLog cohérent et complet pour une partie test, sans changement de comportement observable sur PlayResult.
+**Statut :** terminé. Le code compile, il est mergé, et le périmètre s'arrête strictement à l'intégration du recorder.
+
+## Décision : enregistrement opt-in
+
+Le recorder est un paramètre **optionnel, injecté à l'appel** : `IGameLogRecorder recorder = null`.
+
+- **Recorder `null`** : aucun log, aucun coût mémoire. C'est le cas par défaut, par exemple pour la simulation de 1M de parties sans besoin de log.
+- **Recorder fourni** : toutes les actions sont enregistrées.
+- **Principe appliqué :** le logging est un side-effect pur. Aucune branche logique ne dépend du recorder, il n'y a que des `recorder?.Record(...)`.
+
+## Branchement par point de décision
+
+| Méthode | Entrées écrites |
+|---|---|
+| `ApplyPlay` (jeu normal) | 1 × `Play` (cartes, pile après, effets détectés) |
+| `ApplyPlay` (ramassage forcé) | 1 × `PickupPile` |
+| `RequestPickup` | 1 × `RequestPickup` |
+| `ApplyBlindPlay` (carte jouable) | 1 × `BlindPlay` (cartes, pile après, effets) |
+| `ApplyBlindPlay` (carte non jouable, ou 2 terminal) | 2 entrées : `BlindPlay`, puis `PickupPile` |
+| `ResolveGiftAndContinue` | 1 × `GiftCard` (carte, donneur, bénéficiaire) |
+| Fin de partie (toutes méthodes) | 1 × `GameEnd` (`PsyckoPlayerId`) |
+
+## Fichiers livrés
+
+- **Domain/Log :** `ActionKind`, `EffectKind`, `EffectLogDetail` (nouveau), `GameLogEntry` (colonnes Pile et Effets), `GameLog`
+- **Interfaces :** `IGameLogRecorder`
+- **Services :** `GameLogRecorder`, `GameLogEffectDetector` (nouveau), `GameOrchestrator` (branchement du recorder)
+- **Supprimé :** `CardEffectType.cs`
+
+## Effets détectés (`EffectKind`)
+
+`Doublon`, `Detruite2`, `DetruiteCarre`, `DetruiteBombe`, `SensReverse` (le Detail porte la direction), `PriestEffect`, `JokerVerre`, `JokerNoir`.
+
+## Points d'attention actés
+
+- `Card.Rank` est nullable (`DefRank?`) car un Joker n'a pas de rang. `RankOf` a été adapté en conséquence.
+- Pour `ApplyBlindPlay` jouable, l'entrée `BlindPlay` est écrite **après** la résolution, afin de porter les effets et la pile finale.
+- La construction du `GameLog` (seed + entrées) est de la responsabilité de **la Console** : `new GameLog(seed, recorder.Entries)`.
+
+## Critères d'acceptation
+
+- `GameOrchestrator` produit des entrées de log cohérentes pour chaque point de décision.
+- Aucun changement de comportement observable sur `PlayResult` (le logging ne conditionne aucune branche).
+
+## Dette identifiée → T38bis
+
+- **T38bis-a :** `ApplyPlay` ne teste pas `RequiresGiftResolution` et ne renvoie jamais `PlayResult.AwaitingGift(...)`. Le flux du Don du 7 est incomplet. À traiter avec la décision sur le moment où logger l'entrée `Play` d'un 7.
+- **T38bis-b :** désignation du premier joueur (plus petite carte en main, ordre Trèfle < Carreau < Cœur < Pique, rang par rang ; 2 = hauteur la plus élevée ; Jokers exclus ; main seule après la phase d'échange ; la carte désigne seulement qui commence, sans obligation de la jouer ; chaque nouvelle partie redétermine son premier joueur).
 
 T38c — Sérialisation / export du log
 

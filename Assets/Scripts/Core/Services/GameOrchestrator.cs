@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using Psycko.Core.Domain;
+using Psycko.Core.Domain.Log;
 using Psycko.Core.Interfaces;
 using Psycko.Core.Services.Turn;
 
@@ -10,63 +11,60 @@ namespace Psycko.Core.Services
     /// <summary>
     /// Source unique d'exécution des intentions, notamment Step6 : le resolver
     /// calcule, cet orchestrateur appelle SetActivePlayer au plus une fois.
+    /// Logging (T38b) : side-effect pur via IGameLogRecorder optionnel,
+    /// aucune branche logique ne dépend du recorder.
     /// </summary>
     public sealed class GameOrchestrator
     {
-public PlayResult ApplyPlay(
-    GameState state,
-    Play play,
-    int playerIndex)
-{
-    // --- Erreurs de programmation → exceptions ---
-    if (state == null) throw new ArgumentNullException(nameof(state));
-    if (play == null) throw new ArgumentNullException(nameof(play));
-    if (playerIndex < 0 || playerIndex >= state.Players.Count)
-        throw new ArgumentOutOfRangeException(nameof(playerIndex));
-
-    // --- Rejets métier → résultat typé ---
-    if (GameResultCalculator.IsGameOver(state))
-        return PlayResult.Rejected(state, PlayRejectionReason.GameAlreadyOver);
-
-    if (playerIndex != state.ActivePlayerIndex)
-        return PlayResult.Rejected(state, PlayRejectionReason.NotYourTurn);
-
-    if (state.Players[playerIndex].CurrentPhase == DefPhase.Finished)
-        return PlayResult.Rejected(state, PlayRejectionReason.PlayerFinished);
-
-    if (state.GetSeatIndex(play.PlayerId) != playerIndex)
-        return PlayResult.Rejected(state, PlayRejectionReason.NotYourTurn);
-
-    var beginTurn = TurnManager.BeginTurn(state);
-
-    if (beginTurn.IsPickup)
-    {
-        var pickup = TurnManager.ResolvePickup(state, play.PlayerId);
-        if (!pickup.IsAccepted)
+        public PlayResult ApplyPlay(
+            GameState state,
+            Play play,
+            int playerIndex,
+            IGameLogRecorder recorder = null)
         {
-            if (!pickup.RejectionReason.HasValue)
-                throw new InvalidOperationException(
-                    "Invariant violé : un PickupResolution rejeté doit fournir une raison.");
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            if (play == null) throw new ArgumentNullException(nameof(play));
+            if (playerIndex < 0 || playerIndex >= state.Players.Count)
+                throw new ArgumentOutOfRangeException(nameof(playerIndex));
 
-            return PlayResult.Rejected(state, pickup.RejectionReason.Value);
-        }
+            if (GameResultCalculator.IsGameOver(state))
+                return PlayResult.Rejected(state, PlayRejectionReason.GameAlreadyOver);
 
-        var seatIndex = state.GetSeatIndex(play.PlayerId);
+            if (playerIndex != state.ActivePlayerIndex)
+                return PlayResult.Rejected(state, PlayRejectionReason.NotYourTurn);
 
-        return ExecutePickup(
-            state,
-            seatIndex,
-            forcedPickupPlayerIds: new List<int> { play.PlayerId });
-    }
+            if (state.Players[playerIndex].CurrentPhase == DefPhase.Finished)
+                return PlayResult.Rejected(state, PlayRejectionReason.PlayerFinished);
+
+            if (state.GetSeatIndex(play.PlayerId) != playerIndex)
+                return PlayResult.Rejected(state, PlayRejectionReason.NotYourTurn);
+
+            var beginTurn = TurnManager.BeginTurn(state);
+
+            if (beginTurn.IsPickup)
+            {
+                var pickup = TurnManager.ResolvePickup(state, play.PlayerId);
+                if (!pickup.IsAccepted)
+                {
+                    if (!pickup.RejectionReason.HasValue)
+                        throw new InvalidOperationException(
+                            "Invariant violé : un PickupResolution rejeté doit fournir une raison.");
+
+                    return PlayResult.Rejected(state, pickup.RejectionReason.Value);
+                }
+
+                var seatIndex = state.GetSeatIndex(play.PlayerId);
+
+                return ExecutePickup(
+                    state,
+                    seatIndex,
+                    new List<int> { play.PlayerId },
+                    ActionKind.PickupPile,
+                    recorder);
+            }
 
             var turnResult = TurnManager.ApplyPlay(state, play);
             var newState = turnResult.State;
-
-            // Ordre respecté : pioche Step2 (avant Don), effets Step3 (contrainte,
-            // direction, destruction de pile), pioche Step4 (après Don éventuel).
-            // Si RequiresGiftResolution est vrai, TurnManager s'est arrêté après Step3.
-            // La résolution du Don est explicite via ResolveGiftAndContinue : elle exécute
-            // TransferCard puis réinjecte l'état avant ResolveRemainder.
 
             if (turnResult.DrawCount > 0)
             {
@@ -108,27 +106,32 @@ public PlayResult ApplyPlay(
                     state.ActivePlayerIndex);
             }
 
-            // GameOrchestrator est la source unique d'exécution de l'intention Step6.
             newState = ExecuteActivePlayerIntent(newState, turnResult);
 
-            return PlayResult.Accepted(
-                newState,
-                GameResultCalculator.IsGameOver(newState));
+            recorder?.Record(GameLogEntry.PlayerAction(
+                play.PlayerId,
+                ActionKind.Play,
+                play.Cards,
+                PileSnapshot(newState),
+                effects: GameLogEffectDetector.Detect(
+                    play,
+                    turnResult.DestroysPile,
+                    turnResult.NextConstraint,
+                    turnResult.NextDirection?.ToString())));
+
+            return Accept(newState, recorder);
         }
 
         /// <summary>
         /// Résout le Don obligatoire puis reprend exactement à Step4.
-        /// Cette réinjection structurelle corrige T18-bis : TransferCard est exécuté
-        /// avant ResolveRemainder, de sorte que Step4_FinalDrawResolver ne lit jamais
-        /// l'état obsolète produit par Step3. Le cas « RequiresGiftResolution vrai
-        /// mais main déjà vide » ne peut donc plus produire un état incohérent : la
-        /// main est réellement mutée avant la repioche finale.
+        /// TransferCard est exécuté avant ResolveRemainder (correctif T18-bis).
         /// </summary>
         public PlayResult ResolveGiftAndContinue(
             GameState state,
             Play play,
             TurnResult pendingResult,
-            GiftResolutionChoice choice)
+            GiftResolutionChoice choice,
+            IGameLogRecorder recorder = null)
         {
             if (!pendingResult.RequiresGiftResolution)
                 throw new InvalidOperationException(
@@ -138,12 +141,8 @@ public PlayResult ApplyPlay(
             var donor = pendingResult.State.Players[donorIndex];
 
             if (!donor.Hand.Contains(choice.CardToGive))
-                return PlayResult.Rejected(
-                    state,
-                    PlayRejectionReason.InvalidCards);
+                return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
 
-            // Résolution Id → seat index (T25) : le choix produit par l'agent/joueur
-            // porte un Id stable (IOpponentVisibleInfo.PlayerId), jamais un seat index.
             int recipientSeatIndex;
             try
             {
@@ -151,31 +150,26 @@ public PlayResult ApplyPlay(
             }
             catch (ArgumentException)
             {
-                // Aucun joueur ne porte cet Id : anomalie du choix fourni, pas une
-                // anomalie d'état (GetSeatIndex lève pour un Id inexistant).
-                return PlayResult.Rejected(
-                    state,
-                    PlayRejectionReason.InvalidCards);
+                return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
             }
 
             if (recipientSeatIndex == donorIndex)
-                return PlayResult.Rejected(
-                    state,
-                    PlayRejectionReason.InvalidCards);
+                return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
 
             var recipient = pendingResult.State.Players[recipientSeatIndex];
 
-            // CLAUDE.md : "On ne peut pas faire de don à un joueur qui a fini sa partie."
             if (recipient.CurrentPhase == DefPhase.Finished)
-                return PlayResult.Rejected(
-                    state,
-                    PlayRejectionReason.InvalidCards);
+                return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
 
             var transferred = (GameState)((IGameStateCommand)pendingResult.State)
-                .TransferCard(
-                    donorIndex,
-                    recipientSeatIndex,
-                    choice.CardToGive);
+                .TransferCard(donorIndex, recipientSeatIndex, choice.CardToGive);
+
+            recorder?.Record(GameLogEntry.PlayerAction(
+                donor.Id,
+                ActionKind.GiftCard,
+                new[] { choice.CardToGive },
+                PileSnapshot(transferred),
+                targetPlayerId: choice.RecipientPlayerId));
 
             var remainder = TurnManager.ResolveRemainder(
                 pendingResult.WithState(transferred),
@@ -225,20 +219,17 @@ public PlayResult ApplyPlay(
 
             newState = ExecuteActivePlayerIntent(newState, remainder);
 
-            return PlayResult.Accepted(
-                newState,
-                GameResultCalculator.IsGameOver(newState));
+            return Accept(newState, recorder);
         }
 
         /// <summary>
         /// Révèle et résout une carte de la couche FaceDown en phase Luck.
-        /// L'index est l'index courant dans FaceDown : aucune sélection par Id de siège
-        /// n'est déduite implicitement.
         /// </summary>
         public BlindPlayResolution ApplyBlindPlay(
             GameState state,
             int playerIndex,
-            int faceDownIndex)
+            int faceDownIndex,
+            IGameLogRecorder recorder = null)
         {
             if (state == null)
                 throw new ArgumentNullException(nameof(state));
@@ -249,9 +240,6 @@ public PlayResult ApplyPlay(
             if (faceDownIndex < 0)
                 throw new ArgumentOutOfRangeException(nameof(faceDownIndex));
 
-            // --- Rejets précoces : aucune carte n'a encore été lue, donc pas de
-            // BlindPlayResolution possible. On signale ces cas par exception, puisque
-            // le contrat BlindPlayResolution garantit toujours une RevealedCard valide. ---
             if (GameResultCalculator.IsGameOver(state))
                 throw new InvalidOperationException("GameAlreadyOver: impossible de jouer, la partie est terminée.");
 
@@ -269,13 +257,8 @@ public PlayResult ApplyPlay(
             if (faceDownIndex >= player.FaceDown.Count)
                 throw new ArgumentOutOfRangeException(nameof(faceDownIndex), "InvalidCards: index FaceDown invalide.");
 
-            // --- À partir d'ici, la carte est lue : elle est révélée dans tous les cas,
-            // que la pose soit acceptée ou qu'un pickup soit déclenché. ---
             var card = player.FaceDown[faceDownIndex];
-            var play = Play.CreateSingle(
-                player.Id,
-                card,
-                CardLayer.FaceDown);
+            var play = Play.CreateSingle(player.Id, card, CardLayer.FaceDown);
 
             var playable =
                 Psycko.Core.Rules.Validation.CardPlayability.IsPlayable(card, state);
@@ -284,22 +267,26 @@ public PlayResult ApplyPlay(
                 play.EffectiveRank == DefRank.Two
                 && player.FaceDown.Count == 1;
 
+            var revealedState = (GameState)state.PlayCards(play);
+
             if (!playable || terminatesOnTwo)
             {
-                var revealed = (GameState)state.PlayCards(play);
+                // Entrée 1 : "[PlayerId] retourne [carte]" (sans effet).
+                recorder?.Record(GameLogEntry.PlayerAction(
+                    player.Id, ActionKind.BlindPlay, new[] { card }, PileSnapshot(revealedState)));
 
+                // Entrée 2 : "[PlayerId] ramasse la Pile" (écrite par ExecutePickup).
                 var pickupResult = ExecutePickup(
-                    revealed,
+                    revealedState,
                     playerIndex,
-                    forcedPickupPlayerIds: new List<int>());
+                    new List<int>(),
+                    ActionKind.PickupPile,
+                    recorder);
 
                 return BlindPlayResolution.Of(pickupResult, card);
             }
 
-            var revealedState = (GameState)state.PlayCards(play);
-            var effects = Step3_CardEffectsResolver.Resolve(
-                revealedState,
-                play);
+            var effects = Step3_CardEffectsResolver.Resolve(revealedState, play);
 
             var pileEffects = Step5_PileEffectsResolver.Resolve(
                 revealedState,
@@ -307,8 +294,9 @@ public PlayResult ApplyPlay(
                 effects.WithState(revealedState));
 
             var next = pileEffects.State;
+            var destroysPile = effects.DestroysPile || pileEffects.DestroysPile;
 
-            if (effects.DestroysPile || pileEffects.DestroysPile)
+            if (destroysPile)
             {
                 next = (GameState)next.DestroyPile();
             }
@@ -323,8 +311,7 @@ public PlayResult ApplyPlay(
 
             if (effects.NextDirection.HasValue)
             {
-                next = (GameState)next.WithDirection(
-                    effects.NextDirection.Value);
+                next = (GameState)next.WithDirection(effects.NextDirection.Value);
             }
 
             var updatedPlayer = next.Players[playerIndex];
@@ -341,19 +328,28 @@ public PlayResult ApplyPlay(
 
             next = ExecuteActivePlayerIntent(next, advanceValid);
 
-            var acceptedResult = PlayResult.Accepted(
-                next,
-                GameResultCalculator.IsGameOver(next));
+            // Entrée unique : "[PlayerId] retourne [carte]" + effets, pile après résolution.
+            recorder?.Record(GameLogEntry.PlayerAction(
+                player.Id,
+                ActionKind.BlindPlay,
+                new[] { card },
+                PileSnapshot(next),
+                effects: GameLogEffectDetector.Detect(
+                    play,
+                    destroysPile,
+                    effects.NextConstraint,
+                    effects.NextDirection?.ToString())));
 
-            return BlindPlayResolution.Of(acceptedResult, card);
+            return BlindPlayResolution.Of(Accept(next, recorder), card);
         }
 
         /// <summary>
-        /// Déclenche un ramassage volontaire de la pile pour le joueur donné.
-        /// Réutilise la séquence T23 (PickUpPile → SetConstraint(Normal, Three) → Step6)
-        /// via ExecutePickup, sans passer par ApplyPlay.
+        /// Ramassage volontaire de la pile (séquence T23 via ExecutePickup).
         /// </summary>
-        public static PlayResult RequestPickup(GameState state, int playerId)
+        public static PlayResult RequestPickup(
+            GameState state,
+            int playerId,
+            IGameLogRecorder recorder = null)
         {
             var pickup = TurnManager.ResolvePickup(state, playerId);
             if (!pickup.IsAccepted)
@@ -370,13 +366,11 @@ public PlayResult ApplyPlay(
             return ExecutePickup(
                 state,
                 seatIndex,
-                forcedPickupPlayerIds: new List<int>());
+                new List<int>(),
+                ActionKind.RequestPickup,
+                recorder);
         }
-        /// <summary>
-        /// Exécute une seule fois l'intention calculée par Step6. Une intention nulle
-        /// (rejeu) signifie que l'index reste strictement inchangé et ne déclenche
-        /// aucun SetActivePlayer.
-        /// </summary>
+
         private static GameState ExecuteActivePlayerIntent(
             GameState state,
             TurnResult step6Result)
@@ -387,20 +381,24 @@ public PlayResult ApplyPlay(
             return (GameState)((IGameStateCommand)state).SetActivePlayer(
                 step6Result.NextActivePlayerIndex.Value);
         }
-                /// <summary>
-        /// Séquence de ramassage T23, en un seul endroit :
-        /// PickUpPile → SetConstraint(Normal, Three) → Step6 → intention SetActivePlayer.
-        /// La direction de jeu n'est jamais modifiée.
-        /// Les validations (tour, phase, partie terminée) restent à l'appelant.
-        /// L'état reçu est l'état juste avant le ramassage : pour ApplyBlindPlay,
-        /// c'est l'état où la carte FaceDown a déjà été révélée sur la pile.
+
+        /// <summary>
+        /// Séquence de ramassage T23 : PickUpPile → SetConstraint(Normal, Three)
+        /// → Step6 → intention SetActivePlayer. La direction n'est jamais modifiée.
         /// </summary>
         private static PlayResult ExecutePickup(
             GameState state,
             int seatIndex,
-            IReadOnlyList<int> forcedPickupPlayerIds)
+            IReadOnlyList<int> forcedPickupPlayerIds,
+            ActionKind logKind,
+            IGameLogRecorder recorder)
         {
+            var pickedCards = PileSnapshot(state);
+
             var afterPickup = (GameState)state.PickUpPile(seatIndex);
+
+            recorder?.Record(GameLogEntry.PlayerAction(
+                state.Players[seatIndex].Id, logKind, pickedCards, PileSnapshot(afterPickup)));
 
             afterPickup = (GameState)afterPickup.SetConstraint(
                 HeightConstraint.Normal,
@@ -413,10 +411,30 @@ public PlayResult ApplyPlay(
 
             afterPickup = ExecuteActivePlayerIntent(afterPickup, advance);
 
-            return PlayResult.Accepted(
-                afterPickup,
-                GameResultCalculator.IsGameOver(afterPickup),
-                forcedPickupPlayerIds);
+            var isGameOver = GameResultCalculator.IsGameOver(afterPickup);
+            if (isGameOver)
+                recorder?.Record(GameLogEntry.GameEnd(
+                    GameResultCalculator.GetPsyckoPlayerId(afterPickup)));
+
+            return PlayResult.Accepted(afterPickup, isGameOver, forcedPickupPlayerIds);
         }
+
+        /// <summary>Construit le PlayResult accepté et logge la fin de partie si besoin.</summary>
+        private static PlayResult Accept(GameState newState, IGameLogRecorder recorder)
+        {
+            var isGameOver = GameResultCalculator.IsGameOver(newState);
+            if (isGameOver)
+                recorder?.Record(GameLogEntry.GameEnd(
+                    GameResultCalculator.GetPsyckoPlayerId(newState)));
+
+            return PlayResult.Accepted(newState, isGameOver);
+        }
+
+        /// <summary>
+        /// Copie figée des cartes de la pile centrale (pour le log uniquement).
+        /// ⚠️ Seul endroit où le nom de la propriété pile est utilisé : adapter si besoin.
+        /// </summary>
+        private static IReadOnlyList<Card> PileSnapshot(GameState state)
+            => state.Pile.Cards.ToList();
     }
 }

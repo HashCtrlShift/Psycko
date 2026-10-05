@@ -3,12 +3,6 @@ using Psycko.Core.Domain;
 
 namespace Psycko.Core.Services
 {
-    /// <summary>
-    /// Unique source de vérité pour le calcul de fin de partie.
-    /// Règle : la partie est terminée lorsqu'il reste au plus un joueur
-    /// dont la phase n'est pas Finished. Méthode pure, aucune mutation,
-    /// zéro dépendance Unity.
-    /// </summary>
     public static class GameResultCalculator
     {
         public static bool IsGameOver(GameState state)
@@ -25,6 +19,27 @@ namespace Psycko.Core.Services
             }
 
             return stillPlaying <= 1;
+        }
+
+        /// <summary>
+        /// Retourne l'Id du Psycko (dernier joueur non Finished) si la partie est
+        /// terminée ; null sinon. Méthode pure.
+        /// </summary>
+        public static int? GetPsyckoPlayerId(GameState state)
+        {
+            if (state == null)
+                throw new ArgumentNullException(nameof(state));
+
+            if (!IsGameOver(state))
+                return null;
+
+            for (int i = 0; i < state.Players.Count; i++)
+            {
+                if (state.Players[i].CurrentPhase != DefPhase.Finished)
+                    return state.Players[i].Id;
+            }
+
+            return null;
         }
     }
 }

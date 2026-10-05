@@ -49,13 +49,15 @@ namespace Psycko.Core.Rules.Validation
             int pile = state.DrawPile.Count;
             int needed = HandTarget - handAfter;
             int draw = needed <= 0 ? 0 : Math.Min(needed, pile);
-            bool transition = (handAfter + draw) == 0 && (pile - draw) == 0;
+            bool pileExhausted = (pile - draw) == 0;
+            bool transition = (handAfter + draw) == 0 && pileExhausted;
 
             return new HandReconstructionResult(
                 drawCount: draw,
                 triggersFaceUpPickup: transition,
                 triggersPhaseTransition: transition,
-                targetPhase: transition ? DefPhase.Talent : (DefPhase?)null);
+                targetPhase: transition ? DefPhase.Talent : (DefPhase?)null,
+                drawPileExhausted: pileExhausted);
         }
 
         /// <summary>Phase 2 : aucune pioche ; Talent→Luck ssi main vide après retrait.</summary>
@@ -82,6 +84,9 @@ namespace Psycko.Core.Rules.Validation
         public bool TriggersPhaseTransition { get; }
         public DefPhase? TargetPhase { get; }
 
+        /// <summary>Vrai si la pioche est vide après cette reconstruction (Work uniquement).</summary>
+        public bool DrawPileExhausted { get; }
+
         /// <summary>
         /// Toujours false : un joueur ne peut JAMAIS donner une carte Face Cachée (Couche 3),
         /// même en phase Chance. Exposé pour que GameOrchestrator restreigne le choix du Don
@@ -90,14 +95,16 @@ namespace Psycko.Core.Rules.Validation
         public bool AllowsFaceDownGift => false;
 
         public HandReconstructionResult(int drawCount, bool triggersFaceUpPickup,
-            bool triggersPhaseTransition, DefPhase? targetPhase)
+            bool triggersPhaseTransition, DefPhase? targetPhase,
+            bool drawPileExhausted = false)
         {
             DrawCount = drawCount;
             TriggersFaceUpPickup = triggersFaceUpPickup;
             TriggersPhaseTransition = triggersPhaseTransition;
             TargetPhase = targetPhase;
+            DrawPileExhausted = drawPileExhausted;
         }
 
-        public static HandReconstructionResult None => new HandReconstructionResult(0, false, false, null);
+        public static HandReconstructionResult None => new HandReconstructionResult(0, false, false, null, false);
     }
 }

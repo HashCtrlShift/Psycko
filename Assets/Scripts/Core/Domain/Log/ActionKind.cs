@@ -1,19 +1,12 @@
 namespace Psycko.Core.Domain.Log
 {
-    /// <summary>
-    /// Nature d'une action ou d'un événement loggé au cours d'une partie.
-    /// Les marqueurs (PhaseChange, DeckExhausted, GameEnded) ne sont pas des
-    /// décisions de joueur mais des événements de déroulement de partie.
-    /// </summary>
+    /// <summary>Types d'actions enregistrables dans le log d'une partie.</summary>
     public enum ActionKind
     {
-        Play,
-        PickupForced,
-        RequestPickup,
-        GiftCard,
-        BlindPlay,
-        PhaseChange,
-        DeckExhausted,
-        GameEnded
+        Play = 0,          // [PlayerId] joue [cartes]
+        PickupPile = 1,    // [PlayerId] ramasse la Pile (forcé)
+        GiftCard = 2,      // [PlayerId] donne [carte] à [PlayerId]
+        BlindPlay = 3,     // [PlayerId] retourne [carte]
+        RequestPickup = 4  // [PlayerId] ramasse volontairement la Pile
     }
 }
