@@ -1,54 +1,55 @@
 using System;
 using Psycko.Core.Domain;
+using Psycko.Core.Interfaces;
 
-namespace PsyckoConsole.Formatting
+namespace Psycko.Core.Services.Log.Format
 {
-    /// <summary>
-    /// Formatter d'affichage console en français.
-    /// Réutilise les symboles universels (CardSymbols) et n'ajoute que
-    /// les noms de rangs/Jokers en français.
-    /// </summary>
-    public sealed class CardFormatterFrench : ICardFormatter
+    /// <summary>Formateur français : "7♥", "Prêtre♣", "Joker Bombe".</summary>
+    public sealed class CardFormatter : ICardFormatter
     {
         public string Format(Card card)
         {
+            if (card is null) throw new ArgumentNullException(nameof(card));
+
             if (card.IsJoker)
             {
-                return FormatJoker(card.JokerType!.Value);
+                if (card.JokerType is null)
+                    throw new ArgumentException("Joker sans JokerType.", nameof(card));
+                return JokerLabel(card.JokerType.Value);
             }
 
-            string rankLabel = FormatRank(card.Rank!.Value);
-            string suitSymbol = CardSymbols.GetSuitSymbol(card.Suit!.Value);
+            if (card.Rank is null || card.Suit is null)
+                throw new ArgumentException("Carte standard sans Rank ou Suit.", nameof(card));
 
-            return $"{rankLabel}{suitSymbol}";
+            return RankLabel(card.Rank.Value) + CardSymbols.Of(card.Suit.Value);
         }
 
-        private static string FormatRank(CardRank rank) => rank switch
+        public static string RankLabel(DefRank rank) => rank switch
         {
-            CardRank.Three => "3",
-            CardRank.Four => "4",
-            CardRank.Five => "5",
-            CardRank.Six => "6",
-            CardRank.Seven => "7",
-            CardRank.Eight => "8",
-            CardRank.Nine => "9",
-            CardRank.Ten => "10",
-            CardRank.Priest => "Prêtre",
-            CardRank.Jack => "Valet",
-            CardRank.Knight => "Cavalier",
-            CardRank.Queen => "Dame",
-            CardRank.King => "Roi",
-            CardRank.Ace => "As",
-            CardRank.Two => "2",
+            DefRank.Three  => "3",
+            DefRank.Four   => "4",
+            DefRank.Five   => "5",
+            DefRank.Six    => "6",
+            DefRank.Seven  => "7",
+            DefRank.Eight  => "8",
+            DefRank.Nine   => "9",
+            DefRank.Ten    => "10",
+            DefRank.Priest => "Prêtre",
+            DefRank.Jack   => "Valet",
+            DefRank.Knight => "Cavalier",
+            DefRank.Queen  => "Dame",
+            DefRank.King   => "Roi",
+            DefRank.Ace    => "As",
+            DefRank.Two    => "2",
             _ => throw new ArgumentOutOfRangeException(nameof(rank), rank, null)
         };
 
-        private static string FormatJoker(JokerType jokerType) => jokerType switch
+        public static string JokerLabel(DefJokerType type) => type switch
         {
-            JokerType.Glass => "Joker de Verre",
-            JokerType.Black => "Joker Noir",
-            JokerType.Color => "Joker Couleur",
-            _ => throw new ArgumentOutOfRangeException(nameof(jokerType), jokerType, null)
+            DefJokerType.Glass => "Joker de Verre",
+            DefJokerType.Black => "Joker Noir",
+            DefJokerType.Color => "Joker Bombe",
+            _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
         };
     }
 }

@@ -1,12 +1,11 @@
 using Psycko.Core.Domain;
 
-namespace PsyckoConsole.Formatting
+namespace Psycko.Core.Interfaces
 {
-    /// <summary>
-    /// Contrat commun pour l'affichage textuel d'une Card en console.
-    /// </summary>
+    /// <summary>Contrat commun de mise en forme d'une carte en texte lisible.</summary>
     public interface ICardFormatter
     {
+        /// <summary>Ex : "7♥", "Valet♠", "Joker de Verre".</summary>
         string Format(Card card);
     }
 }

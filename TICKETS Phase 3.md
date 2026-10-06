@@ -68,256 +68,231 @@ Psycko.Bots/IPlayerAgent.cs (remplace le stub)
 - Statut : Noyau terminé (GameSeed.cs + Deck.Shuffle(Random random) alignés). Reste en suspens : écriture réelle du code Console (génération + log de seed), à traiter dans T40+.
 - Pistes de tests NUnit futurs (non prioritaires pour l'instant) : même seed → même ordre de Deck ; seeds différentes → ordres différents (non-garantie absolue, vérification de non-trivialité).
 
-T38 — GameLogRecorder (ticket parent — à décomposer)
+## T38 — GameLogRecorder (ticket parent)
 
-Contexte : Fichier déjà présent (Assets/Scripts/Core/Services/GameLogRecorder.cs), rôle pressenti : tracer chaque action d'une partie pour permettre le débogage post-simulation (1M parties) et la détection de cas exceptionnels. Ticket volumineux — découpage recommandé en sous-tickets :
+- **Contexte** : tracer chaque action d'une partie pour le débogage post-simulation et la détection de cas exceptionnels. Fichier : `Assets/Scripts/Core/Services/GameLogRecorder.cs`.
+- **Principes validés** :
+  - Le logging est un **side-effect pur** : aucune branche logique ne dépend du log.
+  - La seed ne sert qu'à reproduire la distribution initiale du Deck (T37). Elle ne rejoue pas les décisions des bots.
+  - Le log peut être désactivé, avec un coût nul.
+  - **Format d'une ligne** (3 colonnes) : `Action | Pile avant le coup | Effets`.
+  - **Noms des joueurs** : `Bot1`, `Bot2`, `Bot3`, `Humain` (via `Player.Name`).
+  - **Ordre des effets sur une ligne** : Carré / Doublon d'abord, puis l'effet de la carte, séparés par ` + `.
+  - Un **Don** transite de main en main : il n'a aucun effet de carte.
+- **Hors périmètre global** : interface graphique de visualisation (Presentation).
+- **Dépendances globales** : T37 (GameSeed), T35/T36 (bots).
 
-T38a — Modèle de données du log
+### T38a — Modèle de données du log ✅ CLOS
 
-Définir la structure immuable d'une entrée de log (ex. GameLogEntry : type d'action, playerId, Play ou décision, état avant/après résumé, timestamp logique = numéro de tour).
-Définir le format d'un log de partie complet (GameLog : seed, liste ordonnée d'entrées, résultat final).
-Critères d'acceptation : types immuables, zéro dépendance Unity, compilation verte.
+Types immuables dans `Domain/Log` : `GameLog`, `GameLogEntry`, `ActionKind`, `EffectKind`, `EffectLogDetail`. Zéro dépendance Unity, compilation verte.
 
-# T38b — Intégration GameLogRecorder dans GameOrchestrator ✅ CLOS
+### T38b — Intégration du recorder dans GameOrchestrator ✅ CLOS
 
-**Statut :** terminé. Le code compile, il est mergé, et le périmètre s'arrête strictement à l'intégration du recorder.
+**Décision : enregistrement opt-in.** Le recorder est un paramètre optionnel injecté à l'appel (`IGameLogRecorder recorder = null`).
 
-## Décision : enregistrement opt-in
+- `null` : aucun log, aucun coût mémoire. C'est le cas par défaut (simulation de masse sans log).
+- Fourni : toutes les actions sont enregistrées via `recorder?.Record(...)`.
 
-Le recorder est un paramètre **optionnel, injecté à l'appel** : `IGameLogRecorder recorder = null`.
-
-- **Recorder `null`** : aucun log, aucun coût mémoire. C'est le cas par défaut, par exemple pour la simulation de 1M de parties sans besoin de log.
-- **Recorder fourni** : toutes les actions sont enregistrées.
-- **Principe appliqué :** le logging est un side-effect pur. Aucune branche logique ne dépend du recorder, il n'y a que des `recorder?.Record(...)`.
-
-## Branchement par point de décision
+**Branchement par point de décision :**
 
 | Méthode | Entrées écrites |
 |---|---|
-| `ApplyPlay` (jeu normal) | 1 × `Play` (cartes, pile après, effets détectés) |
+| `ApplyPlay` (jeu normal) | 1 × `Play` (cartes, pile après, effets) |
 | `ApplyPlay` (ramassage forcé) | 1 × `PickupPile` |
 | `RequestPickup` | 1 × `RequestPickup` |
 | `ApplyBlindPlay` (carte jouable) | 1 × `BlindPlay` (cartes, pile après, effets) |
-| `ApplyBlindPlay` (carte non jouable, ou 2 terminal) | 2 entrées : `BlindPlay`, puis `PickupPile` |
+| `ApplyBlindPlay` (non jouable, ou 2 terminal) | 2 entrées : `BlindPlay`, puis `PickupPile` |
 | `ResolveGiftAndContinue` | 1 × `GiftCard` (carte, donneur, bénéficiaire) |
-| Fin de partie (toutes méthodes) | 1 × `GameEnd` (`PsyckoPlayerId`) |
+| Fin de partie | 1 × `GameEnd` (`PsyckoPlayerId`) |
 
-## Fichiers livrés
+**Fichiers livrés :**
 
-- **Domain/Log :** `ActionKind`, `EffectKind`, `EffectLogDetail` (nouveau), `GameLogEntry` (colonnes Pile et Effets), `GameLog`
-- **Interfaces :** `IGameLogRecorder`
-- **Services :** `GameLogRecorder`, `GameLogEffectDetector` (nouveau), `GameOrchestrator` (branchement du recorder)
-- **Supprimé :** `CardEffectType.cs`
+- Domain/Log : `ActionKind`, `EffectKind`, `EffectLogDetail`, `GameLogEntry`, `GameLog`.
+- Interfaces : `IGameLogRecorder`.
+- Services : `GameLogRecorder`, `GameLogEffectDetector`, `GameOrchestrator` (branchement).
+- Supprimé : `CardEffectType.cs`.
 
-## Effets détectés (`EffectKind`)
+**Effets détectés (`EffectKind`)** : `Doublon`, `Detruite2`, `DetruiteCarre`, `DetruiteBombe`, `SensReverse` (le Detail porte la direction), `PriestEffect`, `JokerVerre`, `JokerNoir`.
 
-`Doublon`, `Detruite2`, `DetruiteCarre`, `DetruiteBombe`, `SensReverse` (le Detail porte la direction), `PriestEffect`, `JokerVerre`, `JokerNoir`.
+**Points actés :**
 
-## Points d'attention actés
-
-- `Card.Rank` est nullable (`DefRank?`) car un Joker n'a pas de rang. `RankOf` a été adapté en conséquence.
+- `Card.Rank` est nullable (`DefRank?`), car un Joker n'a pas de rang. `RankOf` est adapté.
 - Pour `ApplyBlindPlay` jouable, l'entrée `BlindPlay` est écrite **après** la résolution, afin de porter les effets et la pile finale.
-- La construction du `GameLog` (seed + entrées) est de la responsabilité de **la Console** : `new GameLog(seed, recorder.Entries)`.
+- La construction du `GameLog` (`new GameLog(seed, recorder.Entries)`) est de la responsabilité de la Console.
 
-## Critères d'acceptation
+**Critères d'acceptation** : entrées cohérentes à chaque point de décision, aucun changement observable sur `PlayResult`.
 
-- `GameOrchestrator` produit des entrées de log cohérentes pour chaque point de décision.
-- Aucun changement de comportement observable sur `PlayResult` (le logging ne conditionne aucune branche).
+### T38bis — FirstPlayerResolver + Don du 7 dans ApplyPlay ✅ CLOS (code)
 
-## Dette identifiée → T38bis
+**1. `FirstPlayerResolver`** (`Core/Domain/FirstPlayerResolver.cs`, nouveau)
 
-- **T38bis :** `ApplyPlay` ne teste pas `RequiresGiftResolution` et ne renvoie jamais `PlayResult.AwaitingGift(...)`. Le flux du Don du 7 est incomplet. À traiter avec la décision sur le moment où logger l'entrée `Play` d'un 7.
-- **T38bis :** désignation du premier joueur (plus petite carte en main, ordre Trèfle < Carreau < Cœur < Pique, rang par rang ; 2 = hauteur la plus élevée ; Jokers exclus ; main seule après la phase d'échange ; la carte désigne seulement qui commence, sans obligation de la jouer ; chaque nouvelle partie redétermine son premier joueur).
+- Méthode statique `Resolve(IReadOnlyList<Player> players)`, qui retourne l'index de siège du premier joueur.
+- Désigne le détenteur de la **plus petite carte en main** (mains finalisées après la phase d'échange).
+- Ordre : rang croissant (3 … As, 2 = hauteur la plus élevée), puis couleur Trèfle < Carreau < Cœur < Pique.
+- Jokers exclus. La carte désigne seulement qui commence, sans obligation de la jouer.
+- Chaque nouvelle partie redétermine son premier joueur.
+- Lève `InvalidOperationException` si aucune carte standard n'est en main (garde-fou).
 
-### T38bis — FirstPlayerResolver + ApplyPlay Don du 7
+**2. `GameState.CreateInitial`** (modifié)
 
-**Statut : Clos (code)**
+- Le paramètre `firstPlayerIndex` est supprimé.
+- Signature : `CreateInitial(IEnumerable<Player> players, IEnumerable<Card> drawPile)`. L'appel au resolver est automatique.
+- Invariants conservés : joueurs déjà distribués, pioche restante, pile vide, sens horaire, contrainte normale.
 
-#### Résumé
+**3. `GameOrchestrator.ApplyPlay`** (corrigé)
 
-Deux changements complémentaires pour finaliser le setup et déboguer le Don du 7 :
-1. Création de `FirstPlayerResolver.cs` pour désigner le premier joueur automatiquement.
-2. Ajout du test `RequiresGiftResolution` dans `ApplyPlay` pour capturer l'état suspendu du Don.
+- Après `TurnManager.ApplyPlay`, ajout du test `if (turnResult.RequiresGiftResolution)`.
+- Si vrai : le coup est loggé immédiatement, puis `PlayResult.AwaitingGift(turnResult)` est retourné.
+- Aucune mutation (pioche, destruction, changement de joueur) tant que le Don n'est pas résolu.
+- Séquence logée : `Play` (le 7), puis `GiftCard`, puis les effets restants.
+- `ResolveGiftAndContinue` reprend ensuite `ResolveRemainder` (Step4 → Step6) sans duplication.
 
-#### Changements effectués
+**Hors périmètre** : la phase d'échange pré-partie (autre ticket).
 
-**Fichier 1 : `Core/Domain/FirstPlayerResolver.cs` (nouveau)**
+**Critères d'acceptation** :
 
-- Classe statique publique `FirstPlayerResolver` avec méthode `Resolve(IReadOnlyList<Player> players)`.
-- Désigne le premier joueur : celui qui détient la **plus petite carte en main**.
-- Ordre : rang croissant (3 … As, 2), puis couleur Trèfle < Carreau < Cœur < Pique.
-- Jokers exclus (aucune hauteur attribuée). Chaque carte étant unique, pas d'égalité.
-- Retourne l'index de siège du premier joueur.
-- Levée `InvalidOperationException` si aucune carte standard ne reste en main (cas impossible en pratique, mais garde-fou).
+- `FirstPlayerResolver` retourne le siège correct.
+- `CreateInitial` compile à deux paramètres.
+- `ApplyPlay` capture `RequiresGiftResolution` sans muter l'état.
+- Aucune référence résiduelle à l'ancien `CreateInitial` à trois paramètres.
 
-**Fichier 2 : `GameState.CreateInitial` (modification)**
+### T38c — Formateur de cartes (absorbe T39 et T40) ✅ CLOS (à merger après compilation)
 
-- **Suppression du troisième paramètre** `int firstPlayerIndex`.
-- Corps remplacé : appel automatique `FirstPlayerResolver.Resolve(playerList)` pour calculer le siège du premier joueur.
-- Signature : `public static GameState CreateInitial(IEnumerable<Player> players, IEnumerable<Card> drawPile)`.
-- Invariants conservés : joueurs déjà distribués (Hand/FaceUp/FaceDown), pioche restante, pile vide, sens horaire, contrainte normale.
+- **Travail** : réécriture de `CardSymbols` et `CardFormatter` avec les vrais types du Core (`DefSuit`, `DefRank`, `DefJokerType`, `Card` nullable). Les anciens fichiers contenaient des références à l'ancien modèle.
+- **Fichiers** :
+  - `Core/Interfaces/ICardFormatter.cs` (déplacé dans le Core).
+  - `Core/Services/Log/Format/CardSymbols.cs` et `CardFormatter.cs`.
+  - Les trois anciens fichiers de `Tools/PsyckoConsole/` sont supprimés.
+- **Format retenu** : `7♥`, `Valet♠`, `Joker de Verre`, etc. Les trois Jokers sont clairement distincts (Verre / Noir / Couleur).
+- **Règle** : zéro logique métier, pur affichage.
+- **Critères d'acceptation** :
+  - Les 63 cartes ont un format texte correct, sans doublon ni ambiguïté.
+  - Aucune référence à l'ancien deck.
+  - Compilation verte.
+- **Piste de test NUnit futur** : test paramétré sur les 63 cartes (format attendu, unicité, correspondance bijective avec `DefRank` / `DefSuit` / `DefJokerType`).
 
-**Fichier 3 : `GameOrchestrator.ApplyPlay` (correction)**
+### T38d — Finalisation du logging : correctifs, export, cas exceptionnels, statistiques ⏳ À FAIRE
 
-- Après `var turnResult = TurnManager.ApplyPlay(state, play);`, ajout du test `if (turnResult.RequiresGiftResolution)`.
-- Si vrai : enregistrement immédiat du coup dans le log (avec effets Step3 détectés à ce stade), puis retour de `PlayResult.AwaitingGift(turnResult)`.
-- Aucune mutation d'état (pioche, destruction, changement de joueur) tant que le Don n'est pas résolu.
-- Séquence logée : **Play (le 7), puis GiftCard (après résolution), puis effets restants**.
-- Le flow `ResolveGiftAndContinue` reprend ensuite `ResolveRemainder` (Step4→Step6) sans duplication.
+Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec un commit par étape.
 
-#### Règles CLAUDE.md applicables
+**1. Corrections de `GameLogEffectDetector`** *(à faire en premier)*
 
-- Core = C# pur ; `FirstPlayerResolver` n'a aucune dépendance Unity.
-- GameState reste immuable : `CreateInitial` crée l'état initial déterministe.
-- GameOrchestrator seul habilité à muter : le Don ne met à jour l'état que via `ResolveGiftAndContinue`.
+- **Doublon** : actuellement détecté seulement si les deux cartes sont dans le même `Play`. Il doit aussi l'être quand la carte jouée complète un Doublon avec la carte précédente de la Pile (deux coups successifs).
+- **Ordre des effets** : Carré / Doublon d'abord, puis l'effet de la carte. Une ligne peut cumuler plusieurs effets (` + `).
+- **Don du 7** : aucun effet de carte (la carte transite de main en main).
 
-#### Dépendances
+**2. Export CSV** (`CsvLogWriter`)
 
-- **T35** (IPlayerAgent) : pas de dépendance directe.
-- **T37** (GameSeed) : `CreateInitial` accepte une pioche déjà mélangée ; pas de seed intégrée.
-- **T24** (ApplyBlindPlay) : immuable, pas d'interaction.
+- Un `GameLog` est sérialisé en CSV, **3 colonnes par partie** : Action | Pile avant | Effets.
+- Chaque partie exceptionnelle occupe ses propres colonnes (1re : A-B-C, 2e : D-E-F, etc.).
+- Nom de fichier incluant la **seed** pour la traçabilité.
+- Critère : un `GameLog` peut être exporté et relu sans perte d'information exploitable.
 
-#### Hors périmètre
+**3. Modes de log** : `LogMode` = `Off` / `All` / `ExceptionalOnly`.
 
-- Phase d'échange pré-partie : `CreateInitial` est appelée après, avec mains finalisées. Le branchement du tirage initial / de l'échange relève d'un autre ticket.
-- Tests NUnit : aucun (demande utilisateur).
-- Bots / Présentation : pas d'impact direct.
+- `Off` : aucun recorder n'est créé (coût nul).
+- `ExceptionalOnly` : seules les parties exceptionnelles sont exportées.
 
-#### Critères d'acceptation
+**4. Cas exceptionnels**
 
-- `FirstPlayerResolver` compile et retourne l'index du siège correct (petit rang, petite couleur).
-- `GameState.CreateInitial` compile avec deux paramètres, appelle le resolver automatiquement.
-- `ApplyPlay` capture `RequiresGiftResolution` et retourne `AwaitingGift` sans muter l'état.
-- Aucune référence résiduelle à l'ancien `CreateInitial(players, drawPile, firstPlayerIndex)`.
-- Tous les appelants de `CreateInitial` recompilent (Console, tests, futurs helpers).
+- Mécanisme d'extraction automatique : une partie exceptionnelle voit son `GameLog` et sa seed isolés pour une rejouabilité immédiate.
+- Critère : une partie en échec est identifiable et **rejouable seule via sa seed**, sans re-simuler les autres.
+- **❓ En suspens : définition d'une « partie exceptionnelle »**. Critères envisagés, combinables :
+  1. *Durée extrême* : les N parties les plus longues et les N plus courtes (N réglable).
+  2. *Seuil* : plus de X coups, avec un plafond anti-boucle infinie (toujours exceptionnel).
+  3. *Événement rare* : plusieurs Carrés, Bombe juste après un Carré, pioche épuisée très tôt… (liste à définir).
+  4. *Erreur* : toute partie interrompue par une exception (enregistrée d'office).
+  - Proposition : **1 + 2 + 4** pour commencer, le critère 3 plus tard. **À trancher.**
+- **❓ En suspens : plafond d'export CSV.** Excel s'arrête à 16 384 colonnes, soit environ 5 400 parties à 3 colonnes. Proposition : plafond réglable (par exemple 1 000 parties exceptionnelles par fichier).
 
-T38c — Sérialisation / export du log
+**5. Statistiques de simulation** (`SimulationStats`) — **toujours calculées, même en `LogMode.Off`**
 
-Format de sortie pour analyse post-simulation (JSON ? CSV ? texte structuré ?) — à trancher selon l'usage prévu par la Console (T41).
-Export vers fichier, avec nommage incluant la seed pour traçabilité directe.
-Critères d'acceptation : un GameLog peut être sérialisé et rechargé/relu sans perte d'information exploitable.
+- Nombre de coups : **moyenne**, **médiane**, **minimum**, **maximum** (avec la seed de la partie concernée), écart-type.
+- **Vainqueurs** : nombre de victoires par joueur (Bot1 à Bot4) et nombre de fois où chacun est le **Psycko**.
+- Répartition des victoires par siège (détection d'un biais du premier joueur).
+- Nombre de parties terminées normalement et nombre de parties en erreur.
+- **❓ En suspens** : métriques sur la fréquence d'activation de chaque carte spéciale / Joker (nécessaire pour T42). À décider si on les ajoute ici ou plus tard.
 
-T38d — Détection et extraction des cas exceptionnels
+**6. Affichage console direct** (`ConsoleLogPrinter`)
 
-Définir ce qu'est un "cas exceptionnel" loggable à part (exception levée, invariant violé, partie anormalement longue, etc.).
+- Pour les parties Humain vs Bots : affichage en direct dans la console, avec les noms `Humain`, `Bot1`, `Bot2`, `Bot3`.
 
-Mécanisme d'extraction automatique : si une partie simulée lève une exception ou dépasse un seuil de tours, son GameLog + sa seed sont isolés dans un dossier/fichier dédié pour rejouabilité immédiate.
+**7. `.gitignore`** : ajout des dossiers de logs et d'exports CSV générés.
 
-Critères d'acceptation : une partie en échec est identifiable et rejouable seule via sa seed, sans re-simuler le million de parties.
-
-Dépendances globales T38 : T37 (GameSeed) pour la traçabilité, T35/T36 pour qu'il y ait des parties à logger.
-
-Hors périmètre global T38 : interface graphique de visualisation des logs (Presentation, hors scope actuel).
-
-### T39 — Mise à jour de CardFormatter
-
-- Contexte : CardFormatter (non listé explicitement dans l'arborescence fournie mais référencé comme existant) doit refléter le deck de 63 cartes (4×15 rangs + 3 Jokers), notamment Cavalier et Prêtre présents dès le modèle V1.
-- Fichiers concernés : fichier CardFormatter.cs (localisation à confirmer — probablement Psycko.Core/Domain/ ou un utilitaire partagé Console/Presentation).
-- Règles CLAUDE.md applicables : aucune logique métier dans le formatage — pur affichage/texte ; le modèle de données (DefRank, DefCard) reste la seule source de vérité des valeurs.
-- Travail attendu :
-
-    - Vérifier que tous les rangs (3 à As, 2, Prêtre, Valet, Cavalier, Dame, Roi) ont un libellé texte correct.
-    - Vérifier le format des 3 Jokers (Verre, Noir/Passe, Couleur/Bombe) — nom court et nom long si distincts.
-    - Vérifier la cohérence du format utilisé par GameLogRecorder (T38) et la future Console (lisibilité des logs en texte).
-Supprimer tout résidu de l'ancien deck (si CardFormatter date d'avant le reset).
-
-- Hors périmètre : rendu visuel (sprites, couleurs UI) — relève de Presentation.
-- Dépendances : aucune bloquante ; utile avant T38c (sérialisation lisible) et T41 (Console).
-- Critères d'acceptation :
-
-- Toutes les 63 valeurs de cartes ont un format texte correct et testé.
-- Aucune référence à l'ancien deck pré-reset.
-
-- Pistes de tests NUnit futurs : test paramétré sur les 63 cartes vérifiant le format attendu pour chacune.
-
-### T40 — Mise à jour de CardSymbols
-
-- Contexte : Pendant de CardFormatter, probablement dédié aux symboles courts/unicode ou codes utilisés en log compact et/ou futurs tests.
-- Fichiers concernés : fichier CardSymbols.cs (localisation à confirmer).
-- Règles CLAUDE.md applicables : mêmes principes que T39 — zéro logique métier, simple table de correspondance.
-- Travail attendu :
-
-    - Vérifier/compléter les symboles pour les 15 rangs et les 3 Jokers du nouveau deck.
-    - Vérifier la distinction visuelle/textuelle claire entre les 3 Jokers (éviter ambiguïté Noir/Couleur).
-    - Aligner avec CardFormatter (T39) pour cohérence inter-fichiers (pas de divergence de nommage entre les deux).
-
-- Hors périmètre : assets graphiques réels (skins, sprites) — Presentation / travail indépendant d'Ekinox.
-- Dépendances : cohérent avec T39, à traiter ensemble ou immédiatement l'un après l'autre.
-- Critères d'acceptation :
-
-- Table complète des 63 cartes + symboles, sans doublon ni ambiguïté.
-- Compilation verte, couverture par test si logique de lookup non triviale.
-
-- Pistes de tests NUnit futurs : vérifier unicité des symboles, vérifier correspondance bijective avec DefRank/DefCard.
-
-### T41 — Tools/PsyckoConsole/ (ticket parent — à décomposer)
-
-- Contexte : Application console dotnet dédiée à la simulation de parties complètes (objectif 1M parties) pour valider Core + Bots avant d'attaquer Presentation. Gros ticket — découpage recommandé :
-
-#### T41a — Squelette projet console
-
-- Création du projet dotnet console dans Tools/PsyckoConsole/, référence à Psycko.Core et Psycko.Bots uniquement (zéro Unity).
-- Point d'entrée minimal : lance une seule partie avec 4 RandomBot, affiche le résultat final.
-- Critères d'acceptation : projet compile et exécute une partie de bout en bout via dotnet run.
-
-#### T41b — Boucle de partie unique instrumentée
-
-- Orchestration complète d'une partie : initialisation GameState (deck 63 cartes), boucle tant que !GameResultCalculator.IsGameOver, appel séquentiel des agents via IPlayerAgent selon ActivePlayerIndex.
-- Gestion des 3 chemins de décision (pose, pickup, Don, FaceDown Luck) en interrogeant l'agent actif à chaque étape.
-- Détection et arrêt propre sur blocage (ex. boucle infinie potentielle — seuil de tours max configurable).
-- Critères d'acceptation : partie simulée du début à la fin déterministe avec une seed donnée, sans intervention manuelle.
-
-#### T41c — Intégration GameLogRecorder + GameSeed dans la console
-
-- Chaque partie simulée est loggée (T38) avec sa seed (T37).
-- Export des logs des parties en échec (exception/incohérence) selon le mécanisme T38d.
-- Critères d'acceptation : une partie en échec produit un fichier log exploitable et rejouable isolément.
-
-#### T41d — Boucle de simulation massive (N parties)
-
-- Paramétrage : nombre de parties à simuler (jusqu'à 1M), seed de départ, incrémentation des seeds.
-- Compteurs agrégés : nombre de parties terminées normalement, nombre d'exceptions, distribution des longueurs de partie, répartition des victoires par siège (détection de biais de premier joueur par ex.).
-- Affichage de progression (ex. tous les 10 000 parties) sans ralentir drastiquement l'exécution.
-- Critères d'acceptation : exécution de 1M parties sans crash du process lui-même (hors parties individuellement en échec, qui sont isolées et continuent la boucle).
-
-- Hors périmètre global T41 : interface graphique, intégration Unity, multijoueur réseau.
-- Dépendances globales T41 : T35, T36 (Bots fonctionnels), T37 (GameSeed), T38 (GameLogRecorder), T39/T40 (formatage lisible des logs).
-
-### T42 — Simulation (exécution et analyse des 1M parties)
-
-- Contexte : Ticket d'exécution, distinct du développement de l'outil (T41) : il s'agit de faire tourner réellement la simulation à grande échelle et d'analyser les résultats pour valider (ou invalider) le Core avant Presentation.
-- Fichiers concernés : aucun nouveau fichier de production — résultats stockés en logs/exports (T38c) et rapport d'analyse (document, potentiellement mis à jour dans Notion).
-- Règles CLAUDE.md applicables : aucune règle métier modifiée à ce stade — ce ticket est une validation, pas une implémentation. Toute anomalie détectée doit générer un ticket de correction séparé (traçabilité 1 ticket = 1 responsabilité).
-- Travail attendu :
-
-    - Lancer la simulation complète (1M parties) via Tools/PsyckoConsole/.
-    - Collecter les métriques : taux d'échec (exceptions/incohérences), distribution des durées de partie, équité statistique entre sièges, fréquence d'activation de chaque carte spéciale/Joker (validation indirecte que toutes les règles sont bien exercées au moins une fois).
-    - Pour chaque échec détecté, isoler la seed concernée et ouvrir un ticket de correction dédié dans Core (avec repro minimal garanti par la seed).
-    - Rapport de synthèse final (nombre de tickets de correction ouverts, taux de réussite global, recommandation GO/NO-GO vers Bots avancés + NUnit + Presentation).
-
-- Hors périmètre : correction des bugs eux-mêmes (tickets séparés ouverts en conséquence) ; rédaction des tests NUnit définitifs (ticket futur distinct, nourri par cette analyse).
-- Dépendances : T35 à T41 clos et fonctionnels.
-- Critères d'acceptation :
-
-- 1M parties exécutées, rapport chiffré produit.
-- Toute partie en échec a sa seed isolée et un ticket de correction ouvert si nécessaire.
-- Décision explicite actée avec Ekinox : GO vers rédaction des tests NUnit + Presentation, ou itération supplémentaire sur Core/Bots.
-
-### T43 — Garantie structurelle de ProposeFaceDownPlay (dette technique issue de T35)
-
-- Contexte : lors de la conception du contrat IPlayerAgent (T35), une tension a été identifiée entre deux règles validées:
-- IPlayerVisibleState.SelfFaceDown expose le contenu complet de la couche 3 du joueur lui-même (nécessaire pour d'autres usages de lecture).
-- ProposeFaceDownPlay doit choisir une carte à l'aveugle, par position uniquement — son contenu ne doit jamais être inspecté avant la décision (cohérence avec la règle du jeu : les FaceDown sont révélées une à une, sans anticipation).
-
-- Problème : une interface C# standard ne peut pas interdire techniquement à un bot mal écrit de lire state.SelfFaceDown[i] avant de jouer. La garantie actuelle repose uniquement sur une discipline documentée en XML doc, pas sur le type lui-même. RandomBot (T36) respecte cette discipline nativement (choix par index aléatoire, sans lecture de contenu), mais un futur bot stratégique mal écrit pourrait tricher silencieusement.
-- Travail attendu : trancher et, si retenu, implémenter une garantie structurelle plus forte, par exemple :
-Créer une vue dédiée et plus stricte pour ProposeFaceDownPlay (ex. n'exposant que SelfFaceDownCount, sans accès au contenu des cartes), distincte de IPlayerVisibleState standard.
-Ou documenter formellement et définitivement le compromis actuel comme acceptable si le coût d'un nouveau type est jugé disproportionné.
-
-- Fichiers concernés (pressentis) : Psycko.Core.Interfaces/IPlayerVisibleState.cs, Psycko.Bots/IPlayerAgent.cs.
-Hors périmètre : toute réécriture des bots existants tant que ce ticket n'est pas tranché.
-- Dépendances : T35 (clos).
-- Statut : 🔵 Dette technique notée, non bloquante pour T36 (RandomBot). À trancher avant qu'un bot stratégique (MCTS, heuristique) soit implémenté.
-
-### Résumé de l'ordre d'exécution recommandé :
-T35 → T36 → T37 → T39/T40 (en parallèle, indépendants) → T38a → T38b → T38c → T38d → T41a → T41b → T41c → T41d → T42 → T43
+- **Dépendances** : T38a, T38b, T38bis, T38c, T37.
+- **Critères d'acceptation globaux** :
+  - Doublon sur deux coups détecté, ordre des effets respecté.
+  - Un `GameLog` est exporté en CSV et relu sans perte.
+  - Une partie en échec est identifiable et rejouable seule via sa seed.
+  - Les statistiques de simulation sont affichées avec ou sans CSV.
+
+---
+
+## T41 — Tools/PsyckoConsole/ (ticket parent — 2 sous-tickets)
+
+- **Contexte** : application console dotnet pour simuler des parties complètes et valider Core + Bots avant Presentation. Références : `Psycko.Core` et `Psycko.Bots` uniquement (zéro Unity). Le dossier n'existe pas encore (pas de `Program.cs`).
+
+### T41a — Squelette console et partie unique instrumentée ⏳ À FAIRE
+
+- Création du projet dotnet dans `Tools/PsyckoConsole/` et de `Program.cs`.
+- **Menu** : Simuler / Jouer (Humain vs 3 Bots).
+- Orchestration d'**une** partie complète :
+  - initialisation de `GameState` (deck 63 cartes, seed T37) ;
+  - boucle tant que `!GameResultCalculator.IsGameOver`, avec appel des agents (`IPlayerAgent`) selon `ActivePlayerIndex` ;
+  - gestion des chemins de décision : pose, pickup, Don, FaceDown (Luck) ;
+  - arrêt propre sur blocage, avec un **seuil de coups maximum configurable** (anti-boucle infinie).
+- Noms des joueurs : `Bot1` à `Bot4` en simulation ; `Humain`, `Bot1`, `Bot2`, `Bot3` en partie contre les bots.
+- Intégration du recorder et de la seed (T38).
+- **Critères d'acceptation** : `dotnet run` exécute une partie de bout en bout, **déterministe pour une seed donnée** (distribution initiale), sans intervention manuelle.
+
+### T41b — Simulation de masse ⏳ À FAIRE
+
+- **Paramètres réglables** : nombre de parties (jusqu'à 1M, valeur par défaut raisonnable), seed de départ, incrémentation des seeds, `LogMode`, seuil de coups maximum.
+- Branchement des modules de T38d (`CsvLogWriter`, `SimulationStats`, cas exceptionnels).
+- **Affichage de progression** régulier (par exemple tous les 10 000 parties), sans ralentissement notable.
+- **Isolation des erreurs** : une partie qui lève une exception est isolée (seed + log exportés) et la boucle continue.
+- **Rapport final** : les statistiques de T38d (durée moyenne, médiane, min, max, vainqueurs, Psycko par bot, taux d'erreur).
+- **Critères d'acceptation** : 1M parties sans crash du processus lui-même (hors parties individuellement en échec, qui sont isolées).
+
+- **Hors périmètre global T41** : interface graphique, intégration Unity, multijoueur réseau.
+- **Dépendances globales T41** : T35, T36, T37, T38 (complet), T38c.
+
+---
+
+## T42 — Simulation (exécution et analyse des 1M parties) ⏳ À FAIRE
+
+- **Contexte** : ticket d'exécution, distinct du développement de l'outil (T41). Faire tourner la simulation à grande échelle et analyser les résultats pour valider (ou invalider) le Core avant Presentation.
+- **Règles** : validation uniquement, aucune règle métier modifiée. Toute anomalie génère un ticket de correction séparé.
+- **Travail attendu** :
+  - Lancer la simulation complète via `Tools/PsyckoConsole/`.
+  - Collecter les métriques de T38d : taux d'échec, distribution des durées, équité entre sièges, **vainqueurs et Psycko par bot**.
+  - Pour chaque échec : isoler la seed et ouvrir un ticket de correction dédié dans Core.
+  - Rapport de synthèse : tickets ouverts, taux de réussite global, recommandation GO / NO-GO vers Bots avancés + NUnit + Presentation.
+- **Hors périmètre** : correction des bugs (tickets séparés), rédaction des tests NUnit définitifs (ticket futur nourri par cette analyse).
+- **Dépendances** : T35 à T41 clos et fonctionnels.
+- **Critères d'acceptation** :
+  - 1M parties exécutées, rapport chiffré produit.
+  - Toute partie en échec a sa seed isolée et un ticket de correction si nécessaire.
+  - Décision explicite actée avec Ekinox : GO vers NUnit + Presentation, ou itération sur Core/Bots.
+- **❓ En suspens** : la mesure de la fréquence d'activation des cartes spéciales / Jokers (voir T38d, point 5).
+
+---
+
+## T43 — Garantie structurelle de ProposeFaceDownPlay (dette technique issue de T35) 🔵
+
+- **Contexte** : tension entre `IPlayerVisibleState.SelfFaceDown` (expose le contenu de la couche 3 du joueur) et `ProposeFaceDownPlay` (choix à l'aveugle, par position uniquement). Une interface C# ne peut pas interdire à un bot mal écrit de lire `state.SelfFaceDown[i]`. `RandomBot` (T36) respecte la règle par construction, mais un futur bot stratégique pourrait tricher silencieusement.
+- **Travail attendu** : trancher entre :
+  - une vue dédiée plus stricte pour `ProposeFaceDownPlay` (exposant seulement `SelfFaceDownCount`), distincte de `IPlayerVisibleState` ;
+  - ou la documentation formelle et définitive du compromis actuel.
+- **Fichiers pressentis** : `Psycko.Core.Interfaces/IPlayerVisibleState.cs`, `Psycko.Bots/IPlayerAgent.cs`.
+- **Hors périmètre** : réécriture des bots existants tant que ce ticket n'est pas tranché.
+- **Dépendances** : T35 (clos).
+- **Statut** : dette technique, non bloquante. À trancher avant l'implémentation d'un bot stratégique (MCTS, heuristique).
+
+---
+
+## Ordre d'exécution
+
+✅ T35 → ✅ T36 → ✅ T37 → ✅ T38a → ✅ T38b → ✅ T38bis → ✅ T38c *(absorbe T39 et T40)* → **T38d** → T41a → T41b → T42 → T43
+
+**Prochaine étape : T38d, point 1** (correction du Doublon sur deux coups et de l'ordre des effets dans `GameLogEffectDetector`).
