@@ -25,9 +25,21 @@ Psycko/
 │
 ├── Assets/
 │   ├── Scripts/
+│   │   ├── Bots/                          (C# pur, dépend Core — noEngineReferences: true)
+│   │   │   ├── Psycko.Bots.asmdef
+│   │   │   ├── IPlayerAgent.cs       Contrat de décision d'un agent joueur.
+│   │   │   └── RandomBot.cs          Agent qui sélectionne aléatoirement un option parmi celles possibles.
+│   │   │ 
 │   │   ├── Core/                          (C# pur, zéro dépendance Unity — noEngineReferences: true)
 │   │   │   ├── Psycko.Core.asmdef
 │   │   │   ├── Domain/
+│   │   │   │   ├── Log/
+│   │   │   │   │    ├── ActionKind.cs           Types d'actions enregistrables dans le log d'une partie
+│   │   │   │   │    ├── EffectKind.cs           Effet enregistré dans la colonne "Effets" du GameLog
+│   │   │   │   │    ├── EffectLodDetail.cs      Détail immuable d'un effet enregistré dans une entrée de log
+│   │   │   │   │    ├── GameLog.cs              Log complet et immuable d'une partie
+│   │   │   │   │    └── GameLogEntry.cs         Entrée immuable du log de partie
+│   │   │   │   │
 │   │   │   │   ├── Card.cs                       Création des Cartes
 │   │   │   │   ├── Deck.cs                       Création de la Pioche et Mélange
 │   │   │   │   ├── DefCard.cs                    Enums des Hauteurs, Couleurs et Jokers
@@ -35,12 +47,21 @@ Psycko/
 │   │   │   │   ├── DefDirection.cs               Enum des Directions
 │   │   │   │   ├── DefLayer.cs                   Enum de l'Origine d'une carte lorsqu'elle est jouée
 │   │   │   │   ├── DefPhase.cs                   Enum des Phases de Jeu
+│   │   │   │   ├── FirstPlayerResolver.cs        Désigne le premier joueur
 │   │   │   │   ├── GameState.cs                  Définit l'État d'une partie à un instant donné
 │   │   │   │   ├── GiftResolutionChoice.cs       Définit la Carte Donnée et le Joueur Choisi
 │   │   │   │   ├── Pile.cs                       Définit la Pile
 │   │   │   │   ├── Play.cs                       Définit un "Coup" joué
 │   │   │   │   ├── Player.cs                     Définit un Joueur
 │   │   │   │   └── PlayRejectionReason.cs        Définit le Rejet d'un Play
+│   │   │   │ 
+│   │   │   ├── Interfaces/ 
+│   │   │   │   ├── ICardPlayabilityChecker.cs    Contrat de jouabilité des cartes d'un joueur
+│   │   │   │   ├── IGameLogRecorder.cs           Contrat d'enregistrement des actions d'une partie
+│   │   │   │   ├── IGameState.cs                 Interface composite
+│   │   │   │   ├── IGameStateCommand.cs          Contrat de transition
+│   │   │   │   ├── IGameStateQuery.cs            Lecture seule de l'état d'une partie
+│   │   │   │   └── IPlayerVisibleState.cs        Vue Filtrée pour les joueurs.
 │   │   │   │ 
 │   │   │   ├── Rules/
 │   │   │   │   ├── Comparison/
@@ -49,19 +70,17 @@ Psycko/
 │   │   │   │   ├── Detection/
 │   │   │   │   │   ├── PairDetection.cs          Définit un "Doublon"
 │   │   │   │   │   └── QuadDetection.cs          Définit un "Carré"
-│   │   │   │   │ 
-│   │   │   │   ├── Validation/
-│   │   │   │   │   ├── CardPlayability.cs        Détermine si une carte est jouable d'après l'état actuel de    
-│   │   │   │   │   │                             la Partie       
-│   │   │   │   │   ├── CardPlayabilityChecker.cs Détecte les cartes jouables d'un joueur
-│   │   │   │   │   ├── HandReconstructionPolicy.cs Contrat de Pioche commun à Step2 et Step4
-│   │   │   │   │   └── LastCardValidator.cs      Valide la règle : interdiction de terminer une phase sur un 2.
+│   │   │   │   │
+│   │   │   │   ├──Jokers/
+│   │   │   │   │   ├── BlackJokerResolver.cs     Définit le Joker Noir
+│   │   │   │   │   ├── ColorJokerResolver.cs     Définit le Joker Couleur
+│   │   │   │   │   └── GlassJokerResolver.cs     Définit le Joker de Verre
 │   │   │   │   │ 
 │   │   │   │   ├── Phase/
+│   │   │   │   │   ├── LuckPhaseResolver.cs      Phase 3 - La Chance
 │   │   │   │   │   ├── PhaseResolver.cs          Contrat abstrait commun aux phases de jeu 
-│   │   │   │   │   ├── WorkPhaseResolver.cs      Phase 1 - Le Travail
 │   │   │   │   │   ├── TalentPhaseResolver.cs    Phase 2 - Le Talent
-│   │   │   │   │   └── LuckPhaseResolver.cs      Phase 3 - La Chance
+│   │   │   │   │   └── WorkPhaseResolver.cs      Phase 1 - Le Travail
 │   │   │   │   │ 
 │   │   │   │   ├── SpecialCards/
 │   │   │   │   │   ├── JackHandler.cs            Définit le Valet
@@ -69,17 +88,11 @@ Psycko/
 │   │   │   │   │   ├── SevenHandler.cs           Définit le 7
 │   │   │   │   │   └── TwoHandler.cs             Définit le 2
 │   │   │   │   │ 
-│   │   │   │   └── Jokers/
-│   │   │   │       ├── GlassJokerResolver.cs     Définit le Joker de Verre
-│   │   │   │       ├── BlackJokerResolver.cs     Définit le Joker Noir
-│   │   │   │       └── ColorJokerResolver.cs     Définit le Joker Couleur
-│   │   │   │ 
-│   │   │   ├── Interfaces/ 
-│   │   │   │   ├── ICardPlayabilityChecker.cs    Contrat de jouabilité des cartes d'un joueur
-│   │   │   │   ├── IGameState.cs                 Interface composite
-│   │   │   │   ├── IGameStateCommand.cs          Contrat de transition
-│   │   │   │   ├── IGameStateQuery.cs            Lecture seule de l'état d'une partie
-│   │   │   │   └── IPlayerVisibleState.cs        Vue Filtrée pour les joueurs.
+│   │   │   │   └──Validation/
+│   │   │   │       ├── CardPlayability.cs           Détermine si une carte est jouable d'après l'état actuel de la Partie
+│   │   │   │       ├── CardPlayabilityChecker.cs    Détecte les cartes jouables d'un joueur
+│   │   │   │       ├── HandReconstructionPolicy.cs  Contrat de Pioche commun à Step2 et Step4
+│   │   │   │       └── LastCardValidator.cs         Valide la règle : interdiction de terminer une phase sur un 2.
 │   │   │   │ 
 │   │   │   └── Services/
 │   │   │       ├── Turn/
@@ -94,16 +107,12 @@ Psycko/
 │   │   │       │   └── TurnResult.cs                     Résultat immutable porté entre les Steps (état+intentions)
 │   │   │       │
 │   │   │       ├── BlindPlayResolutions.cs       Carte Révélée en Luck
+│   │   │       ├── GameLogEffectDetector.cs      Traduit le résultat d'un coup en liste d'effets pour le log.
+│   │   │       ├── GameLogRecorder.cs            Enregistre chaque action/coup avec horodatage/tour
 │   │   │       ├── GameOrchestrator.cs           Définit le déroulement d'une partie
 │   │   │       ├── GameResultCalculator.cs       Définit la Fin d'un partie.
 │   │   │       ├── GameSeed.cs                   Génération + stockage de la seed RNG d'une partie
-│   │   │       ├── GameLogRecorder.cs            Enregistre chaque action/coup avec horodatage/tour
 │   │   │       └── PlayResult.cs                 Définit un appel à GameOrchestrator
-│   │   │
-│   │   ├── Bots/                          (C# pur, dépend Core — noEngineReferences: true)
-│   │   │   ├── Psycko.Bots.asmdef
-│   │   │   ├── IPlayerAgent.cs
-│   │   │   └── RandomBot.cs
 │   │   │
 │   │   └── Presentation/                  (Unity 2D, dépend Core + Bots, zéro logique de jeu)
 │   │       ├── UI/

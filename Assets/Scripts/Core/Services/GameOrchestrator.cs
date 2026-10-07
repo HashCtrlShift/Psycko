@@ -13,6 +13,8 @@ namespace Psycko.Core.Services
     /// calcule, cet orchestrateur appelle SetActivePlayer au plus une fois.
     /// Logging (T38b) : side-effect pur via IGameLogRecorder optionnel,
     /// aucune branche logique ne dépend du recorder.
+    /// Effets du log (T38d) : GameLogEffectDetector lit l'état APRÈS pose du coup
+    /// et AVANT destruction de la Pile (Carré / Doublon relus sur Pile.Cards / Plays).
     /// </summary>
     public sealed class GameOrchestrator
     {
@@ -69,6 +71,7 @@ namespace Psycko.Core.Services
             // (ni pioche, ni destruction, ni changement de joueur) : tout est rejoué par
             // ResolveGiftAndContinue via ResolveRemainder. Le coup est loggé tout de suite,
             // avec la pile telle qu'elle est à ce stade (une destruction éventuelle viendra après le Don).
+            // Le 7 n'a aucun effet de carte ; seuls Carré / Doublon peuvent apparaître ici.
             if (turnResult.RequiresGiftResolution)
             {
                 recorder?.Record(GameLogEntry.PlayerAction(
@@ -78,56 +81,20 @@ namespace Psycko.Core.Services
                     PileSnapshot(turnResult.State),
                     effects: GameLogEffectDetector.Detect(
                         play,
+                        turnResult.State,
                         turnResult.DestroysPile,
-                        turnResult.NextConstraint,
-                        turnResult.NextDirection?.ToString())));
+                        turnResult.NextDirection)));
 
                 return PlayResult.AwaitingGift(turnResult);
             }
 
-            var newState = turnResult.State;
+            // État après pose, avant toute destruction : sert au détecteur du log.
+            var stateAfterPlacement = turnResult.State;
 
-            if (turnResult.DrawCount > 0)
-            {
-                newState = (GameState)newState.DrawCards(
-                    state.ActivePlayerIndex,
-                    turnResult.DrawCount);
-            }
-
-            if (turnResult.DestroysPile)
-            {
-                newState = (GameState)newState.DestroyPile();
-            }
-
-            if (turnResult.NextConstraint.HasValue
-                && turnResult.NextRefRank.HasValue)
-            {
-                newState = (GameState)newState.SetConstraint(
-                    turnResult.NextConstraint.Value,
-                    turnResult.NextRefRank.Value);
-            }
-
-            if (turnResult.NextDirection.HasValue)
-            {
-                newState = (GameState)newState.WithDirection(
-                    turnResult.NextDirection.Value);
-            }
-
-            if (turnResult.FinalReconstruction.HasValue
-                && turnResult.FinalReconstruction.Value.DrawCount > 0)
-            {
-                newState = (GameState)newState.DrawCards(
-                    state.ActivePlayerIndex,
-                    turnResult.FinalReconstruction.Value.DrawCount);
-            }
-
-            if (turnResult.TriggersPhaseTransition)
-            {
-                newState = (GameState)newState.AdvancePlayerPhase(
-                    state.ActivePlayerIndex);
-            }
-
-            newState = ExecuteActivePlayerIntent(newState, turnResult);
+            var newState = ApplyTurnIntents(
+                turnResult.State,
+                turnResult,
+                state.ActivePlayerIndex);
 
             recorder?.Record(GameLogEntry.PlayerAction(
                 play.PlayerId,
@@ -136,9 +103,9 @@ namespace Psycko.Core.Services
                 PileSnapshot(newState),
                 effects: GameLogEffectDetector.Detect(
                     play,
+                    stateAfterPlacement,
                     turnResult.DestroysPile,
-                    turnResult.NextConstraint,
-                    turnResult.NextDirection?.ToString())));
+                    turnResult.NextDirection)));
 
             return Accept(newState, recorder);
         }
@@ -196,49 +163,31 @@ namespace Psycko.Core.Services
                 pendingResult.WithState(transferred),
                 play);
 
-            var newState = remainder.State;
+            // État après Don, avant destruction : la Pile contient toujours le coup.
+            var stateBeforeDestruction = remainder.State;
 
-            if (remainder.DrawCount > 0)
+            var newState = ApplyTurnIntents(
+                remainder.State,
+                remainder,
+                pendingResult.State.ActivePlayerIndex);
+
+            // Suite du coup de 7 : si Carré, la destruction est loggée ici
+            // (ligne qui suit le Don). Aucune entrée si rien à signaler.
+            var postGiftEffects = GameLogEffectDetector.Detect(
+                play,
+                stateBeforeDestruction,
+                remainder.DestroysPile,
+                remainder.NextDirection);
+
+            if (postGiftEffects.Count > 0)
             {
-                newState = (GameState)newState.DrawCards(
-                    pendingResult.State.ActivePlayerIndex,
-                    remainder.DrawCount);
+                recorder?.Record(GameLogEntry.PlayerAction(
+                    play.PlayerId,
+                    ActionKind.Play,
+                    new List<Card>(),
+                    PileSnapshot(newState),
+                    effects: postGiftEffects));
             }
-
-            if (remainder.DestroysPile)
-            {
-                newState = (GameState)newState.DestroyPile();
-            }
-
-            if (remainder.NextConstraint.HasValue
-                && remainder.NextRefRank.HasValue)
-            {
-                newState = (GameState)newState.SetConstraint(
-                    remainder.NextConstraint.Value,
-                    remainder.NextRefRank.Value);
-            }
-
-            if (remainder.NextDirection.HasValue)
-            {
-                newState = (GameState)newState.WithDirection(
-                    remainder.NextDirection.Value);
-            }
-
-            if (remainder.FinalReconstruction.HasValue
-                && remainder.FinalReconstruction.Value.DrawCount > 0)
-            {
-                newState = (GameState)newState.DrawCards(
-                    pendingResult.State.ActivePlayerIndex,
-                    remainder.FinalReconstruction.Value.DrawCount);
-            }
-
-            if (remainder.TriggersPhaseTransition)
-            {
-                newState = (GameState)newState.AdvancePlayerPhase(
-                    pendingResult.State.ActivePlayerIndex);
-            }
-
-            newState = ExecuteActivePlayerIntent(newState, remainder);
 
             return Accept(newState, recorder);
         }
@@ -314,6 +263,9 @@ namespace Psycko.Core.Services
                 play,
                 effects.WithState(revealedState));
 
+            // État après pose, avant destruction : sert au détecteur du log.
+            var stateBeforeDestruction = pileEffects.State;
+
             var next = pileEffects.State;
             var destroysPile = effects.DestroysPile || pileEffects.DestroysPile;
 
@@ -357,9 +309,9 @@ namespace Psycko.Core.Services
                 PileSnapshot(next),
                 effects: GameLogEffectDetector.Detect(
                     play,
+                    stateBeforeDestruction,
                     destroysPile,
-                    effects.NextConstraint,
-                    effects.NextDirection?.ToString())));
+                    effects.NextDirection)));
 
             return BlindPlayResolution.Of(Accept(next, recorder), card);
         }
@@ -390,6 +342,62 @@ namespace Psycko.Core.Services
                 new List<int>(),
                 ActionKind.RequestPickup,
                 recorder);
+        }
+
+        /// <summary>
+        /// Exécute, dans l'ordre strict, les intentions portées par un TurnResult :
+        /// pioche Step2 → destruction de Pile → contrainte → direction → pioche finale
+        /// Step4 → transition de phase → joueur actif Step6.
+        /// Factorisée : partagée par ApplyPlay et ResolveGiftAndContinue.
+        /// </summary>
+        private static GameState ApplyTurnIntents(
+            GameState startState,
+            TurnResult result,
+            int activeSeatIndex)
+        {
+            var newState = startState;
+
+            if (result.DrawCount > 0)
+            {
+                newState = (GameState)newState.DrawCards(
+                    activeSeatIndex,
+                    result.DrawCount);
+            }
+
+            if (result.DestroysPile)
+            {
+                newState = (GameState)newState.DestroyPile();
+            }
+
+            if (result.NextConstraint.HasValue
+                && result.NextRefRank.HasValue)
+            {
+                newState = (GameState)newState.SetConstraint(
+                    result.NextConstraint.Value,
+                    result.NextRefRank.Value);
+            }
+
+            if (result.NextDirection.HasValue)
+            {
+                newState = (GameState)newState.WithDirection(
+                    result.NextDirection.Value);
+            }
+
+            if (result.FinalReconstruction.HasValue
+                && result.FinalReconstruction.Value.DrawCount > 0)
+            {
+                newState = (GameState)newState.DrawCards(
+                    activeSeatIndex,
+                    result.FinalReconstruction.Value.DrawCount);
+            }
+
+            if (result.TriggersPhaseTransition)
+            {
+                newState = (GameState)newState.AdvancePlayerPhase(
+                    activeSeatIndex);
+            }
+
+            return ExecuteActivePlayerIntent(newState, result);
         }
 
         private static GameState ExecuteActivePlayerIntent(

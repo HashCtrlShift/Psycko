@@ -76,14 +76,16 @@ namespace Psycko.Core.Services.Turn
         {
             var result = Step1_PlaceCardsResolver.Resolve(state, play);
 
-            // Step2 porte les intentions de reconstruction (DrawCount, FaceUpPickup, TargetPhase).
+            // Step2 décide la reconstruction sur la main AVANT pose (handAfter = Hand.Count - play.Count).
             var reconstruction = Step2_HandReconstructionResolver.Resolve(result.State, play);
-            result = reconstruction;
 
-            // Step3 porte les intentions d'effets (contrainte, direction, destruction
-            // de pile, rejeu, Don). Fusion explicite : on ne perd ni les intentions
-            // Step2 (non concurrencées par Step3) ni les nouvelles intentions Step3.
-            var step3 = Step3_CardEffectsResolver.Resolve(reconstruction.State, play);
+            // Pose effective : retrait de la couche source + ajout à la Pile.
+            // Unique mutation de TurnManager, placée ici car Step3 (IsGiftTriggered),
+            // Step4 (cardsRemovedFromHand = 0) et Step5 (Pile.Cards) exigent le coup posé.
+            var placed = (GameState)reconstruction.State.PlayCards(play);
+            result = reconstruction.WithState(placed);
+
+            var step3 = Step3_CardEffectsResolver.Resolve(placed, play);
             if (!step3.NextConstraint.HasValue
                 || !step3.NextRefRank.HasValue
                 || !step3.NextDirection.HasValue)

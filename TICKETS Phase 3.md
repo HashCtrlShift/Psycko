@@ -82,11 +82,11 @@ Psycko.Bots/IPlayerAgent.cs (remplace le stub)
 - **Hors périmètre global** : interface graphique de visualisation (Presentation).
 - **Dépendances globales** : T37 (GameSeed), T35/T36 (bots).
 
-### T38a — Modèle de données du log ✅ CLOS
+### T38a — Modèle de données du log 
 
 Types immuables dans `Domain/Log` : `GameLog`, `GameLogEntry`, `ActionKind`, `EffectKind`, `EffectLogDetail`. Zéro dépendance Unity, compilation verte.
 
-### T38b — Intégration du recorder dans GameOrchestrator ✅ CLOS
+### T38b — Intégration du recorder dans GameOrchestrator 
 
 **Décision : enregistrement opt-in.** Le recorder est un paramètre optionnel injecté à l'appel (`IGameLogRecorder recorder = null`).
 
@@ -122,7 +122,7 @@ Types immuables dans `Domain/Log` : `GameLog`, `GameLogEntry`, `ActionKind`, `Ef
 
 **Critères d'acceptation** : entrées cohérentes à chaque point de décision, aucun changement observable sur `PlayResult`.
 
-### T38bis — FirstPlayerResolver + Don du 7 dans ApplyPlay ✅ CLOS (code)
+### T38bis — FirstPlayerResolver + Don du 7 dans ApplyPlay
 
 **1. `FirstPlayerResolver`** (`Core/Domain/FirstPlayerResolver.cs`, nouveau)
 
@@ -156,7 +156,7 @@ Types immuables dans `Domain/Log` : `GameLog`, `GameLogEntry`, `ActionKind`, `Ef
 - `ApplyPlay` capture `RequiresGiftResolution` sans muter l'état.
 - Aucune référence résiduelle à l'ancien `CreateInitial` à trois paramètres.
 
-### T38c — Formateur de cartes (absorbe T39 et T40) ✅ CLOS (à merger après compilation)
+### T38c — Formateur de cartes 
 
 - **Travail** : réécriture de `CardSymbols` et `CardFormatter` avec les vrais types du Core (`DefSuit`, `DefRank`, `DefJokerType`, `Card` nullable). Les anciens fichiers contenaient des références à l'ancien modèle.
 - **Fichiers** :
