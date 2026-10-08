@@ -24,7 +24,8 @@ namespace Psycko.Core.Services
             GameState state,
             Play play,
             int playerIndex,
-            IGameLogRecorder recorder = null)
+            IGameLogRecorder recorder = null,
+            GameResultTracker tracker = null)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
             if (play == null) throw new ArgumentNullException(nameof(play));
@@ -64,7 +65,8 @@ namespace Psycko.Core.Services
                     seatIndex,
                     new List<int> { play.PlayerId },
                     ActionKind.PickupPile,
-                    recorder);
+                    recorder,
+                    tracker);
             }
 
             var turnResult = TurnManager.ApplyPlay(state, play);
@@ -87,6 +89,8 @@ namespace Psycko.Core.Services
                         turnResult.DestroysPile,
                         turnResult.NextDirection,
                         skipApplied: HasMoreThanTwoActivePlayers(turnResult.State))));
+
+                tracker?.RecordPlay(playerIndex);
 
                 return PlayResult.AwaitingGift(turnResult);
             }
@@ -111,7 +115,9 @@ namespace Psycko.Core.Services
                     turnResult.NextDirection,
                     skipApplied: turnResult.SkipNext)));
 
-            return Accept(newState, recorder);
+            tracker?.RecordPlay(playerIndex);
+            tracker?.ObserveState(newState);
+            return Accept(newState, recorder, tracker);
         }
 
         /// <summary>
@@ -123,7 +129,8 @@ namespace Psycko.Core.Services
             Play play,
             TurnResult pendingResult,
             GiftResolutionChoice choice,
-            IGameLogRecorder recorder = null)
+            IGameLogRecorder recorder = null,
+            GameResultTracker tracker = null)
         {
             if (!pendingResult.RequiresGiftResolution)
                 throw new InvalidOperationException(
@@ -194,7 +201,7 @@ namespace Psycko.Core.Services
                     effects: postGiftEffects));
             }
 
-            return Accept(newState, recorder);
+            return Accept(newState, recorder, tracker);
         }
 
         /// <summary>
@@ -204,7 +211,8 @@ namespace Psycko.Core.Services
             GameState state,
             int playerIndex,
             int faceDownIndex,
-            IGameLogRecorder recorder = null)
+            IGameLogRecorder recorder = null,
+            GameResultTracker tracker = null)
         {
             if (state == null)
                 throw new ArgumentNullException(nameof(state));
@@ -256,7 +264,8 @@ namespace Psycko.Core.Services
                     playerIndex,
                     new List<int>(),
                     ActionKind.PickupPile,
-                    recorder);
+                    recorder,
+                    tracker);
 
                 return BlindPlayResolution.Of(pickupResult, card);
             }
@@ -323,7 +332,8 @@ namespace Psycko.Core.Services
                     effects.NextDirection,
                     skipApplied: pileEffects.SkipNext)));
 
-            return BlindPlayResolution.Of(Accept(next, recorder), card);
+            tracker?.RecordPlay(playerIndex);
+            return BlindPlayResolution.Of(Accept(next, recorder, tracker), card);
         }
 
         /// <summary>
@@ -332,7 +342,8 @@ namespace Psycko.Core.Services
         public static PlayResult RequestPickup(
             GameState state,
             int playerId,
-            IGameLogRecorder recorder = null)
+            IGameLogRecorder recorder = null,
+             GameResultTracker tracker = null)
         {
             var pickup = TurnManager.ResolvePickup(state, playerId);
             if (!pickup.IsAccepted)
@@ -351,7 +362,8 @@ namespace Psycko.Core.Services
                 seatIndex,
                 new List<int>(),
                 ActionKind.RequestPickup,
-                recorder);
+                recorder,
+                tracker);
         }
 
         /// <summary>
@@ -436,7 +448,8 @@ namespace Psycko.Core.Services
             int seatIndex,
             IReadOnlyList<int> forcedPickupPlayerIds,
             ActionKind logKind,
-            IGameLogRecorder recorder)
+            IGameLogRecorder recorder,
+             GameResultTracker tracker = null)
         {
             var pickedCards = PileSnapshot(state);
 
@@ -455,6 +468,8 @@ namespace Psycko.Core.Services
                 replay: false);
 
             afterPickup = ExecuteActivePlayerIntent(afterPickup, advance);
+            tracker?.RecordPickup(seatIndex);
+            tracker?.ObserveState(afterPickup);
 
             var isGameOver = GameResultCalculator.IsGameOver(afterPickup);
             if (isGameOver)
@@ -465,8 +480,13 @@ namespace Psycko.Core.Services
         }
 
         /// <summary>Construit le PlayResult accepté et logge la fin de partie si besoin.</summary>
-        private static PlayResult Accept(GameState newState, IGameLogRecorder recorder)
+        private static PlayResult Accept(
+            GameState newState,
+            IGameLogRecorder recorder,
+            GameResultTracker tracker = null)
         {
+            tracker?.ObserveState(newState);
+
             var isGameOver = GameResultCalculator.IsGameOver(newState);
             if (isGameOver)
                 recorder?.Record(GameLogEntry.GameEnd(
@@ -474,7 +494,6 @@ namespace Psycko.Core.Services
 
             return PlayResult.Accepted(newState, isGameOver);
         }
-
         /// <summary>
         /// Miroir du test de Step5 (Doublon désactivé à 2 joueurs actifs ou moins).
         /// Utilisé uniquement par le log, avant que Step5 ait tourné (branche Don).

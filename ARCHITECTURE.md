@@ -19,6 +19,9 @@
 
 Psycko/
 ├── CLAUDE.md
+├── ARCHITECTURE.md
+├── TICKETS Phase 2.md
+├── TICKETS Phase 3.md
 ├── .editorconfig
 ├── .gitignore
 ├── Psycko.slnx
@@ -41,6 +44,7 @@ Psycko/
 │   │   │   │   │    ├── ExceptionalGameDetector.cs Isole les parties "exceptionnelles"
 │   │   │   │   │    ├── GameLog.cs                 Log complet et immuable d'une partie
 │   │   │   │   │    ├── GameLogEntry.cs            Entrée immuable du log de partie
+│   │   │   │   │    ├── GameResult.cs             
 │   │   │   │   │    └── LogMode.cs                 Modes de Logging pour la simulation
 │   │   │   │   │
 │   │   │   │   ├── Card.cs                       Création des Cartes
@@ -105,19 +109,19 @@ Psycko/
 │   │   │       │   ├── Step3_CardEffectsResolver.cs      Étape 3 — Effets des cartes spéciales
 │   │   │       │   ├── Step4_FinalDrawResolver.cs        Étape 4 — Repioche finale après Don éventuel
 │   │   │       │   ├── Step5_PileEffectsResolver.cs      Étape 5 — Effets de pile (Doublon/Carré)
-│   │   │       │   ├── Step6_AdvanceTurnResolver.cs      Étape 6 — Avancement de tour (joueur suivant, skip, 
-│   │   │       │   │                                     rejeu)
+│   │   │       │   ├── Step6_AdvanceTurnResolver.cs      Étape 6 — Avancement de tour (joueur suivant, skip, rejeu)
 │   │   │       │   ├── TurnManager.cs                    Définit le déroulement d'un tour pour un joueur
-│   │   │       │   └── TurnResult.cs                     Résultat immutable porté entre les Steps (état
-│   │   │       │                                         +intentions)
+│   │   │       │   └── TurnResult.cs                     Résultat immutable porté entre les Steps (état + intentions)
 │   │   │       │
 │   │   │       ├── BlindPlayResolutions.cs       Carte Révélée en Luck
 │   │   │       ├── GameLogEffectDetector.cs      Traduit le résultat d'un coup en liste d'effets pour le log.
 │   │   │       ├── GameLogRecorder.cs            Enregistre chaque action/coup avec horodatage/tour
-│   │   │       ├── GameOrchestrator.cs           Définit le déroulement d'une partie
+│   │   │       ├── GameOrchestrator.cs           Définit le déroulement d'une partie    
 │   │   │       ├── GameResultCalculator.cs       Définit la Fin d'un partie.
+│   │   │       ├── GameResultTracker.cs          
 │   │   │       ├── GameSeed.cs                   Génération + stockage de la seed RNG d'une partie
-│   │   │       └── PlayResult.cs                 Définit un appel à GameOrchestrator
+│   │   │       ├── PlayResult.cs                 Définit un appel à GameOrchestrator
+│   │   │       └── SimulationStats.cs            
 │   │   │
 │   │   └── Presentation/                  (Unity 2D, dépend Core + Bots, zéro logique de jeu)
 │   │       ├── UI/
