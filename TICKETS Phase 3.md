@@ -171,29 +171,40 @@ Types immuables dans `Domain/Log` : `GameLog`, `GameLogEntry`, `ActionKind`, `Ef
   - Compilation verte.
 - **Piste de test NUnit futur** : test paramétré sur les 63 cartes (format attendu, unicité, correspondance bijective avec `DefRank` / `DefSuit` / `DefJokerType`).
 
-### T38d — Finalisation du logging : correctifs, export, cas exceptionnels, statistiques ⏳ À FAIRE
+### T38d — Finalisation du logging : correctifs, export, cas exceptionnels, statistiques 🔄 EN COURS (étape 1/7 terminée)
 
 Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec un commit par étape.
 
-**1. Corrections de `GameLogEffectDetector`** *(à faire en premier)*
+**1. Corrections de `GameLogEffectDetector`** ✅ TERMINÉ *(compilation verte, à valider par tests de régression avant merge)*
 
-- **Doublon** : actuellement détecté seulement si les deux cartes sont dans le même `Play`. Il doit aussi l'être quand la carte jouée complète un Doublon avec la carte précédente de la Pile (deux coups successifs).
-- **Ordre des effets** : Carré / Doublon d'abord, puis l'effet de la carte. Une ligne peut cumuler plusieurs effets (` + `).
-- **Don du 7** : aucun effet de carte (la carte transite de main en main).
+- **Doublon** : détecté sur la Pile entière (`PairDetection.IsPairDetected(stateAfterPlacement)`), donc aussi quand la carte jouée complète un Doublon avec la carte précédente de la Pile (deux coups successifs). Il n'est loggé que si le saut est réellement appliqué (paramètre `skipApplied`), donc jamais à 2 joueurs actifs, ni sur un coup Joker.
+- **Ordre des effets** : Carré / Doublon d'abord (exclusifs, le Carré prime), puis l'effet propre de la carte. Une ligne peut cumuler plusieurs effets (` + `).
+- **Don du 7** : aucun effet de carte (la carte transite de main en main). Pour la ligne qui suit le Don (`afterGift = true`), seul le Carré est retenu ; le Doublon n'est jamais redétecté.
+- **Fichiers touchés** :
+  - `GameLogEffectDetector.cs` : nouveaux paramètres `skipApplied` et `afterGift` (défaut `false`). Doublon de fichier supprimé (CS0101 / CS0111 / CS0121 résolus).
+  - `Step5_PileEffectsResolver.cs` : fusion par OR logique `WithDestroysPile(incomingResult.DestroysPile || destroysPile)`, pour qu'un 2 ou une Bombe ne soit jamais écrasé par un `false`.
+  - `GameOrchestrator.cs` : appels à `Detect(..., skipApplied, afterGift)`.
+- **Tests de régression à passer avant merge** :
+  - Un 2 isolé détruit toujours la Pile.
+  - Une Bombe isolée détruit toujours la Pile.
+  - Un Carré de 7 avec Don : le Don est résolu, puis le Carré détruit la Pile (log en deux entrées).
+  - Un Carré révélé en phase Luck remet la contrainte à `(Normal, Three)`.
+  - Un Doublon à 3+ joueurs actifs saute le suivant ; à 2 joueurs actifs, aucun saut ni log de Doublon.
+  - Un Doublon sur deux coups successifs est loggé.
 
-**2. Export CSV** (`CsvLogWriter`)
+**2. Export CSV** (`CsvLogWriter`) ⏳ À FAIRE
 
 - Un `GameLog` est sérialisé en CSV, **3 colonnes par partie** : Action | Pile avant | Effets.
 - Chaque partie exceptionnelle occupe ses propres colonnes (1re : A-B-C, 2e : D-E-F, etc.).
 - Nom de fichier incluant la **seed** pour la traçabilité.
 - Critère : un `GameLog` peut être exporté et relu sans perte d'information exploitable.
 
-**3. Modes de log** : `LogMode` = `Off` / `All` / `ExceptionalOnly`.
+**3. Modes de log** ⏳ À FAIRE : `LogMode` = `Off` / `All` / `ExceptionalOnly`.
 
 - `Off` : aucun recorder n'est créé (coût nul).
 - `ExceptionalOnly` : seules les parties exceptionnelles sont exportées.
 
-**4. Cas exceptionnels**
+**4. Cas exceptionnels** ⏳ À FAIRE
 
 - Mécanisme d'extraction automatique : une partie exceptionnelle voit son `GameLog` et sa seed isolés pour une rejouabilité immédiate.
 - Critère : une partie en échec est identifiable et **rejouable seule via sa seed**, sans re-simuler les autres.
@@ -205,19 +216,19 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
   - Proposition : **1 + 2 + 4** pour commencer, le critère 3 plus tard. **À trancher.**
 - **❓ En suspens : plafond d'export CSV.** Excel s'arrête à 16 384 colonnes, soit environ 5 400 parties à 3 colonnes. Proposition : plafond réglable (par exemple 1 000 parties exceptionnelles par fichier).
 
-**5. Statistiques de simulation** (`SimulationStats`) — **toujours calculées, même en `LogMode.Off`**
+**5. Statistiques de simulation** (`SimulationStats`) ⏳ À FAIRE — **toujours calculées, même en `LogMode.Off`**
 
 - Nombre de coups : **moyenne**, **médiane**, **minimum**, **maximum** (avec la seed de la partie concernée), écart-type.
 - **Vainqueurs** : nombre de victoires par joueur (Bot1 à Bot4) et nombre de fois où chacun est le **Psycko**.
 - Répartition des victoires par siège (détection d'un biais du premier joueur).
 - Nombre de parties terminées normalement et nombre de parties en erreur.
-- **❓ En suspens** : métriques sur la fréquence d'activation de chaque carte spéciale / Joker (nécessaire pour T42). À décider si on les ajoute ici ou plus tard.
+- Fréquence d'activation des cartes spéciales / Joker : **reportée à T42** (voir ci-dessous).
 
-**6. Affichage console direct** (`ConsoleLogPrinter`)
+**6. Affichage console direct** (`ConsoleLogPrinter`) ⏳ À FAIRE
 
 - Pour les parties Humain vs Bots : affichage en direct dans la console, avec les noms `Humain`, `Bot1`, `Bot2`, `Bot3`.
 
-**7. `.gitignore`** : ajout des dossiers de logs et d'exports CSV générés.
+**7. `.gitignore`** ⏳ À FAIRE : ajout des dossiers de logs et d'exports CSV générés.
 
 - **Dépendances** : T38a, T38b, T38bis, T38c, T37.
 - **Critères d'acceptation globaux** :
@@ -266,6 +277,7 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
 - **Travail attendu** :
   - Lancer la simulation complète via `Tools/PsyckoConsole/`.
   - Collecter les métriques de T38d : taux d'échec, distribution des durées, équité entre sièges, **vainqueurs et Psycko par bot**.
+  - Mesurer la fréquence d'activation des cartes spéciales et des Jokers (Valet, 7/Don, 2, Prêtre, Cavalier, Joker Verre, Noir, Couleur, Carré, Doublon). Cette mesure a été reportée de T38d (point 5) vers T42.
   - Pour chaque échec : isoler la seed et ouvrir un ticket de correction dédié dans Core.
   - Rapport de synthèse : tickets ouverts, taux de réussite global, recommandation GO / NO-GO vers Bots avancés + NUnit + Presentation.
 - **Hors périmètre** : correction des bugs (tickets séparés), rédaction des tests NUnit définitifs (ticket futur nourri par cette analyse).
@@ -274,7 +286,7 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
   - 1M parties exécutées, rapport chiffré produit.
   - Toute partie en échec a sa seed isolée et un ticket de correction si nécessaire.
   - Décision explicite actée avec Ekinox : GO vers NUnit + Presentation, ou itération sur Core/Bots.
-- **❓ En suspens** : la mesure de la fréquence d'activation des cartes spéciales / Jokers (voir T38d, point 5).
+- ❓ **En suspens** : où implémenter la collecte de fréquence d'activation ? Dans `SimulationStats` (ajout après T38d) ou dans un compteur dédié ? À décider avant le lancement de T42.
 
 ---
 
@@ -293,6 +305,6 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
 
 ## Ordre d'exécution
 
-✅ T35 → ✅ T36 → ✅ T37 → ✅ T38a → ✅ T38b → ✅ T38bis → ✅ T38c *(absorbe T39 et T40)* → **T38d** → T41a → T41b → T42 → T43
+✅ T35 → ✅ T36 → ✅ T37 → ✅ T38a → ✅ T38b → ✅ T38bis → ✅ T38c *(absorbe T39 et T40)* → 🔄 **T38d** (étape 1/7 ✅) → T41a → T41b → T42 → T43
 
-**Prochaine étape : T38d, point 1** (correction du Doublon sur deux coups et de l'ordre des effets dans `GameLogEffectDetector`).
+**Prochaine étape : T38d, point 2** (Export CSV, `CsvLogWriter`), après validation des tests de régression de l'étape 1 et merge. Les deux points en suspens du point 4 (définition d'une « partie exceptionnelle » et plafond d'export CSV) sont à trancher avant d'implémenter les étapes 3 et 4.

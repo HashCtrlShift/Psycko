@@ -12,7 +12,9 @@ namespace Psycko.Core.Services
     /// Ordre : Carré / Doublon (exclusifs) d'abord, puis l'effet propre de la carte.
     ///   - Carré : jamais sur 2 / Joker Couleur / Joker Noir (D1), garanti par
     ///     QuadDetection qui s'arrête sur Noir/Couleur et par la destruction du 2.
-    ///   - Doublon : exclu si un Carré est détecté (le Carré prime).
+    ///   - Doublon : exclu si un Carré est détecté (le Carré prime). Affiché seulement
+    ///     si skipApplied est vrai (saut effectivement appliqué, jamais à 2 joueurs actifs).
+    ///   - Doublon après Don (afterGift) : jamais redétecté, seul le Carré l'est.
     ///   - Don du 7 : aucun effet de carte (la carte transite de main en main).
     ///   - Prêtre et Valet ne coexistent jamais dans un Play (D2).
     /// </summary>
@@ -25,20 +27,35 @@ namespace Psycko.Core.Services
         /// </param>
         /// <param name="destroysPile">Intention de destruction (2, Bombe, Carré).</param>
         /// <param name="nextDirection">Sens de jeu après le coup (Valet : toujours inversé).</param>
+        /// <param name="skipApplied">Le saut du joueur suivant est-il appliqué (Doublon effectif) ? Défaut : false.</param>
+        /// <param name="afterGift">Vrai pour la ligne qui suit le Don : seul le Carré est retenu. Défaut : false.</param>
         public static IReadOnlyList<EffectLogDetail> Detect(
             Play play,
             IGameStateQuery stateAfterPlacement,
             bool destroysPile,
-            PlayDirection? nextDirection)
+            PlayDirection? nextDirection,
+            bool skipApplied = false,
+            bool afterGift = false)
         {
             var effects = new List<EffectLogDetail>(2);
 
+            bool isQuad = QuadDetection.IsQuadDetected(stateAfterPlacement);
+
+            // Après un Don : seul le Carré (destruction) est loggé.
+            if (afterGift)
+            {
+                if (isQuad)
+                    effects.Add(new EffectLogDetail(EffectKind.DetruiteCarre));
+                return effects.AsReadOnly();
+            }
+
             // 1) Carré / Doublon d'abord (exclusifs : le Carré prime).
-            if (QuadDetection.IsQuadDetected(stateAfterPlacement))
+            if (isQuad)
             {
                 effects.Add(new EffectLogDetail(EffectKind.DetruiteCarre));
             }
-            else if (!play.IsJokerPlay
+            else if (skipApplied
+                     && !play.IsJokerPlay
                      && PairDetection.IsPairDetected(stateAfterPlacement))
             {
                 effects.Add(new EffectLogDetail(EffectKind.Doublon));
@@ -100,7 +117,6 @@ namespace Psycko.Core.Services
             if (!direction.HasValue)
                 return null;
 
-            // ⚠️ Adapter si PlayDirection ne s'appelle pas Clockwise / CounterClockwise.
             return direction.Value == PlayDirection.Clockwise
                 ? "Horaire"
                 : "Antihoraire";

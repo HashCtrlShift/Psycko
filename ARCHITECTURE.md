@@ -34,11 +34,14 @@ Psycko/
 │   │   │   ├── Psycko.Core.asmdef
 │   │   │   ├── Domain/
 │   │   │   │   ├── Log/
-│   │   │   │   │    ├── ActionKind.cs           Types d'actions enregistrables dans le log d'une partie
-│   │   │   │   │    ├── EffectKind.cs           Effet enregistré dans la colonne "Effets" du GameLog
-│   │   │   │   │    ├── EffectLodDetail.cs      Détail immuable d'un effet enregistré dans une entrée de log
-│   │   │   │   │    ├── GameLog.cs              Log complet et immuable d'une partie
-│   │   │   │   │    └── GameLogEntry.cs         Entrée immuable du log de partie
+│   │   │   │   │    ├── ActionKind.cs              Types d'actions enregistrables dans le log d'une partie
+│   │   │   │   │    ├── EffectKind.cs              Effet enregistré dans la colonne "Effets" du GameLog
+│   │   │   │   │    ├── EffectLodDetail.cs         Détail immuable d'un effet enregistré dans une entrée de log
+│   │   │   │   │    ├── ExceptionalGameCriteria.cs Seuils qui rendent une partie "exceptionnelle"
+│   │   │   │   │    ├── ExceptionalGameDetector.cs Isole les parties "exceptionnelles"
+│   │   │   │   │    ├── GameLog.cs                 Log complet et immuable d'une partie
+│   │   │   │   │    ├── GameLogEntry.cs            Entrée immuable du log de partie
+│   │   │   │   │    └── LogMode.cs                 Modes de Logging pour la simulation
 │   │   │   │   │
 │   │   │   │   ├── Card.cs                       Création des Cartes
 │   │   │   │   ├── Deck.cs                       Création de la Pioche et Mélange
@@ -102,9 +105,11 @@ Psycko/
 │   │   │       │   ├── Step3_CardEffectsResolver.cs      Étape 3 — Effets des cartes spéciales
 │   │   │       │   ├── Step4_FinalDrawResolver.cs        Étape 4 — Repioche finale après Don éventuel
 │   │   │       │   ├── Step5_PileEffectsResolver.cs      Étape 5 — Effets de pile (Doublon/Carré)
-│   │   │       │   ├── Step6_AdvanceTurnResolver.cs      Étape 6 — Avancement de tour (joueur suivant, skip, rejeu)
+│   │   │       │   ├── Step6_AdvanceTurnResolver.cs      Étape 6 — Avancement de tour (joueur suivant, skip, 
+│   │   │       │   │                                     rejeu)
 │   │   │       │   ├── TurnManager.cs                    Définit le déroulement d'un tour pour un joueur
-│   │   │       │   └── TurnResult.cs                     Résultat immutable porté entre les Steps (état+intentions)
+│   │   │       │   └── TurnResult.cs                     Résultat immutable porté entre les Steps (état
+│   │   │       │                                         +intentions)
 │   │   │       │
 │   │   │       ├── BlindPlayResolutions.cs       Carte Révélée en Luck
 │   │   │       ├── GameLogEffectDetector.cs      Traduit le résultat d'un coup en liste d'effets pour le log.

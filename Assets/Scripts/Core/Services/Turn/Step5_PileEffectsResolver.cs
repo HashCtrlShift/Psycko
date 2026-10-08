@@ -82,7 +82,7 @@ namespace Psycko.Core.Services.Turn
             var finalReplay = incomingResult.GrantsReplay || step5Replay;
 
             return incomingResult
-                .WithDestroysPile(destroysPile)
+                .WithDestroysPile(incomingResult.DestroysPile || destroysPile)
                 .WithSkipNext(skipNext)
                 .WithReplay(finalReplay);
         }

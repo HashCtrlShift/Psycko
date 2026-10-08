@@ -15,6 +15,8 @@ namespace Psycko.Core.Services
     /// aucune branche logique ne dépend du recorder.
     /// Effets du log (T38d) : GameLogEffectDetector lit l'état APRÈS pose du coup
     /// et AVANT destruction de la Pile (Carré / Doublon relus sur Pile.Cards / Plays).
+    /// Pile détruite (2, Bombe, Carré) : la contrainte est réinitialisée à
+    /// (Normal, Three) — pile vide = aucune contrainte.
     /// </summary>
     public sealed class GameOrchestrator
     {
@@ -71,7 +73,7 @@ namespace Psycko.Core.Services
             // (ni pioche, ni destruction, ni changement de joueur) : tout est rejoué par
             // ResolveGiftAndContinue via ResolveRemainder. Le coup est loggé tout de suite,
             // avec la pile telle qu'elle est à ce stade (une destruction éventuelle viendra après le Don).
-            // Le 7 n'a aucun effet de carte ; seuls Carré / Doublon peuvent apparaître ici.
+            // Le Doublon n'est loggé qu'ici (une seule fois) ; le Carré est loggé après le Don.
             if (turnResult.RequiresGiftResolution)
             {
                 recorder?.Record(GameLogEntry.PlayerAction(
@@ -83,7 +85,8 @@ namespace Psycko.Core.Services
                         play,
                         turnResult.State,
                         turnResult.DestroysPile,
-                        turnResult.NextDirection)));
+                        turnResult.NextDirection,
+                        skipApplied: HasMoreThanTwoActivePlayers(turnResult.State))));
 
                 return PlayResult.AwaitingGift(turnResult);
             }
@@ -105,7 +108,8 @@ namespace Psycko.Core.Services
                     play,
                     stateAfterPlacement,
                     turnResult.DestroysPile,
-                    turnResult.NextDirection)));
+                    turnResult.NextDirection,
+                    skipApplied: turnResult.SkipNext)));
 
             return Accept(newState, recorder);
         }
@@ -171,13 +175,14 @@ namespace Psycko.Core.Services
                 remainder,
                 pendingResult.State.ActivePlayerIndex);
 
-            // Suite du coup de 7 : si Carré, la destruction est loggée ici
-            // (ligne qui suit le Don). Aucune entrée si rien à signaler.
+            // Suite du coup de 7 : seul le Carré (destruction) est loggé ici,
+            // sur la ligne qui suit le Don. Le Doublon a déjà été loggé avant le Don.
             var postGiftEffects = GameLogEffectDetector.Detect(
                 play,
                 stateBeforeDestruction,
                 remainder.DestroysPile,
-                remainder.NextDirection);
+                remainder.NextDirection,
+                afterGift: true);
 
             if (postGiftEffects.Count > 0)
             {
@@ -272,10 +277,14 @@ namespace Psycko.Core.Services
             if (destroysPile)
             {
                 next = (GameState)next.DestroyPile();
-            }
 
-            if (effects.NextConstraint.HasValue
-                && effects.NextRefRank.HasValue)
+                // Pile vide = aucune contrainte (couvre 2, Bombe et Carré).
+                next = (GameState)next.SetConstraint(
+                    HeightConstraint.Normal,
+                    DefRank.Three);
+            }
+            else if (effects.NextConstraint.HasValue
+                     && effects.NextRefRank.HasValue)
             {
                 next = (GameState)next.SetConstraint(
                     effects.NextConstraint.Value,
@@ -311,7 +320,8 @@ namespace Psycko.Core.Services
                     play,
                     stateBeforeDestruction,
                     destroysPile,
-                    effects.NextDirection)));
+                    effects.NextDirection,
+                    skipApplied: pileEffects.SkipNext)));
 
             return BlindPlayResolution.Of(Accept(next, recorder), card);
         }
@@ -346,8 +356,8 @@ namespace Psycko.Core.Services
 
         /// <summary>
         /// Exécute, dans l'ordre strict, les intentions portées par un TurnResult :
-        /// pioche Step2 → destruction de Pile → contrainte → direction → pioche finale
-        /// Step4 → transition de phase → joueur actif Step6.
+        /// pioche Step2 → destruction de Pile (+ contrainte neutre) → contrainte →
+        /// direction → pioche finale Step4 → transition de phase → joueur actif Step6.
         /// Factorisée : partagée par ApplyPlay et ResolveGiftAndContinue.
         /// </summary>
         private static GameState ApplyTurnIntents(
@@ -367,10 +377,16 @@ namespace Psycko.Core.Services
             if (result.DestroysPile)
             {
                 newState = (GameState)newState.DestroyPile();
-            }
 
-            if (result.NextConstraint.HasValue
-                && result.NextRefRank.HasValue)
+                // Pile vide = aucune contrainte (convention du projet).
+                // Couvre 2, Bombe et Carré : le Carré est détecté en Step5, donc la
+                // contrainte posée par Step3 (Prêtre, Valet, 9...) est obsolète.
+                newState = (GameState)newState.SetConstraint(
+                    HeightConstraint.Normal,
+                    DefRank.Three);
+            }
+            else if (result.NextConstraint.HasValue
+                     && result.NextRefRank.HasValue)
             {
                 newState = (GameState)newState.SetConstraint(
                     result.NextConstraint.Value,
@@ -458,6 +474,13 @@ namespace Psycko.Core.Services
 
             return PlayResult.Accepted(newState, isGameOver);
         }
+
+        /// <summary>
+        /// Miroir du test de Step5 (Doublon désactivé à 2 joueurs actifs ou moins).
+        /// Utilisé uniquement par le log, avant que Step5 ait tourné (branche Don).
+        /// </summary>
+        private static bool HasMoreThanTwoActivePlayers(GameState state)
+            => state.Players.Count(p => p.CurrentPhase != DefPhase.Finished) > 2;
 
         /// <summary>
         /// Copie figée des cartes de la pile centrale (pour le log uniquement).
