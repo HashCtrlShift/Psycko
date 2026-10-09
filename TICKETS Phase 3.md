@@ -192,12 +192,18 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
   - Un Doublon à 3+ joueurs actifs saute le suivant ; à 2 joueurs actifs, aucun saut ni log de Doublon.
   - Un Doublon sur deux coups successifs est loggé.
 
-**2. Export CSV** (`CsvLogWriter`) ⏳ À FAIRE
+**2. Export CSV (CsvLogWriter) ✅ ÉCRIT** *(compilation à confirmer, validation par simulation console)*
 
-- Un `GameLog` est sérialisé en CSV, **3 colonnes par partie** : Action | Pile avant | Effets.
-- Chaque partie exceptionnelle occupe ses propres colonnes (1re : A-B-C, 2e : D-E-F, etc.).
-- Nom de fichier incluant la **seed** pour la traçabilité.
-- Critère : un `GameLog` peut être exporté et relu sans perte d'information exploitable.
+- Un GameLog est sérialisé en CSV, **4 colonnes par partie** : Action | Pile avant | Effets | Détail.
+- **2 colonnes de bilan en tête** : A = agrégats du fichier (parties, OK, erreurs, coups moyenne/médiane/min/max) ; B = une ligne par partie (seed, coups, plays, classement, ramassages, [ERREUR]).
+- Chaque partie occupe ses propres colonnes (1re : C-D-E-F, 2e : G-H-I-J, etc.).
+- Encodage UTF-8 avec BOM, séparateur `;`, échappement des `;`, `"` et retours ligne (compatible Excel).
+- Nom de fichier : `GameLogs_[firstSeed]_[lastSeed]_[timestamp]_[part].csv`.
+- **Plafond : 4 000 parties par fichier** (16 384 colonnes Excel − 2 de bilan, ÷ 4 = 4 095, plafond retenu 4 000) ; au-delà, découpage en plusieurs fichiers. Réglable via `gamesPerFile`.
+- Seeds typées int (cohérent avec GameLog.Seed).
+- La colonne « Pile avant » reflète `GameLogEntry.PileBefore` (état de la Pile AVANT l'action). Décision actée : le modèle stocke l'état avant, pas après.
+- Les cartes sont formatées via `ICardFormatter` (`CardFormatter` : « Joker Verre / Noir / Couleur », « Valet♠ »), injecté dans `CsvLogFormatter`.
+- Critère : un GameLog peut être exporté et relu sans perte d'information exploitable.
 
 **3. Modes de log** ⏳ À FAIRE : `LogMode` = `Off` / `All` / `ExceptionalOnly`.
 
@@ -214,15 +220,18 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
   3. *Événement rare* : plusieurs Carrés, Bombe juste après un Carré, pioche épuisée très tôt… (liste à définir).
   4. *Erreur* : toute partie interrompue par une exception (enregistrée d'office).
   - Proposition : **1 + 2 + 4** pour commencer, le critère 3 plus tard. **À trancher.**
-- **❓ En suspens : plafond d'export CSV.** Excel s'arrête à 16 384 colonnes, soit environ 5 400 parties à 3 colonnes. Proposition : plafond réglable (par exemple 1 000 parties exceptionnelles par fichier).
+- Plafond d'export CSV : 4 000 parties par fichier (voir étape 2).
+- Implémentation partielle : `ExceptionalGameDetector` (critères 2 et 4 via `IsExceptional`, critère 1 via `SelectExtremeDurations`) et `ExceptionalGameCriteria` existent dans `Domain/Log`. Reste à câbler l'extraction dans la simulation. 
 
-**5. Statistiques de simulation** (`SimulationStats`) ⏳ À FAIRE — **toujours calculées, même en `LogMode.Off`**
+**5. Statistiques de simulation (SimulationStats) ⏳ À FAIRE — toujours calculées, même en LogMode.Off**
 
-- Nombre de coups : **moyenne**, **médiane**, **minimum**, **maximum** (avec la seed de la partie concernée), écart-type.
-- **Vainqueurs** : nombre de victoires par joueur (Bot1 à Bot4) et nombre de fois où chacun est le **Psycko**.
-- Répartition des victoires par siège (détection d'un biais du premier joueur).
+- Nombre de coups : moyenne, médiane, minimum, maximum (avec la seed de la partie concernée), écart-type.
+- Classement par joueur : nombre de fois où chacun (Bot1 à Bot4) termine 1er, 2e, 3e, et Psycko (4e).
+- Répartition par siège de ces classements (détection d'un biais du premier joueur).
+- Ratio de coups pour gagner : pour chaque partie, nombre de Play du vainqueur rapporté au nombre total de Play de la partie (indicateur de difficulté / de qualité des adversaires).
 - Nombre de parties terminées normalement et nombre de parties en erreur.
-- Fréquence d'activation des cartes spéciales / Joker : **reportée à T42** (voir ci-dessous).
+- Fréquence d'activation des cartes spéciales / Joker : reportée à T42.
+- Le bilan CSV (colonnes A-B) ne remplace pas SimulationStats : il n'affiche que les agrégats de base. L'écart-type, la répartition par siège et le ratio de coups restent à produire dans `SimulationStats.cs`.
 
 **6. Affichage console direct** (`ConsoleLogPrinter`) ⏳ À FAIRE
 
@@ -236,7 +245,7 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
   - Un `GameLog` est exporté en CSV et relu sans perte.
   - Une partie en échec est identifiable et rejouable seule via sa seed.
   - Les statistiques de simulation sont affichées avec ou sans CSV.
-
+  - Validation par simulation console sur un lot de seeds (aucun test unitaire).
 ---
 
 ## T41 — Tools/PsyckoConsole/ (ticket parent — 2 sous-tickets)
@@ -256,17 +265,18 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
 - Intégration du recorder et de la seed (T38).
 - **Critères d'acceptation** : `dotnet run` exécute une partie de bout en bout, **déterministe pour une seed donnée** (distribution initiale), sans intervention manuelle.
 
-### T41b — Simulation de masse ⏳ À FAIRE
+### T41b : Simulation de masse ⏳ À FAIRE
 
-- **Paramètres réglables** : nombre de parties (jusqu'à 1M, valeur par défaut raisonnable), seed de départ, incrémentation des seeds, `LogMode`, seuil de coups maximum.
-- Branchement des modules de T38d (`CsvLogWriter`, `SimulationStats`, cas exceptionnels).
-- **Affichage de progression** régulier (par exemple tous les 10 000 parties), sans ralentissement notable.
-- **Isolation des erreurs** : une partie qui lève une exception est isolée (seed + log exportés) et la boucle continue.
-- **Rapport final** : les statistiques de T38d (durée moyenne, médiane, min, max, vainqueurs, Psycko par bot, taux d'erreur).
-- **Critères d'acceptation** : 1M parties sans crash du processus lui-même (hors parties individuellement en échec, qui sont isolées).
-
-- **Hors périmètre global T41** : interface graphique, intégration Unity, multijoueur réseau.
-- **Dépendances globales T41** : T35, T36, T37, T38 (complet), T38c.
+- Paramètres réglables : nombre de parties (jusqu'à 1M, défaut raisonnable), seed de départ (int), incrémentation des seeds, LogMode, seuil de coups maximum, ExceptionalGameCriteria.
+- Branchement des modules de T38d (CsvLogWriter, SimulationStats, ExceptionalGameDetector).
+- Mémoire bornée en ExceptionalOnly : on ne garde que les N parties les plus longues et N plus courtes au fil de l'eau, plus les parties en erreur ou au-delà du seuil, jamais tous les logs.
+- Affichage de progression régulier (ex. tous les 10 000 parties), sans ralentissement notable.
+- Isolation des erreurs : une partie qui lève une exception est isolée (seed + log exportés) et la boucle continue.
+- Contrôle de plage : refuser un lancement où startSeed + gameCount dépasse int.MaxValue.
+- Rapport final : statistiques de T38d (durées, classements, Psycko par bot, ratios, taux d'erreur).
+- Critère d'acceptation : 1M parties sans crash du processus (hors parties individuellement en échec, isolées).
+- Hors périmètre global T41 : interface graphique, intégration Unity, multijoueur réseau.
+- Dépendances globales T41 : T35, T36, T37, T38 (complet), T38c.
 
 ---
 

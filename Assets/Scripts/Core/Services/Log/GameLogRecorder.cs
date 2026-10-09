@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Psycko.Core.Domain.Log;
 using Psycko.Core.Interfaces;
 
-namespace Psycko.Core.Services
+namespace Psycko.Core.Services.Log
 {
     /// <summary>
     /// Implémentation simple du recorder : accumule les entrées de log dans une liste.

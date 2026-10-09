@@ -44,8 +44,8 @@ Psycko/
 │   │   │   │   │    ├── ExceptionalGameDetector.cs Isole les parties "exceptionnelles"
 │   │   │   │   │    ├── GameLog.cs                 Log complet et immuable d'une partie
 │   │   │   │   │    ├── GameLogEntry.cs            Entrée immuable du log de partie
-│   │   │   │   │    ├── GameResult.cs             
-│   │   │   │   │    └── LogMode.cs                 Modes de Logging pour la simulation
+│   │   │   │   │    ├── GameResult.cs              Résultat chiffré d'une partie (coups, classement, ramassages, erreur)
+│   │   │   │   │    └── LogMode.cs                 Modes de Logging pour la simulation (Off / All / ExceptionalOnly)
 │   │   │   │   │
 │   │   │   │   ├── Card.cs                       Création des Cartes
 │   │   │   │   ├── Deck.cs                       Création de la Pioche et Mélange
@@ -63,6 +63,7 @@ Psycko/
 │   │   │   │   └── PlayRejectionReason.cs        Définit le Rejet d'un Play
 │   │   │   │ 
 │   │   │   ├── Interfaces/ 
+│   │   │   │   ├── ICardFormatter.cs             contrat commun : Format(Card) → string 
 │   │   │   │   ├── ICardPlayabilityChecker.cs    Contrat de jouabilité des cartes d'un joueur
 │   │   │   │   ├── IGameLogRecorder.cs           Contrat d'enregistrement des actions d'une partie
 │   │   │   │   ├── IGameState.cs                 Interface composite
@@ -102,6 +103,17 @@ Psycko/
 │   │   │   │       └── LastCardValidator.cs         Valide la règle : interdiction de terminer une phase sur un 2.
 │   │   │   │ 
 │   │   │   └── Services/
+│   │   │       ├── Log/
+│   │   │       │   ├── Format/ 
+│   │   │       │   │     ├── CardFormatter.cs         "2♥", "Valet♠", "Joker de Verre"
+│   │   │       │   │     └── CardSymbols.cs           ♥ ♦ ♣ ♠ — universel, aucune langue
+│   │   │       │   │ 
+│   │   │       │   ├── CsvLogFormatter.cs            Traduit une entrée de log en texte lisible en français
+│   │   │       │   ├── CsvLogWriter.cs               Exporte les GameLog en CSV Excel (bilan + 4 colonnes par partie)
+│   │   │       │   ├── GameLogEffectDetector.cs      Traduit le résultat d'un coup en liste d'effets pour le log.
+│   │   │       │   ├── GameLogRecorder.cs            Enregistre chaque action/coup avec horodatage/tour
+│   │   │       │   ├── GameResultTracker.cs          Collecte les compteurs d'une partie (coups, plays, ramassages)
+│   │   │       │   └── SimulationStats.cs            Agrège les GameResult (moyenne, médiane, écart-type, équité par siège)
 │   │   │       ├── Turn/
 │   │   │       │   ├── PickupResolution.cs               Résultat immutable de BeginTurn/ResolvePickup
 │   │   │       │   ├── Step1_PlaceCardsResolver.cs       Étape 1 — Pose des cartes sur la pile
@@ -114,14 +126,10 @@ Psycko/
 │   │   │       │   └── TurnResult.cs                     Résultat immutable porté entre les Steps (état + intentions)
 │   │   │       │
 │   │   │       ├── BlindPlayResolutions.cs       Carte Révélée en Luck
-│   │   │       ├── GameLogEffectDetector.cs      Traduit le résultat d'un coup en liste d'effets pour le log.
-│   │   │       ├── GameLogRecorder.cs            Enregistre chaque action/coup avec horodatage/tour
 │   │   │       ├── GameOrchestrator.cs           Définit le déroulement d'une partie    
-│   │   │       ├── GameResultCalculator.cs       Définit la Fin d'un partie.
-│   │   │       ├── GameResultTracker.cs          
+│   │   │       ├── GameResultCalculator.cs       Définit la Fin d'un partie.       
 │   │   │       ├── GameSeed.cs                   Génération + stockage de la seed RNG d'une partie
-│   │   │       ├── PlayResult.cs                 Définit un appel à GameOrchestrator
-│   │   │       └── SimulationStats.cs            
+│   │   │       └── PlayResult.cs                 Définit un appel à GameOrchestrator      
 │   │   │
 │   │   └── Presentation/                  (Unity 2D, dépend Core + Bots, zéro logique de jeu)
 │   │       ├── UI/
@@ -145,13 +153,11 @@ Psycko/
 │   └── Tests/
 │       └── EditMode/                      (NUnit EditMode, miroir de la structure Core, 1 fichier de test par fichier de règle)
 └── Tools/
-    ├──  PsyckoConsole/                     (app console dotnet, simulation de parties + parties humain contre bots)
+    ├── PsyckoConsole/                     (app console dotnet, simulation de parties + parties humain contre bots)
     │    └── PsyckoConsole.csproj           (Compile Include relatif vers Assets/Scripts/Core et Assets/Scripts/Bots)
-    │    Tools/PsyckoConsole/
-    └── Formatting/
-          ├── CardFormatter.cs         (ex: "2♥", "Valet♠", "Joker de Verre")
-          ├── CardSymbols.cs           (♥ ♦ ♣ ♠ — universel, aucune langue)
-          └── ICardFormatter.cs        (contrat commun : Format(Card) → string) 
+    │ 
+    └── Tools/PsyckoConsole/
+
 ## Notes 
 - **Notion** : Source d'un grand nombre d'informations sur le projet 
 - **GitHub** :  Repo : https://github.com/HashCtrlShift/Psycko

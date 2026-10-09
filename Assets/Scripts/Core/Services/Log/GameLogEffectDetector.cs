@@ -4,7 +4,7 @@ using Psycko.Core.Domain.Log;
 using Psycko.Core.Interfaces;
 using Psycko.Core.Rules.Detection;
 
-namespace Psycko.Core.Services
+namespace Psycko.Core.Services.Log
 {
     /// <summary>
     /// Traduit un coup en liste d'effets pour le log. Lecture seule : ne modifie

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using Psycko.Core.Domain.Log;
 
-namespace Psycko.Core.Services
+namespace Psycko.Core.Services.Log
 {
     /// <summary>
     /// Statistiques dérivées d'un lot de GameResult (jamais de GameLog : fonctionne en LogMode.Off).

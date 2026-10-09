@@ -4,7 +4,7 @@ using System.Linq;
 using Psycko.Core.Domain;
 using Psycko.Core.Domain.Log;
 
-namespace Psycko.Core.Services
+namespace Psycko.Core.Services.Log
 {
     /// <summary>
     /// Accumulateur de compteurs d'une partie (une instance par partie).
@@ -31,12 +31,12 @@ namespace Psycko.Core.Services
         public GameResultTracker(int seed, int playerCount)
         {
             if (playerCount <= 0) throw new ArgumentOutOfRangeException(nameof(playerCount));
-            _seed = seed;
-            _exitMove = Enumerable.Repeat(-1, playerCount).ToArray();
-            _playsAtExit = Enumerable.Repeat(-1, playerCount).ToArray();
-            _plays = new int[playerCount];
-            _pickups = new int[playerCount];
-            _finished = new bool[playerCount];
+             _seed = seed;
+             _exitMove = Enumerable.Repeat(-1, playerCount).ToArray();
+             _playsAtExit = Enumerable.Repeat(-1, playerCount).ToArray();
+             _plays = new int[playerCount];
+             _pickups = new int[playerCount];
+             _finished = new bool[playerCount];
         }
 
         /// <summary>Un Play accepté (ApplyPlay ou ApplyBlindPlay) : +1 Play, +1 coup global.</summary>

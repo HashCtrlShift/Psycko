@@ -1,20 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Psycko.Core.Domain.Log;
 
-namespace Psycko.Core.Services.Log
+namespace Psycko.Core.Domain.Log
 {
     public static class ExceptionalGameDetector
     {
         /// <summary>
         /// Nombre de coups d'une partie = nombre d'entrées d'action
-        /// (l'entrée GameEnded n'est pas un coup).
+        /// (l'entrée GameEnd n'est pas un coup).
         /// </summary>
         public static int CountTurns(GameLog gameLog)
         {
             if (gameLog == null) throw new ArgumentNullException(nameof(gameLog));
-            return gameLog.Entries.Count(e => !e.IsGameEnd);
+            return gameLog.Entries.Count(e => e.Kind != ActionKind.GameEnd);
         }
 
         /// <summary>

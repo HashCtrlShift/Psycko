@@ -5,6 +5,7 @@ using Psycko.Core.Domain;
 using Psycko.Core.Domain.Log;
 using Psycko.Core.Interfaces;
 using Psycko.Core.Services.Turn;
+using Psycko.Core.Services.Log;
 
 namespace Psycko.Core.Services
 {
