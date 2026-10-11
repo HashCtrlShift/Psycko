@@ -208,7 +208,8 @@ namespace Psycko.Core.Services
                     if (!played.Success)
                     {
                         // Coup rejeté → ramassage volontaire
-                        var fallback = GameOrchestrator.RequestPickup(state, player.Id, recorder, tracker);
+                        // 🔧 FIX BUG G.1 : passer played.NewState au lieu de state
+                        var fallback = GameOrchestrator.RequestPickup(played.NewState, player.Id, recorder, tracker);
                         state = Require(fallback, "RequestPickup (fallback)");
                         continue;  // ← Retour à la boucle
                     }
@@ -245,7 +246,8 @@ namespace Psycko.Core.Services
                 if (!playedNormal.Success)
                 {
                     // Coup rejeté → ramassage volontaire
-                    var fallback = GameOrchestrator.RequestPickup(state, player.Id, recorder, tracker);
+                    // 🔧 FIX BUG G.2 : passer playedNormal.NewState au lieu de state
+                    var fallback = GameOrchestrator.RequestPickup(playedNormal.NewState, player.Id, recorder, tracker);
                     return Require(fallback, "RequestPickup (fallback)");
                 }
 
