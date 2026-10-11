@@ -380,26 +380,27 @@ namespace Psycko.Core.Services
         {
             var newState = startState;
 
-            if (result.DrawCount > 0)
+            // Reconstruction effective : après un Don, Step4 est la seule décision valable
+            // (elle part de l'état réel après Don) ; sinon, la décision est celle de Step2.
+            bool giftPath = result.RequiresGiftResolution && result.FinalReconstruction.HasValue;
+
+            int drawCount = giftPath ? result.FinalReconstruction!.Value.DrawCount : result.DrawCount;
+            bool faceUpPickup = giftPath ? result.FinalReconstruction!.Value.TriggersFaceUpPickup : result.TriggersFaceUpPickup;
+            bool phaseTransition = giftPath ? result.FinalReconstruction!.Value.TriggersPhaseTransition : result.TriggersPhaseTransition;
+
+            if (drawCount > 0)
             {
                 newState = (GameState)newState.DrawCards(
                     activeSeatIndex,
-                    result.DrawCount);
+                    Math.Min(drawCount, newState.DrawPile.Count));
             }
 
             if (result.DestroysPile)
             {
                 newState = (GameState)newState.DestroyPile();
-
-                // Pile vide = aucune contrainte (convention du projet).
-                // Couvre 2, Bombe et Carré : le Carré est détecté en Step5, donc la
-                // contrainte posée par Step3 (Prêtre, Valet, 9...) est obsolète.
-                newState = (GameState)newState.SetConstraint(
-                    HeightConstraint.Normal,
-                    DefRank.Three);
+                newState = (GameState)newState.SetConstraint(HeightConstraint.Normal, DefRank.Three);
             }
-            else if (result.NextConstraint.HasValue
-                     && result.NextRefRank.HasValue)
+            else if (result.NextConstraint.HasValue && result.NextRefRank.HasValue)
             {
                 newState = (GameState)newState.SetConstraint(
                     result.NextConstraint.Value,
@@ -407,23 +408,14 @@ namespace Psycko.Core.Services
             }
 
             if (result.NextDirection.HasValue)
-            {
-                newState = (GameState)newState.WithDirection(
-                    result.NextDirection.Value);
-            }
+                newState = (GameState)newState.WithDirection(result.NextDirection.Value);
 
-            if (result.FinalReconstruction.HasValue
-                && result.FinalReconstruction.Value.DrawCount > 0)
+            if (phaseTransition)
             {
-                newState = (GameState)newState.DrawCards(
-                    activeSeatIndex,
-                    result.FinalReconstruction.Value.DrawCount);
-            }
+                if (faceUpPickup)
+                    newState = (GameState)newState.PickUpFaceUp(activeSeatIndex);
 
-            if (result.TriggersPhaseTransition)
-            {
-                newState = (GameState)newState.AdvancePlayerPhase(
-                    activeSeatIndex);
+                newState = (GameState)newState.AdvancePlayerPhase(activeSeatIndex);
             }
 
             return ExecuteActivePlayerIntent(newState, result);

@@ -324,5 +324,19 @@ namespace Psycko.Core.Domain
             if (playerIndex < 0 || playerIndex >= playerCount)
                 throw new ArgumentOutOfRangeException(parameterName, playerIndex, "L'index du joueur est hors limites.");
         }
+        public IGameState PickUpFaceUp(int playerIndex)
+        {
+            ValidatePlayerIndex(playerIndex, _players.Count, nameof(playerIndex));
+
+            var player = _players[playerIndex];
+            var updatedPlayer = player
+                .WithHand(player.Hand.Concat(player.FaceUp).ToList())
+                .WithFaceUp(new List<Card>());
+
+            var updatedPlayers = new List<Player>(_players);
+            updatedPlayers[playerIndex] = updatedPlayer;
+
+            return new GameState(updatedPlayers, _drawPile, Pile, ActivePlayerIndex, Direction, Constraint, RefRank);
+        }
     }
 }

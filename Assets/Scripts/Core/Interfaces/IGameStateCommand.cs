@@ -46,5 +46,8 @@ namespace Psycko.Core.Interfaces
         /// seulement un mouvement mécanique d'état, comme les autres commandes.
         /// </summary>
         IGameState TransferCard(int fromPlayerIndex, int toPlayerIndex, Card card);
+
+        /// <summary>Transfère toute la couche FaceUp du joueur vers sa main (transition Travail → Talent).</summary>
+        IGameState PickUpFaceUp(int playerIndex);
     }
 }

@@ -12,8 +12,6 @@ using Psycko.Core.Services.Log;
 
 namespace Psycko.Console
 {
-    public enum LogMode { Off, All, ExceptionalOnly }
-
     /// <summary>
     /// Usage :
     ///   sim [parties=1000] [seedDépart=1] [off|all|exceptional]
@@ -22,7 +20,10 @@ namespace Psycko.Console
     public static class Program
     {
         private const string LogDirectory = "Logs"; // relatif à Tools/PsyckoConsole/
-        private static readonly string[] SeatNames = { "J1", "J2", "J3", "J4" };
+        private const int LogBatchSize = 4000;      // aligné sur le plafond de CsvLogWriter
+
+        private static readonly string[] SimNames = { "Bot1", "Bot2", "Bot3", "Bot4" };
+        private static readonly string[] PlayNames = { "Humain", "Bot1", "Bot2", "Bot3" };
 
         public static int Main(string[] args)
         {
@@ -40,26 +41,38 @@ namespace Psycko.Console
 
             var botRandom = new Random(); // décisions NON reproductibles (choix assumé)
             var checker = new CardPlayabilityChecker();
-            var agents = SeatNames.Select(_ => (IPlayerAgent)new RandomBot(botRandom, checker)).ToList();
+            var agents = SimNames.Select(_ => (IPlayerAgent)new RandomBot(botRandom, checker)).ToList();
 
             var kept = new List<(GameLog Log, GameResult Result, string Reason)>();
             var shortest = new List<(GameLog Log, GameResult Result)>();
             var longest = new List<(GameLog Log, GameResult Result)>();
             var allResults = new List<GameResult>(games);
-            var allLogs = new List<GameLog>();
+
+            // Mode All : tampon borné, vidé tous les LogBatchSize parties.
+            var batchLogs = new List<GameLog>(LogBatchSize);
+            var batchResults = new List<GameResult>(LogBatchSize);
 
             for (int i = 0; i < games; i++)
             {
                 int seed = startSeed + i;
-                var outcome = GameRunner.Run(seed, agents, SeatNames, recordLog: logMode != LogMode.Off);
+                var outcome = GameRunner.Run(seed, agents, SimNames, recordLog: logMode != LogMode.Off);
                 allResults.Add(outcome.Result);
 
                 if (outcome.Error != null)
-                    System.Console.WriteLine($"[ERREUR] seed {seed} : {outcome.Error.Message}");
+                {
+                    System.Console.WriteLine($"[ERREUR] seed {seed} : {outcome.Error}");
+                }
 
-                if (outcome.Log == null) continue;
+                if (outcome.Log == null) continue; // LogMode.Off
 
-                if (logMode == LogMode.All) { allLogs.Add(outcome.Log); continue; }
+                if (logMode == LogMode.All)
+                {
+                    batchLogs.Add(outcome.Log);
+                    batchResults.Add(outcome.Result);
+                    if (batchLogs.Count >= LogBatchSize)
+                        FlushBatch(batchLogs, batchResults);
+                    continue;
+                }
 
                 // ExceptionalOnly : critères individuels au fil de l'eau…
                 if (ExceptionalGameDetector.IsExceptional(outcome.Log, criteria, outcome.Error != null))
@@ -80,7 +93,7 @@ namespace Psycko.Console
 
             if (logMode == LogMode.All)
             {
-                Write(allLogs, allResults);
+                FlushBatch(batchLogs, batchResults); // reliquat
             }
             else if (logMode == LogMode.ExceptionalOnly)
             {
@@ -96,6 +109,14 @@ namespace Psycko.Console
             }
 
             return allResults.Any(r => r.IsError) ? 1 : 0;
+        }
+
+        private static void FlushBatch(List<GameLog> logs, List<GameResult> results)
+        {
+            if (logs.Count == 0) return;
+            Write(logs, results);
+            logs.Clear();
+            results.Clear();
         }
 
         private static void KeepExtreme(List<(GameLog Log, GameResult Result)> buffer,
@@ -126,7 +147,7 @@ namespace Psycko.Console
                 new RandomBot(botRandom, checker),
             };
 
-            var outcome = GameRunner.Run(seed, agents, SeatNames, recordLog: true);
+            var outcome = GameRunner.Run(seed, agents, PlayNames, recordLog: true);
 
             System.Console.WriteLine(outcome.Error != null
                 ? $"Partie interrompue : {outcome.Error.Message}"
