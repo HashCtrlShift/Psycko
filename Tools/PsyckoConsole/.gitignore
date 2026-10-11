@@ -1,0 +1,72 @@
+# ───── Unity ─────
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+/Assets/Plugins/Editor/JetBrains*
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+sysinfo.txt
+crashlytics-build.properties
+/[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# Fichiers générés par Unity pour l'IDE
+*.csproj
+*.sln
+*.slnx
+*.unityproj
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Builds mobiles
+*.apk
+*.aab
+*.unitypackage
+*.app
+*.ipa
+
+# ───── .NET (Psycko.Core, Psycko.Bots, Tools, tests hors Unity) ─────
+**/bin/
+**/obj/
+!Psycko.Core/*.csproj
+!Psycko.Bots/*.csproj
+!Tools/**/*.csproj
+!Tools/**/*.sln
+!*.Tests/*.csproj
+TestResults/
+*.trx
+coverage*/
+*.coverage
+
+# ───── Logs de simulation ─────
+Tools/PsyckoConsole/Logs/
+
+# ───── IDE / OS ─────
+.vs/
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ───── Secrets backend / réseau ─────
+**/PhotonServerSettings.asset.bak
+*.keystore
+*.jks

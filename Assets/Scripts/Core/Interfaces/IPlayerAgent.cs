@@ -1,9 +1,11 @@
 #nullable enable
 
+using System.Collections.Generic;
 using Psycko.Core.Domain;
 using Psycko.Core.Interfaces;
+using Psycko.Core.Domain.Exchange;
 
-namespace Psycko.Bots
+namespace Psycko.Core.Interfaces
 {
     /// <summary>
     /// Contrat de décision d'un agent joueur. Toute intention retournée est
@@ -27,5 +29,11 @@ namespace Psycko.Bots
 
         /// <summary>Choisit la résolution d'un Don (appelé si RequiresGiftResolution).</summary>
         GiftResolutionChoice ResolveGift(IPlayerVisibleState state);
+
+                /// <summary>
+        /// Propose, pendant l'échange pré-partie, une liste d'échanges Main↔FaceUp à appliquer
+        /// dans l'ordre. Chacun est revalidé par Core (PreGameExchange). Liste vide = aucun échange.
+        /// </summary>
+        IReadOnlyList<ExchangeChoice> ProposeExchanges(IPlayerVisibleState state);
     }
 }

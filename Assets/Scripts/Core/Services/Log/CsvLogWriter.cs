@@ -15,7 +15,7 @@ namespace Psycko.Core.Services.Log
     /// Colonnes : A-B = bilan ; puis 4 colonnes par partie
     /// (Action | Pile avant | Effets | Détail).
     /// </summary>
-    internal static class CsvLogWriter
+    public static class CsvLogWriter
     {
         /// <summary>Colonnes Excel max (16 384) - 2 de bilan = 16 382 ; / 4 = 4 095 ; plafond retenu 4 000.</summary>
         public const int MaxGamesPerFile = 4000;

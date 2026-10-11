@@ -175,7 +175,7 @@ Types immuables dans `Domain/Log` : `GameLog`, `GameLogEntry`, `ActionKind`, `Ef
 
 Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec un commit par étape.
 
-**1. Corrections de `GameLogEffectDetector`** ✅ TERMINÉ *(compilation verte, à valider par tests de régression avant merge)*
+**1. Corrections de `GameLogEffectDetector`** ✅
 
 - **Doublon** : détecté sur la Pile entière (`PairDetection.IsPairDetected(stateAfterPlacement)`), donc aussi quand la carte jouée complète un Doublon avec la carte précédente de la Pile (deux coups successifs). Il n'est loggé que si le saut est réellement appliqué (paramètre `skipApplied`), donc jamais à 2 joueurs actifs, ni sur un coup Joker.
 - **Ordre des effets** : Carré / Doublon d'abord (exclusifs, le Carré prime), puis l'effet propre de la carte. Une ligne peut cumuler plusieurs effets (` + `).
@@ -192,7 +192,7 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
   - Un Doublon à 3+ joueurs actifs saute le suivant ; à 2 joueurs actifs, aucun saut ni log de Doublon.
   - Un Doublon sur deux coups successifs est loggé.
 
-**2. Export CSV (CsvLogWriter) ✅ ÉCRIT** *(compilation à confirmer, validation par simulation console)*
+**2. Export CSV (CsvLogWriter) ✅
 
 - Un GameLog est sérialisé en CSV, **4 colonnes par partie** : Action | Pile avant | Effets | Détail.
 - **2 colonnes de bilan en tête** : A = agrégats du fichier (parties, OK, erreurs, coups moyenne/médiane/min/max) ; B = une ligne par partie (seed, coups, plays, classement, ramassages, [ERREUR]).
@@ -207,6 +207,7 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
 
 **3. Modes de log** ⏳ À FAIRE : `LogMode` = `Off` / `All` / `ExceptionalOnly`.
 
+- Nullable désactivé dans PsyckoConsole.csproj, pour rester cohérent avec Unity (pas d'annotations ? dans Core)
 - `Off` : aucun recorder n'est créé (coût nul).
 - `ExceptionalOnly` : seules les parties exceptionnelles sont exportées.
 

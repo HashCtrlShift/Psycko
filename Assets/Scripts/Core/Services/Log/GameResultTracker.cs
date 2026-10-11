@@ -27,6 +27,9 @@ namespace Psycko.Core.Services.Log
         private readonly List<int> _ranking = new List<int>();
         private int _totalMoves;
         private int _totalPlays;
+        
+        /// <summary>Nombre total de coups (Plays + ramassages + Dons) enregistrés jusqu'ici.</summary>
+        public int TotalMovesSoFar => _totalMoves;
 
         public GameResultTracker(int seed, int playerCount)
         {

@@ -30,16 +30,21 @@ Psycko/
 │   ├── Scripts/
 │   │   ├── Bots/                          (C# pur, dépend Core — noEngineReferences: true)
 │   │   │   ├── Psycko.Bots.asmdef
-│   │   │   ├── IPlayerAgent.cs       Contrat de décision d'un agent joueur.
 │   │   │   └── RandomBot.cs          Agent qui sélectionne aléatoirement un option parmi celles possibles.
 │   │   │ 
 │   │   ├── Core/                          (C# pur, zéro dépendance Unity — noEngineReferences: true)
 │   │   │   ├── Psycko.Core.asmdef
 │   │   │   ├── Domain/
+│   │   │   │   ├── Exchange/ 
+│   │   │   │   │    ├── ExchangeChoice.cs            Un échange pré-partie : 1 carte de la Main contre 1 carte FaceUp du même joueur
+│   │   │   │   │    ├── ExchangeRejectionReason.cs   Enum d'erreurs liées à l'échange
+│   │   │   │   │    ├── PreGameExchange.cs           Résultat d'une opération d'échange : nouvel état, ou rejet motivé
+│   │   │   │   │    └── PreGameExchangeState.cs      État immuable de la phase d'échange pré-partie
+│   │   │   │   │   
 │   │   │   │   ├── Log/
 │   │   │   │   │    ├── ActionKind.cs              Types d'actions enregistrables dans le log d'une partie
 │   │   │   │   │    ├── EffectKind.cs              Effet enregistré dans la colonne "Effets" du GameLog
-│   │   │   │   │    ├── EffectLodDetail.cs         Détail immuable d'un effet enregistré dans une entrée de log
+│   │   │   │   │    ├── EffectLogDetail.cs         Détail immuable d'un effet enregistré dans une entrée de log
 │   │   │   │   │    ├── ExceptionalGameCriteria.cs Seuils qui rendent une partie "exceptionnelle"
 │   │   │   │   │    ├── ExceptionalGameDetector.cs Isole les parties "exceptionnelles"
 │   │   │   │   │    ├── GameLog.cs                 Log complet et immuable d'une partie
@@ -57,9 +62,11 @@ Psycko/
 │   │   │   │   ├── FirstPlayerResolver.cs        Désigne le premier joueur
 │   │   │   │   ├── GameState.cs                  Définit l'État d'une partie à un instant donné
 │   │   │   │   ├── GiftResolutionChoice.cs       Définit la Carte Donnée et le Joueur Choisi
+│   │   │   │   ├── OpponentVisibleInfo.cs        Vue immuable et filtrée d'un adversaire
 │   │   │   │   ├── Pile.cs                       Définit la Pile
 │   │   │   │   ├── Play.cs                       Définit un "Coup" joué
 │   │   │   │   ├── Player.cs                     Définit un Joueur
+│   │   │   │   ├── PlayerVisibleState.cs         Vue immuable de l'état de la partie pour UN joueur
 │   │   │   │   └── PlayRejectionReason.cs        Définit le Rejet d'un Play
 │   │   │   │ 
 │   │   │   ├── Interfaces/ 
@@ -69,6 +76,7 @@ Psycko/
 │   │   │   │   ├── IGameState.cs                 Interface composite
 │   │   │   │   ├── IGameStateCommand.cs          Contrat de transition
 │   │   │   │   ├── IGameStateQuery.cs            Lecture seule de l'état d'une partie
+│   │   │   │   ├── IPlayerAgent.cs               Contrat de décision d'un agent joueur.
 │   │   │   │   └── IPlayerVisibleState.cs        Vue Filtrée pour les joueurs.
 │   │   │   │ 
 │   │   │   ├── Rules/
@@ -113,7 +121,9 @@ Psycko/
 │   │   │       │   ├── GameLogEffectDetector.cs      Traduit le résultat d'un coup en liste d'effets pour le log.
 │   │   │       │   ├── GameLogRecorder.cs            Enregistre chaque action/coup avec horodatage/tour
 │   │   │       │   ├── GameResultTracker.cs          Collecte les compteurs d'une partie (coups, plays, ramassages)
+│   │   │       │   ├── ListGameLogRecorder.cs        >Recorder en mémoire : une instance par partie
 │   │   │       │   └── SimulationStats.cs            Agrège les GameResult (moyenne, médiane, écart-type, équité par siège)
+│   │   │       │
 │   │   │       ├── Turn/
 │   │   │       │   ├── PickupResolution.cs               Résultat immutable de BeginTurn/ResolvePickup
 │   │   │       │   ├── Step1_PlaceCardsResolver.cs       Étape 1 — Pose des cartes sur la pile
@@ -126,8 +136,10 @@ Psycko/
 │   │   │       │   └── TurnResult.cs                     Résultat immutable porté entre les Steps (état + intentions)
 │   │   │       │
 │   │   │       ├── BlindPlayResolutions.cs       Carte Révélée en Luck
+│   │   │       ├── CardDealer.cs                 Distribue un paquet mélangé 
 │   │   │       ├── GameOrchestrator.cs           Définit le déroulement d'une partie    
 │   │   │       ├── GameResultCalculator.cs       Définit la Fin d'un partie.       
+│   │   │       ├── GameRunner.cs                 Joue une partie complète
 │   │   │       ├── GameSeed.cs                   Génération + stockage de la seed RNG d'une partie
 │   │   │       └── PlayResult.cs                 Définit un appel à GameOrchestrator      
 │   │   │
@@ -154,6 +166,8 @@ Psycko/
 │       └── EditMode/                      (NUnit EditMode, miroir de la structure Core, 1 fichier de test par fichier de règle)
 └── Tools/
     ├── PsyckoConsole/                     (app console dotnet, simulation de parties + parties humain contre bots)
+    │    ├── ConsoleHumanAgent.cs           Console pour le jeu "Humain"
+    │    ├── Program.cs                     Programme de Tests
     │    └── PsyckoConsole.csproj           (Compile Include relatif vers Assets/Scripts/Core et Assets/Scripts/Bots)
     │ 
     └── Tools/PsyckoConsole/

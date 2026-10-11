@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using Psycko.Core.Domain;
 using Psycko.Core.Interfaces;
+using Psycko.Core.Domain.Exchange;
 
 namespace Psycko.Bots
 {
@@ -236,12 +237,34 @@ namespace Psycko.Bots
                 return null;
             }
 
-            int selectedIndex = random.Next(playableCards.Count);
+                        int selectedIndex = random.Next(playableCards.Count);
+            Card chosen = playableCards[selectedIndex];
 
-            return Play.CreateSingle(
-                state.SelfPlayerId,
-                playableCards[selectedIndex],
-                sourceLayer);
+            var group = new List<Card> { chosen };
+
+            if (!chosen.IsJoker)
+            {
+                // Autres cartes de même hauteur dans la couche, tirées une à une avec une chance sur deux.
+                for (int i = 0; i < cards.Count && group.Count < 4; i++)
+                {
+                    Card other = cards[i];
+                    if (ReferenceEquals(other, chosen) || other.Equals(chosen)) continue;
+                    if (!other.IsJoker && other.Rank == chosen.Rank && random.Next(2) == 0)
+                        group.Add(other);
+                }
+            }
+
+            return Play.Create(state.SelfPlayerId, group, sourceLayer);
+        }
+                /// <summary>RandomBot v1 n'échange jamais : base de référence neutre pour les simulations.</summary>
+        public IReadOnlyList<ExchangeChoice> ProposeExchanges(IPlayerVisibleState state)
+        {
+            if (state == null)
+            {
+                throw new ArgumentNullException(nameof(state));
+            }
+
+            return Array.Empty<ExchangeChoice>();
         }
     }
 }
