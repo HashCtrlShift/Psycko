@@ -147,7 +147,7 @@ namespace Psycko.Core.Services
             var view = PlayerVisibleState.From(state, player.Id);
 
             // Phase Luck : pose à l'aveugle (la carte est choisie par position)
-            if (player.CurrentPhase == DefPhase.Luck)
+            if (player.CurrentPhase == DefPhase.Luck && player.Hand.Count == 0)
             {
                 var blind = agent.ProposeFaceDownPlay(view);
                 int faceDownIndex = 0;

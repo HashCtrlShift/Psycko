@@ -30,7 +30,11 @@ namespace Psycko.Core.Services.Turn
             if (state == null) throw new System.ArgumentNullException(nameof(state));
 
             var player = state.GetActivePlayer();
-            if (player.CurrentPhase != DefPhase.Work && player.CurrentPhase != DefPhase.Talent)
+            if (player.CurrentPhase == DefPhase.Finished)
+                return PickupResolution.NoPickup(state);
+
+            // Luck avec main vide : tour aveugle, ramassage géré par ApplyBlindPlay.
+            if (player.CurrentPhase == DefPhase.Luck && player.Hand.Count == 0)
                 return PickupResolution.NoPickup(state);
 
             var forced = !PlayabilityChecker.HasAnyPlayableCard(player, state);
@@ -38,7 +42,6 @@ namespace Psycko.Core.Services.Turn
                 ? PickupResolution.Accepted(state, isForced: true)
                 : PickupResolution.NoPickup(state);
         }
-
         public static PickupResolution ResolvePickup(GameState state, int playerId)
         {
             if (state == null) throw new System.ArgumentNullException(nameof(state));
