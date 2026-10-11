@@ -1,3 +1,4 @@
+using System;
 using Psycko.Core.Domain;
 using Psycko.Core.Rules.Validation;
 
@@ -86,9 +87,29 @@ namespace Psycko.Core.Services.Turn
             // Unique mutation de TurnManager, placée ici car Step3 (IsGiftTriggered),
             // Step4 (cardsRemovedFromHand = 0) et Step5 (Pile.Cards) exigent le coup posé.
             var placed = (GameState)reconstruction.State.PlayCards(play);
-            result = reconstruction.WithState(placed);
 
-            var step3 = Step3_CardEffectsResolver.Resolve(placed, play);
+            // Reconstruction appliquée AVANT Step3 : le Don lit la main réelle (CLAUDE.md :
+            // pose → reconstruction → Don → re-pioche → Doublon/Carré).
+            var seat = placed.ActivePlayerIndex;
+            var rebuilt = placed;
+
+            if (reconstruction.DrawCount > 0)
+                rebuilt = (GameState)rebuilt.DrawCards(
+                    seat, Math.Min(reconstruction.DrawCount, rebuilt.DrawPile.Count));
+
+            if (reconstruction.TriggersPhaseTransition)
+            {
+                if (reconstruction.TriggersFaceUpPickup)
+                    rebuilt = (GameState)rebuilt.PickUpFaceUp(seat);
+                rebuilt = (GameState)rebuilt.AdvancePlayerPhase(seat);
+            }
+
+            // Les intentions Step2 sont consommées : elles ne seront pas rejouées.
+            result = reconstruction
+                .WithState(rebuilt)
+                .WithStep2IntentsConsumed();
+
+            var step3 = Step3_CardEffectsResolver.Resolve(rebuilt, play);
             if (!step3.NextConstraint.HasValue
                 || !step3.NextRefRank.HasValue
                 || !step3.NextDirection.HasValue)
@@ -133,12 +154,20 @@ namespace Psycko.Core.Services.Turn
         /// </summary>
         public static TurnResult ResolveRemainder(TurnResult previous, Play play)
         {
-            var result = previous;
-
-            var step4 = Step4_FinalDrawResolver.Resolve(result, play);
-            result = result
+            // Chemin sans Don : Step4 ne fait rien (la reconstruction est déjà appliquée
+            // avant Step3), mais on garde l'appel pour la cohérence du contrat.
+            var step4 = Step4_FinalDrawResolver.Resolve(previous, play);
+            var result = previous
                 .WithState(step4.State)
                 .WithFinalReconstruction(step4.FinalReconstruction ?? HandReconstructionResult.None);
+
+            return ResolveFromStep5(result, play);
+        }
+
+        /// <summary>Step5 → Step6. Utilisé directement par ResolveGiftAndContinue après Step4 exécuté.</summary>
+        public static TurnResult ResolveFromStep5(TurnResult previous, Play play)
+        {
+            var result = previous;
 
             var step5 = Step5_PileEffectsResolver.Resolve(result.State, play, result);
             result = step5

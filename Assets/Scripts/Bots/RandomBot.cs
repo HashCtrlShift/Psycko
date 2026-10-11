@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Psycko.Core.Domain;
 using Psycko.Core.Interfaces;
@@ -174,37 +175,27 @@ namespace Psycko.Bots
         /// Levée si le joueur n'a aucune carte en main ou si aucun adversaire
         /// n'est disponible.
         /// </exception>
-        public GiftResolutionChoice ResolveGift(
-            IPlayerVisibleState state)
+        public GiftResolutionChoice ResolveGift(IPlayerVisibleState state)
         {
-            if (state == null)
-            {
-                throw new ArgumentNullException(nameof(state));
-            }
+            if (state == null) throw new ArgumentNullException(nameof(state));
 
             if (state.SelfHand.Count == 0)
-            {
                 throw new InvalidOperationException(
                     "Impossible de résoudre le Don : la main du joueur est vide.");
-            }
 
-            if (state.Opponents.Count == 0)
-            {
+            var candidates = state.Opponents
+                .Where(o => o.CurrentPhase != DefPhase.Finished)
+                .ToList();
+
+            if (candidates.Count == 0)
                 throw new InvalidOperationException(
-                    "Impossible de résoudre le Don : aucun adversaire disponible.");
-            }
+                    "Impossible de résoudre le Don : aucun adversaire actif disponible.");
 
-            int cardIndex = random.Next(state.SelfHand.Count);
-            Card cardToGive = state.SelfHand[cardIndex];
+            Card cardToGive = state.SelfHand[random.Next(state.SelfHand.Count)];
+            IOpponentVisibleInfo recipient = candidates[random.Next(candidates.Count)];
 
-            int opponentIndex = random.Next(state.Opponents.Count);
-            IOpponentVisibleInfo recipient = state.Opponents[opponentIndex];
-
-            return new GiftResolutionChoice(
-                cardToGive,
-                recipient.PlayerId);
+            return new GiftResolutionChoice(cardToGive, recipient.PlayerId);
         }
-
         /// <summary>
         /// Sélectionne uniformément une carte jouable dans une couche donnée.
         /// </summary>

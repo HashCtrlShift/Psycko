@@ -177,6 +177,14 @@ namespace Psycko.Core.Services.Turn
         public TurnResult WithFinalReconstruction(HandReconstructionResult r)
             => Copy(finalReconstruction: r);
 
+        /// <summary>
+        /// Marque les intentions de reconstruction Step2 comme déjà exécutées
+        /// (appliquées par TurnManager.ApplyPlay avant Step3). Évite toute rejouée
+        /// par GameOrchestrator.ApplyTurnIntents.
+        /// </summary>
+        public TurnResult WithStep2IntentsConsumed()
+            => Copy(drawCount: 0, faceUp: false, phaseTr: false, clearTarget: true);
+
         // --- Effets (Step3) ---
 
         public TurnResult WithNextConstraint(

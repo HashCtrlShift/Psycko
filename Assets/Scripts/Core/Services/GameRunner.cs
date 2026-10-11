@@ -142,57 +142,129 @@ namespace Psycko.Core.Services
             GameResultTracker tracker)
         {
             int seat = state.ActivePlayerIndex;
-            var player = state.Players[seat];
-            var agent = agents[seat];
-            var view = PlayerVisibleState.From(state, player.Id);
+            int playerId = state.Players[seat].Id;
 
-            // Phase Luck : pose à l'aveugle (la carte est choisie par position)
-            if (player.CurrentPhase == DefPhase.Luck && player.Hand.Count == 0)
+            while (true)
             {
-                var blind = agent.ProposeFaceDownPlay(view);
-                int faceDownIndex = 0;
-                if (blind is not null)
+                // Recalculer l'état du joueur À CHAQUE ITÉRATION
+                var player = state.Players[seat];
+                var agent = agents[seat];
+                var view = PlayerVisibleState.From(state, player.Id);
+
+                // ─ Phase Luck avec main vide : proposer une carte FaceDown
+                if (player.CurrentPhase == DefPhase.Luck && player.Hand.Count == 0)
                 {
-                    int found = player.FaceDown.ToList().IndexOf(blind.Cards[0]);
-                    if (found >= 0) faceDownIndex = found;
+                    // Le joueur doit avoir au moins 1 FaceDown disponible
+                    if (player.FaceDown.Count == 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"Phase Luck mais FaceDown vide (joueur {player.Id})");
+                    }
+
+                    var blind = agent.ProposeFaceDownPlay(view);
+                    int faceDownIndex = 0;
+
+                    if (blind is not null)
+                    {
+                        int found = player.FaceDown.ToList().IndexOf(blind.Cards[0]);
+                        if (found >= 0) faceDownIndex = found;
+                    }
+
+                    // LOG
+                    System.Console.WriteLine(
+                        $"[LUCK] seat={seat}, player.Id={player.Id}, " +
+                        $"proposed index={faceDownIndex}, FaceDown.Count={player.FaceDown.Count}, " +
+                        $"blind card={blind?.Cards[0]?.Rank}/{blind?.Cards[0]?.Suit}");
+
+                    var resolution = orchestrator.ApplyBlindPlay(
+                        state, seat, faceDownIndex, recorder, tracker);
+
+                    if (!resolution.Result.Success)
+                    {
+                        // Carte FaceDown ne convient pas → ramassage forcé
+                        // La main s'est reconstituée, on continue la boucle
+                        state = Require(resolution.Result, "ApplyBlindPlay");
+                        continue;  // ← Retour à la boucle : main NON vide maintenant
+                    }
+
+                    // Succès : on termine ce tour
+                    return Require(resolution.Result, "ApplyBlindPlay");
                 }
 
-                var resolution = orchestrator.ApplyBlindPlay(
-                    state, seat, faceDownIndex, recorder, tracker);
-                return Require(resolution.Result, "ApplyBlindPlay");
+                // ─ Phase Luck avec main NON vide (après ramassage) : proposer coup normal
+                if (player.CurrentPhase == DefPhase.Luck && player.Hand.Count > 0)
+                {
+                    var proposed = agent.ProposeNormalPlay(view);
+
+                    if (proposed is null)
+                    {
+                        var pickup = GameOrchestrator.RequestPickup(state, player.Id, recorder, tracker);
+                        state = Require(pickup, "RequestPickup");
+                        continue;  // ← Retour à la boucle : vérifier main/phase à nouveau
+                    }
+
+                    var played = orchestrator.ApplyPlay(state, proposed, seat, recorder, tracker);
+
+                    if (!played.Success)
+                    {
+                        // Coup rejeté → ramassage volontaire
+                        var fallback = GameOrchestrator.RequestPickup(state, player.Id, recorder, tracker);
+                        state = Require(fallback, "RequestPickup (fallback)");
+                        continue;  // ← Retour à la boucle
+                    }
+
+                    // Coup accepté → traiter le Don le cas échéant
+                    if (played.PendingGift.HasValue)
+                    {
+                        var pending = played.PendingGift.Value;
+                        var donor = pending.State.Players[pending.State.ActivePlayerIndex];
+                        var giftView = PlayerVisibleState.From(pending.State, donor.Id);
+                        var choice = agent.ResolveGift(giftView);
+
+                        var resolved = orchestrator.ResolveGiftAndContinue(
+                            state, proposed, pending, choice, recorder, tracker);
+                        state = Require(resolved, "ResolveGiftAndContinue");
+                        continue;  // ← Retour à la boucle : vérifier phase à nouveau
+                    }
+
+                    // Coup accepté, pas de Don → on termine ce tour
+                    return played.NewState;
+                }
+
+                // ─ Phases Work / Talent : proposer coup ou ramassage
+                var proposedNormal = agent.ProposeNormalPlay(view);
+
+                if (proposedNormal is null)
+                {
+                    var pickup = GameOrchestrator.RequestPickup(state, player.Id, recorder, tracker);
+                    return Require(pickup, "RequestPickup");
+                }
+
+                var playedNormal = orchestrator.ApplyPlay(state, proposedNormal, seat, recorder, tracker);
+
+                if (!playedNormal.Success)
+                {
+                    // Coup rejeté → ramassage volontaire
+                    var fallback = GameOrchestrator.RequestPickup(state, player.Id, recorder, tracker);
+                    return Require(fallback, "RequestPickup (fallback)");
+                }
+
+                // Coup accepté → traiter le Don le cas échéant
+                if (playedNormal.PendingGift.HasValue)
+                {
+                    var pending = playedNormal.PendingGift.Value;
+                    var donor = pending.State.Players[pending.State.ActivePlayerIndex];
+                    var giftView = PlayerVisibleState.From(pending.State, donor.Id);
+                    var choice = agent.ResolveGift(giftView);
+
+                    var resolved = orchestrator.ResolveGiftAndContinue(
+                        state, proposedNormal, pending, choice, recorder, tracker);
+                    return Require(resolved, "ResolveGiftAndContinue");
+                }
+
+                // Coup accepté, pas de Don → on termine ce tour
+                return playedNormal.NewState;
             }
-
-            // Phases Work/Talent : ramassage forcé ou choix de l'agent
-            var proposed = agent.ProposeNormalPlay(view);
-
-            if (proposed is null)
-            {
-                var pickup = GameOrchestrator.RequestPickup(state, player.Id, recorder, tracker);
-                return Require(pickup, "RequestPickup");
-            }
-
-            var played = orchestrator.ApplyPlay(state, proposed, seat, recorder, tracker);
-
-            if (!played.Success)
-            {
-                // Intention rejetée par Core : fallback = ramassage volontaire.
-                var fallback = GameOrchestrator.RequestPickup(state, player.Id, recorder, tracker);
-                return Require(fallback, "RequestPickup (fallback)");
-            }
-
-            // Don du 7 en attente
-            if (played.PendingGift.HasValue)
-            {
-                var pending = played.PendingGift.Value;
-                var giftView = PlayerVisibleState.From(pending.State, player.Id);
-                var choice = agent.ResolveGift(giftView);
-
-                var resolved = orchestrator.ResolveGiftAndContinue(
-                    state, proposed, pending, choice, recorder, tracker);
-                return Require(resolved, "ResolveGiftAndContinue");
-            }
-
-            return played.NewState;
         }
 
         private static GameState Require(PlayResult result, string operation)

@@ -3,8 +3,9 @@ using System.Linq;
 using System.Collections.Generic;
 using Psycko.Core.Domain;
 using Psycko.Core.Domain.Log;
-using Psycko.Core.Interfaces;
+using Psycko.Core.Rules.Validation;
 using Psycko.Core.Services.Turn;
+using Psycko.Core.Interfaces;
 using Psycko.Core.Services.Log;
 
 namespace Psycko.Core.Services
@@ -122,8 +123,10 @@ namespace Psycko.Core.Services
         }
 
         /// <summary>
-        /// Résout le Don obligatoire puis reprend exactement à Step4.
-        /// TransferCard est exécuté avant ResolveRemainder (correctif T18-bis).
+        /// Résout le Don obligatoire puis reprend la séquence :
+        /// Don (TransferCard) → Step4 (re-pioche finale, exécutée ici sur l'état réel après Don)
+        /// → Step5 (effets de pile) → Step6 (avancement de tour).
+        /// La reconstruction Step2 a déjà été appliquée en amont par TurnManager.ApplyPlay.
         /// </summary>
         public PlayResult ResolveGiftAndContinue(
             GameState state,
@@ -141,7 +144,10 @@ namespace Psycko.Core.Services
             var donor = pendingResult.State.Players[donorIndex];
 
             if (!donor.Hand.Contains(choice.CardToGive))
-                return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
+            throw new InvalidOperationException(
+                $"Garde1: carte {choice.CardToGive} absente de la main du donneur Id={donor.Id} " +
+                $"(main: {string.Join(", ", donor.Hand)}) ; pending.ActivePlayerIndex={pendingResult.State.ActivePlayerIndex} ; " +
+                $"state.ActivePlayerIndex={state.ActivePlayerIndex} ; play.PlayerId={play.PlayerId}");
 
             int recipientSeatIndex;
             try
@@ -150,17 +156,22 @@ namespace Psycko.Core.Services
             }
             catch (ArgumentException)
             {
-                return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
+               throw new InvalidOperationException(
+                  $"Garde2: destinataire Id={choice.RecipientPlayerId} introuvable");
             }
 
             if (recipientSeatIndex == donorIndex)
-                return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
+            throw new InvalidOperationException(
+                $"Garde3: destinataire == donneur (Id={choice.RecipientPlayerId})");
+
 
             var recipient = pendingResult.State.Players[recipientSeatIndex];
 
             if (recipient.CurrentPhase == DefPhase.Finished)
-                return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
+            throw new InvalidOperationException(
+                $"Garde4: destinataire {recipient.Id} en phase Finished");
 
+            // 1. Don exécuté
             var transferred = (GameState)((IGameStateCommand)pendingResult.State)
                 .TransferCard(donorIndex, recipientSeatIndex, choice.CardToGive);
 
@@ -171,8 +182,35 @@ namespace Psycko.Core.Services
                 PileSnapshot(transferred),
                 targetPlayerId: choice.RecipientPlayerId));
 
-            var remainder = TurnManager.ResolveRemainder(
+            // 2. Step4 : décision de re-pioche finale sur l'état RÉEL après Don,
+            //    puis exécution immédiate (le Core décide, l'orchestrateur exécute).
+            var step4 = Step4_FinalDrawResolver.Resolve(
                 pendingResult.WithState(transferred),
+                play);
+
+            var afterGift = step4.State;
+            var final = step4.FinalReconstruction ?? HandReconstructionResult.None;
+
+            if (final.DrawCount > 0)
+            {
+                afterGift = (GameState)afterGift.DrawCards(
+                    donorIndex,
+                    Math.Min(final.DrawCount, afterGift.DrawPile.Count));
+            }
+
+            if (final.TriggersPhaseTransition)
+            {
+                if (final.TriggersFaceUpPickup)
+                    afterGift = (GameState)afterGift.PickUpFaceUp(donorIndex);
+
+                afterGift = (GameState)afterGift.AdvancePlayerPhase(donorIndex);
+            }
+
+            // 3. Reprise à Step5 → Step6 (Step4 déjà consommé : pas de double exécution)
+            var remainder = TurnManager.ResolveFromStep5(
+                pendingResult
+                    .WithState(afterGift)
+                    .WithFinalReconstruction(HandReconstructionResult.None),
                 play);
 
             // État après Don, avant destruction : la Pile contient toujours le coup.
@@ -181,7 +219,7 @@ namespace Psycko.Core.Services
             var newState = ApplyTurnIntents(
                 remainder.State,
                 remainder,
-                pendingResult.State.ActivePlayerIndex);
+                donorIndex);
 
             // Suite du coup de 7 : seul le Carré (destruction) est loggé ici,
             // sur la ligne qui suit le Don. Le Doublon a déjà été loggé avant le Don.
@@ -239,8 +277,12 @@ namespace Psycko.Core.Services
                 throw new InvalidOperationException("InvalidCards: la main doit être vide en phase Luck.");
 
             if (faceDownIndex >= player.FaceDown.Count)
-                throw new ArgumentOutOfRangeException(nameof(faceDownIndex), "InvalidCards: index FaceDown invalide.");
-
+                throw new ArgumentOutOfRangeException(
+                    nameof(faceDownIndex),
+                    $"InvalidCards: index FaceDown invalide. index={faceDownIndex}, " +
+                    $"FaceDown.Count={player.FaceDown.Count}, playerIndex={playerIndex}, " +
+                    $"playerId={player.Id}, phase={player.CurrentPhase}");
+                    
             var card = player.FaceDown[faceDownIndex];
             var play = Play.CreateSingle(player.Id, card, CardLayer.FaceDown);
 
@@ -380,20 +422,9 @@ namespace Psycko.Core.Services
         {
             var newState = startState;
 
-            // Reconstruction effective : après un Don, Step4 est la seule décision valable
-            // (elle part de l'état réel après Don) ; sinon, la décision est celle de Step2.
-            bool giftPath = result.RequiresGiftResolution && result.FinalReconstruction.HasValue;
-
-            int drawCount = giftPath ? result.FinalReconstruction!.Value.DrawCount : result.DrawCount;
-            bool faceUpPickup = giftPath ? result.FinalReconstruction!.Value.TriggersFaceUpPickup : result.TriggersFaceUpPickup;
-            bool phaseTransition = giftPath ? result.FinalReconstruction!.Value.TriggersPhaseTransition : result.TriggersPhaseTransition;
-
-            if (drawCount > 0)
-            {
-                newState = (GameState)newState.DrawCards(
-                    activeSeatIndex,
-                    Math.Min(drawCount, newState.DrawPile.Count));
-            }
+            // La reconstruction (pioche, ramassage FaceUp, transition de phase) est déjà
+            // appliquée : en amont de Step3 par TurnManager.ApplyPlay, et après le Don
+            // par ResolveGiftAndContinue. Ne rien rejouer ici.
 
             if (result.DestroysPile)
             {
@@ -409,14 +440,6 @@ namespace Psycko.Core.Services
 
             if (result.NextDirection.HasValue)
                 newState = (GameState)newState.WithDirection(result.NextDirection.Value);
-
-            if (phaseTransition)
-            {
-                if (faceUpPickup)
-                    newState = (GameState)newState.PickUpFaceUp(activeSeatIndex);
-
-                newState = (GameState)newState.AdvancePlayerPhase(activeSeatIndex);
-            }
 
             return ExecuteActivePlayerIntent(newState, result);
         }
