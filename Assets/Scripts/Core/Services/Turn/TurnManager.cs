@@ -178,6 +178,7 @@ namespace Psycko.Core.Services.Turn
             var advance = Step6_AdvanceTurnResolver.Resolve(result.State, result.SkipNext, result.Replay);
             return result
                 .WithState(advance.State)
+                .WithNextActivePlayerIndex(advance.NextActivePlayerIndex)
                 .WithSkipNext(advance.SkipNext)
                 .WithReplay(advance.Replay);
         }
