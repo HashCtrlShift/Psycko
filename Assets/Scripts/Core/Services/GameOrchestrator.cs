@@ -19,6 +19,8 @@ namespace Psycko.Core.Services
     /// et AVANT destruction de la Pile (Carré / Doublon relus sur Pile.Cards / Plays).
     /// Pile détruite (2, Bombe, Carré) : la contrainte est réinitialisée à
     /// (Normal, Three) — pile vide = aucune contrainte.
+    /// Fin de joueur : Hand = 0 ET FaceDown = 0 (FaceUp déjà ramassé) → Finished,
+    /// vérifiée à la sortie de chaque chemin qui retire des cartes (FinishIfEmpty).
     /// </summary>
     public sealed class GameOrchestrator
     {
@@ -71,6 +73,13 @@ namespace Psycko.Core.Services
                     tracker);
             }
 
+            // Validation défensive (Bug L) : un coup injouable ne doit jamais être appliqué.
+            // Le joueur a au moins une carte jouable (sinon ramassage forcé ci-dessus) ;
+            // il doit donc proposer un coup légal.
+            if (play.Cards.Count == 0
+                || !play.Cards.All(c => CardPlayability.IsPlayable(c, state)))
+                return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
+
             var turnResult = TurnManager.ApplyPlay(state, play);
 
             // ⭐ GARDE CRITIQUE T24bis : 2 terminal → ramassage forcé, pas destruction/rejeu
@@ -102,8 +111,9 @@ namespace Psycko.Core.Services
             // Don du 7 : le tour est suspendu après Step3. Aucune mutation n'est appliquée ici
             // (ni pioche, ni destruction, ni changement de joueur) : tout est rejoué par
             // ResolveGiftAndContinue via ResolveRemainder. Le coup est loggé tout de suite,
-            // avec la pile telle qu'elle est à ce stade (une destruction éventuelle viendra après le Don).
-            // Le Doublon n'est loggé qu'ici (une seule fois) ; le Carré est loggé après le Don.
+            // avec la pile telle qu'elle est à ce stade.
+            // Le Doublon est loggé ici (une seule fois). La destruction (Carré) n'est PAS
+            // loggée ici : elle l'est après le Don, sur l'entrée post-Don (Bug 5 : doublon de log).
             if (turnResult.RequiresGiftResolution)
             {
                 recorder?.Record(GameLogEntry.PlayerAction(
@@ -114,7 +124,7 @@ namespace Psycko.Core.Services
                     effects: GameLogEffectDetector.Detect(
                         play,
                         turnResult.State,
-                        turnResult.DestroysPile,
+                        false,
                         turnResult.NextDirection,
                         skipApplied: HasMoreThanTwoActivePlayers(turnResult.State))));
 
@@ -130,6 +140,8 @@ namespace Psycko.Core.Services
                 turnResult.State,
                 turnResult,
                 state.ActivePlayerIndex);
+
+            newState = FinishIfEmpty(newState, playerIndex);
 
             recorder?.Record(GameLogEntry.PlayerAction(
                 play.PlayerId,
@@ -170,10 +182,10 @@ namespace Psycko.Core.Services
             var donor = pendingResult.State.Players[donorIndex];
 
             if (!donor.Hand.Contains(choice.CardToGive))
-            throw new InvalidOperationException(
-                $"Garde1: carte {choice.CardToGive} absente de la main du donneur Id={donor.Id} " +
-                $"(main: {string.Join(", ", donor.Hand)}) ; pending.ActivePlayerIndex={pendingResult.State.ActivePlayerIndex} ; " +
-                $"state.ActivePlayerIndex={state.ActivePlayerIndex} ; play.PlayerId={play.PlayerId}");
+                throw new InvalidOperationException(
+                    $"Garde1: carte {choice.CardToGive} absente de la main du donneur Id={donor.Id} " +
+                    $"(main: {string.Join(", ", donor.Hand)}) ; pending.ActivePlayerIndex={pendingResult.State.ActivePlayerIndex} ; " +
+                    $"state.ActivePlayerIndex={state.ActivePlayerIndex} ; play.PlayerId={play.PlayerId}");
 
             int recipientSeatIndex;
             try
@@ -182,20 +194,19 @@ namespace Psycko.Core.Services
             }
             catch (ArgumentException)
             {
-               throw new InvalidOperationException(
-                  $"Garde2: destinataire Id={choice.RecipientPlayerId} introuvable");
+                throw new InvalidOperationException(
+                    $"Garde2: destinataire Id={choice.RecipientPlayerId} introuvable");
             }
 
             if (recipientSeatIndex == donorIndex)
-            throw new InvalidOperationException(
-                $"Garde3: destinataire == donneur (Id={choice.RecipientPlayerId})");
-
+                throw new InvalidOperationException(
+                    $"Garde3: destinataire == donneur (Id={choice.RecipientPlayerId})");
 
             var recipient = pendingResult.State.Players[recipientSeatIndex];
 
             if (recipient.CurrentPhase == DefPhase.Finished)
-            throw new InvalidOperationException(
-                $"Garde4: destinataire {recipient.Id} en phase Finished");
+                throw new InvalidOperationException(
+                    $"Garde4: destinataire {recipient.Id} en phase Finished");
 
             // 1. Don exécuté
             var transferred = (GameState)((IGameStateCommand)pendingResult.State)
@@ -232,6 +243,9 @@ namespace Psycko.Core.Services
                 afterGift = (GameState)afterGift.AdvancePlayerPhase(donorIndex);
             }
 
+            // Le donneur peut finir sur son Don (main vide, plus de FaceDown) : avant Step6.
+            afterGift = FinishIfEmpty(afterGift, donorIndex);
+
             // 3. Reprise à Step5 → Step6 (Step4 déjà consommé : pas de double exécution)
             var remainder = TurnManager.ResolveFromStep5(
                 pendingResult
@@ -247,8 +261,10 @@ namespace Psycko.Core.Services
                 remainder,
                 donorIndex);
 
-            // Suite du coup de 7 : seul le Carré (destruction) est loggé ici,
-            // sur la ligne qui suit le Don. Le Doublon a déjà été loggé avant le Don.
+            newState = FinishIfEmpty(newState, donorIndex);
+
+            // Suite du coup de 7 : seule la destruction (Carré) est loggée ici,
+            // sur la ligne qui suit le Don, avec les cartes du coup (Bug 5 : plus de ligne vide).
             var postGiftEffects = GameLogEffectDetector.Detect(
                 play,
                 stateBeforeDestruction,
@@ -261,7 +277,7 @@ namespace Psycko.Core.Services
                 recorder?.Record(GameLogEntry.PlayerAction(
                     play.PlayerId,
                     ActionKind.Play,
-                    new List<Card>(),
+                    play.Cards,
                     PileSnapshot(newState),
                     effects: postGiftEffects));
             }
@@ -312,8 +328,7 @@ namespace Psycko.Core.Services
             var card = player.FaceDown[faceDownIndex];
             var play = Play.CreateSingle(player.Id, card, CardLayer.FaceDown);
 
-            var playable =
-                Psycko.Core.Rules.Validation.CardPlayability.IsPlayable(card, state);
+            var playable = CardPlayability.IsPlayable(card, state);
 
             var terminatesOnTwo =
                 play.EffectiveRank == DefRank.Two
@@ -376,12 +391,8 @@ namespace Psycko.Core.Services
                 next = (GameState)next.WithDirection(effects.NextDirection.Value);
             }
 
-            var updatedPlayer = next.Players[playerIndex];
-
-            if (!updatedPlayer.HasCards)
-            {
-                next = (GameState)next.AdvancePlayerPhase(playerIndex);
-            }
+            // Fin de joueur AVANT Step6 : le siège suivant est calculé sans lui.
+            next = FinishIfEmpty(next, playerIndex);
 
             var advanceValid = Step6_AdvanceTurnResolver.Resolve(
                 next,
@@ -414,7 +425,7 @@ namespace Psycko.Core.Services
             GameState state,
             int playerId,
             IGameLogRecorder recorder = null,
-             GameResultTracker tracker = null)
+            GameResultTracker tracker = null)
         {
             var pickup = TurnManager.ResolvePickup(state, playerId);
             if (!pickup.IsAccepted)
@@ -439,8 +450,9 @@ namespace Psycko.Core.Services
 
         /// <summary>
         /// Exécute, dans l'ordre strict, les intentions portées par un TurnResult :
-        /// pioche Step2 → destruction de Pile (+ contrainte neutre) → contrainte →
-        /// direction → pioche finale Step4 → transition de phase → joueur actif Step6.
+        /// destruction de Pile (+ contrainte neutre) → contrainte → direction →
+        /// joueur actif Step6.
+        /// La reconstruction (Step2/Step4) est déjà appliquée en amont.
         /// Factorisée : partagée par ApplyPlay et ResolveGiftAndContinue.
         /// </summary>
         private static GameState ApplyTurnIntents(
@@ -449,10 +461,6 @@ namespace Psycko.Core.Services
             int activeSeatIndex)
         {
             var newState = startState;
-
-            // La reconstruction (pioche, ramassage FaceUp, transition de phase) est déjà
-            // appliquée : en amont de Step3 par TurnManager.ApplyPlay, et après le Don
-            // par ResolveGiftAndContinue. Ne rien rejouer ici.
 
             if (result.DestroysPile)
             {
@@ -484,8 +492,27 @@ namespace Psycko.Core.Services
         }
 
         /// <summary>
+        /// Passe le joueur en Finished s'il n'a plus aucune carte :
+        /// Hand = 0 ET FaceUp = 0 ET FaceDown = 0 (règle : FaceUp est ramassé en main
+        /// avant Talent, donc Hand = 0 et FaceDown = 0 suffit en pratique).
+        /// No-op si le joueur est déjà Finished ou possède encore des cartes.
+        /// </summary>
+        private static GameState FinishIfEmpty(GameState state, int seatIndex)
+        {
+            var p = state.Players[seatIndex];
+            if (p.CurrentPhase == DefPhase.Finished)
+                return state;
+
+            if (p.Hand.Count == 0 && p.FaceUp.Count == 0 && p.FaceDown.Count == 0)
+                return (GameState)state.AdvancePlayerPhase(seatIndex);
+
+            return state;
+        }
+
+        /// <summary>
         /// Séquence de ramassage T23 : PickUpPile → SetConstraint(Normal, Three)
-        /// → Step6 → intention SetActivePlayer. La direction n'est jamais modifiée.
+        /// → fin de joueur éventuelle → Step6 → intention SetActivePlayer.
+        /// La direction n'est jamais modifiée.
         /// </summary>
         private static PlayResult ExecutePickup(
             GameState state,
@@ -493,7 +520,7 @@ namespace Psycko.Core.Services
             IReadOnlyList<int> forcedPickupPlayerIds,
             ActionKind logKind,
             IGameLogRecorder recorder,
-             GameResultTracker tracker = null)
+            GameResultTracker tracker = null)
         {
             var pickedCards = PileSnapshot(state);
 
@@ -505,6 +532,10 @@ namespace Psycko.Core.Services
             afterPickup = (GameState)afterPickup.SetConstraint(
                 HeightConstraint.Normal,
                 DefRank.Three);
+
+            // Garde : un joueur sans aucune carte ne reste jamais dans une phase active
+            // (cas d'une Pile vide ramassée en dernière FaceDown).
+            afterPickup = FinishIfEmpty(afterPickup, seatIndex);
 
             var advance = Step6_AdvanceTurnResolver.Resolve(
                 afterPickup,
@@ -538,6 +569,7 @@ namespace Psycko.Core.Services
 
             return PlayResult.Accepted(newState, isGameOver);
         }
+
         /// <summary>
         /// Miroir du test de Step5 (Doublon désactivé à 2 joueurs actifs ou moins).
         /// Utilisé uniquement par le log, avant que Step5 ait tourné (branche Don).
