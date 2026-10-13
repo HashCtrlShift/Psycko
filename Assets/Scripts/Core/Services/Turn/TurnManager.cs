@@ -174,8 +174,11 @@ namespace Psycko.Core.Services.Turn
                 .WithState(step5.State)
                 .WithSkipNext(result.SkipNext || step5.SkipNext)
                 .WithReplay(result.Replay || step5.Replay);
+            var stateForAdvance = result.State;
+            if (result.NextDirection.HasValue)
+                stateForAdvance = (GameState)stateForAdvance.WithDirection(result.NextDirection.Value);
 
-            var advance = Step6_AdvanceTurnResolver.Resolve(result.State, result.SkipNext, result.Replay);
+            var advance = Step6_AdvanceTurnResolver.Resolve(stateForAdvance, result.SkipNext, result.Replay);
             return result
                 .WithState(advance.State)
                 .WithNextActivePlayerIndex(advance.NextActivePlayerIndex)
