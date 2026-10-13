@@ -18,11 +18,12 @@ namespace Psycko.Core.Services.Turn
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
 
-            // Un rejeu conserve strictement l'index courant : aucune intention
-            // d'appel à SetActivePlayer n'est produite.
+            // Un rejeu conserve strictement l'index courant : l'intention retourne
+            // l'index actuel (PAS null) pour que GameOrchestrator exécute SetActivePlayer
+            // avec la même valeur, ce qui est un no-op mais garantit la cohérence.
             if (replay)
                 return new TurnResult(state, skipNext: false, replay: false)
-                    .WithNextActivePlayerIndex(null);
+                    .WithNextActivePlayerIndex(state.ActivePlayerIndex);
 
             var activeCount = 0;
             for (var i = 0; i < state.Players.Count; i++)
@@ -62,5 +63,6 @@ namespace Psycko.Core.Services.Turn
                 ? (current + 1) % count
                 : (current - 1 + count) % count;
         }
+        
     }
 }

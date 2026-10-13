@@ -24,6 +24,7 @@ namespace Psycko.Core.Services.Turn
             PlayDirection direction = state.Direction;
             bool destroysPile = false;
             bool grantsReplay = false;
+            bool requiresGift = false;
 
             switch (play.EffectiveRank)
             {
@@ -32,6 +33,7 @@ namespace Psycko.Core.Services.Turn
                     direction = SevenHandler.ResolveDirection(state);
                     destroysPile = SevenHandler.DestroysPile;
                     grantsReplay = SevenHandler.GrantsReplay;
+                    requiresGift = SevenHandler.IsGiftTriggered(state, play);
                     break;
                 case DefRank.Two:
                     constraint = TwoHandler.ResolveConstraint(state);
@@ -54,8 +56,6 @@ namespace Psycko.Core.Services.Turn
                 default:
                     break; // rang non spécial : intentions neutres (état courant conservé)
             }
-
-            bool requiresGift = SevenHandler.IsGiftTriggered(state, play);
 
             return new TurnResult(state, skipNext: false, replay: false)
                 .WithNextConstraint(constraint.Item1, constraint.Item2)

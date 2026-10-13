@@ -398,7 +398,7 @@ moteur) ou de la Présentation (choix humain).
 #### Phase 3 spécifiquement
 - Le joueur ne peut pas terminer sur le 2, **que ce soit** :
   - Sa dernière carte retournée (main vide, cartes cachées épuisées), ou
-  - Sa derndernière carte en main (cartes cachées vides).
+  - Sa dernière carte en main (cartes cachées vides).
 
   ---
 

@@ -38,7 +38,7 @@ namespace Psycko.Core.Rules.Validation
             {
                 case DefPhase.Work:   return ResolveWork(state, handAfter);
                 case DefPhase.Talent: return ResolveTalent(player, handAfter);
-                case DefPhase.Luck:   return HandReconstructionResult.None;
+                case DefPhase.Luck:   return ResolveLuck(player, handAfter);
                 default:              return HandReconstructionResult.None; // Finished
             }
         }
@@ -73,6 +73,19 @@ namespace Psycko.Core.Rules.Validation
                 triggersFaceUpPickup: false,
                 triggersPhaseTransition: transition,
                 targetPhase: transition ? DefPhase.Luck : (DefPhase?)null);
+        }
+
+        /// <summary>
+        /// Phase 3 (Luck) : aucune pioche, jamais de ramassage FaceUp.
+        /// Note : on ne transite JAMAIS vers Finished ici. C'est GameResultCalculator
+        /// qui détecte la fin de partie après chaque tour. Un joueur en Luck avec
+        /// zéro cartes reste en Luck jusqu'à la détection centralisée de fin.
+        /// </summary>
+        private static HandReconstructionResult ResolveLuck(Player player, int handAfter)
+        {
+            // En Luck, il n'y a jamais de pioche ni de ramassage FaceUp.
+            // On retourne toujours None : le joueur reste en Luck.
+            return HandReconstructionResult.None;
         }
     }
 

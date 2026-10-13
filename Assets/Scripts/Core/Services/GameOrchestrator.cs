@@ -73,6 +73,32 @@ namespace Psycko.Core.Services
 
             var turnResult = TurnManager.ApplyPlay(state, play);
 
+            // ⭐ GARDE CRITIQUE T24bis : 2 terminal → ramassage forcé, pas destruction/rejeu
+            // CLAUDE.md § 2 Card : "Si c'est la dernière carte du joueur : le joueur pose son 2,
+            // ramasse la pile et passe son tour (y compris le 2 qui vient d'être posé).
+            // Pas de destruction, pas de rejeu."
+            //
+            // Cette garde s'applique AVANT la branche Don (Step3), donc:
+            // - On court-circuite Step3→Step4→Step5→Step6
+            // - On applique un ramassage forcé immédiat
+            // - Aucun rejet (le coup est valide, il est simplement "consommé" par le ramassage)
+            bool isLastCard = LastCardValidator.TerminatesOnTwo(play, state.Players[playerIndex], state);
+            if (isLastCard)
+            {
+                var forced = TurnManager.ResolvePickup(state, play.PlayerId);
+                if (!forced.IsAccepted)
+                    throw new InvalidOperationException(
+                        $"Bug: ramassage forcé (2 terminal) rejeté. Raison: {forced.RejectionReason}");
+
+                var placed = turnResult.State;   // pose + reconstruction déjà appliquées
+
+                recorder?.Record(GameLogEntry.PlayerAction(
+                    play.PlayerId, ActionKind.Play, play.Cards, PileSnapshot(placed)));
+
+                return ExecutePickup(placed, playerIndex, new List<int>(),
+                    ActionKind.PickupPile, recorder, tracker);
+            }
+
             // Don du 7 : le tour est suspendu après Step3. Aucune mutation n'est appliquée ici
             // (ni pioche, ni destruction, ni changement de joueur) : tout est rejoué par
             // ResolveGiftAndContinue via ResolveRemainder. Le coup est loggé tout de suite,
@@ -282,7 +308,7 @@ namespace Psycko.Core.Services
                     $"InvalidCards: index FaceDown invalide. index={faceDownIndex}, " +
                     $"FaceDown.Count={player.FaceDown.Count}, playerIndex={playerIndex}, " +
                     $"playerId={player.Id}, phase={player.CurrentPhase}");
-                    
+
             var card = player.FaceDown[faceDownIndex];
             var play = Play.CreateSingle(player.Id, card, CardLayer.FaceDown);
 
@@ -295,6 +321,8 @@ namespace Psycko.Core.Services
 
             var revealedState = (GameState)state.PlayCards(play);
 
+            // ⭐ 2 terminal OU carte non jouable → ramassage forcé
+            // CLAUDE.md § 2 Card : "Si c'est la dernière carte du joueur : ramasse la pile et passe son tour."
             if (!playable || terminatesOnTwo)
             {
                 // Entrée 1 : "[PlayerId] retourne [carte]" (sans effet).
@@ -336,7 +364,7 @@ namespace Psycko.Core.Services
                     DefRank.Three);
             }
             else if (effects.NextConstraint.HasValue
-                     && effects.NextRefRank.HasValue)
+                    && effects.NextRefRank.HasValue)
             {
                 next = (GameState)next.SetConstraint(
                     effects.NextConstraint.Value,

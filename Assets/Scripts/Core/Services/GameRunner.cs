@@ -173,10 +173,13 @@ namespace Psycko.Core.Services
             GameResultTracker tracker)
         {
             var player = state.Players[seat];
-
+            
             if (player.FaceDown.Count == 0)
-                throw new InvalidOperationException(
-                    $"Phase Luck mais FaceDown vide (joueur {player.Id}).");
+            throw new InvalidOperationException(
+                $"Phase Luck mais FaceDown vide (joueur {seat}). " +
+                $"Hand={player.Hand.Count}, FaceUp={player.FaceUp.Count}, FaceDown={player.FaceDown.Count}, " +
+                $"Pile={state.Pile.Count}, DrawPile={state.DrawPile.Count}, Actifs=" +
+                $"{state.Players.Count(p => p.CurrentPhase != DefPhase.Finished)}");
 
             // L'agent propose une carte ; on retrouve son index dans FaceDown.
             // Repli sur l'index 0 si l'agent ne propose rien ou si la carte est introuvable.
