@@ -171,9 +171,19 @@ Types immuables dans `Domain/Log` : `GameLog`, `GameLogEntry`, `ActionKind`, `Ef
   - Compilation verte.
 - **Piste de test NUnit futur** : test paramétré sur les 63 cartes (format attendu, unicité, correspondance bijective avec `DefRank` / `DefSuit` / `DefJokerType`).
 
-### T38d — Finalisation du logging : correctifs, export, cas exceptionnels, statistiques 🔄 EN COURS (étape 1/7 terminée)
+### T38d — Finalisation du logging : correctifs, export, cas exceptionnels, statistiques 🔄 EN COURS (étapes 1-2 terminées, correctifs de simulation faits, étapes 3-4 à valider)
 
 Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec un commit par étape.
+
+**0. Correctifs de stabilité de la simulation** ✅ *(réalisés dans une session dédiée, à documenter précisément)*
+
+Les premières simulations (`sim 1000 1 off`) échouaient sur 10 seeds sur 10. Deux bugs déterministes par seed ont été identifiés :
+
+- **Bug A : invariant FaceUp en phase Talent.** Message : `Invariant violé : FaceUp doit être vide en phase Talent`. Chemin : `TurnManager.ApplyPlay` → `Step2_HandReconstructionResolver.Resolve` → `HandReconstructionPolicy.Reconstruct` → `ResolveTalent`. Seeds de reproduction : 1, 3, 7, 8, 9.
+- **Bug B : `ArgumentOutOfRangeException (Parameter 'count')`.** Chemin : `GameOrchestrator.ResolveGiftAndContinue` → `ApplyTurnIntents` → `GameState.DrawCards`. Seeds de reproduction : 2, 4, 5, 6, 10.
+- ✍️ **À compléter par Ekinox :** cause racine retenue, fichiers modifiés, tests de régression ajoutés pour chaque bug.
+- `Program.cs` affiche désormais `outcome.Error` (stack trace conservée).
+- **Validation :** les simulations tournent. ✍️ *À compléter : résultat chiffré du lot de seeds (parties OK / erreurs).*
 
 **1. Corrections de `GameLogEffectDetector`** ✅
 
@@ -192,7 +202,7 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
   - Un Doublon à 3+ joueurs actifs saute le suivant ; à 2 joueurs actifs, aucun saut ni log de Doublon.
   - Un Doublon sur deux coups successifs est loggé.
 
-**2. Export CSV (CsvLogWriter) ✅
+**2. Export CSV (`CsvLogWriter`)** ✅
 
 - Un GameLog est sérialisé en CSV, **4 colonnes par partie** : Action | Pile avant | Effets | Détail.
 - **2 colonnes de bilan en tête** : A = agrégats du fichier (parties, OK, erreurs, coups moyenne/médiane/min/max) ; B = une ligne par partie (seed, coups, plays, classement, ramassages, [ERREUR]).
@@ -205,36 +215,44 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
 - Les cartes sont formatées via `ICardFormatter` (`CardFormatter` : « Joker Verre / Noir / Couleur », « Valet♠ »), injecté dans `CsvLogFormatter`.
 - Critère : un GameLog peut être exporté et relu sans perte d'information exploitable.
 
-**3. Modes de log** ⏳ À FAIRE : `LogMode` = `Off` / `All` / `ExceptionalOnly`.
+**3. Modes de log** ⏳ À VALIDER : `LogMode` = `Off` / `All` / `ExceptionalOnly`.
 
-- Nullable désactivé dans PsyckoConsole.csproj, pour rester cohérent avec Unity (pas d'annotations ? dans Core)
-- `Off` : aucun recorder n'est créé (coût nul).
-- `ExceptionalOnly` : seules les parties exceptionnelles sont exportées.
+- Nullable désactivé dans `PsyckoConsole.csproj`, pour rester cohérent avec Unity (pas d'annotations `?` dans Core).
+- `Off` : aucun recorder créé (coût nul). `ExceptionalOnly` : seules les parties exceptionnelles sont exportées.
+- ❓ Reste à trancher : `NullGameLogRecorder` ou test null dans l'orchestrateur.
+- **Validation attendue :** 1 000 parties dans chacun des trois modes, stats identiques, CSV conformes (rien en `Off`, tout en `All`, exceptionnelles seules en `ExceptionalOnly`).
 
-**4. Cas exceptionnels** ⏳ À FAIRE
+**4. Cas exceptionnels** ⏳ À VALIDER
 
-- Mécanisme d'extraction automatique : une partie exceptionnelle voit son `GameLog` et sa seed isolés pour une rejouabilité immédiate.
-- Critère : une partie en échec est identifiable et **rejouable seule via sa seed**, sans re-simuler les autres.
-- **❓ En suspens : définition d'une « partie exceptionnelle »**. Critères envisagés, combinables :
-  1. *Durée extrême* : les N parties les plus longues et les N plus courtes (N réglable).
-  2. *Seuil* : plus de X coups, avec un plafond anti-boucle infinie (toujours exceptionnel).
-  3. *Événement rare* : plusieurs Carrés, Bombe juste après un Carré, pioche épuisée très tôt… (liste à définir).
-  4. *Erreur* : toute partie interrompue par une exception (enregistrée d'office).
-  - Proposition : **1 + 2 + 4** pour commencer, le critère 3 plus tard. **À trancher.**
+- Une partie exceptionnelle voit son `GameLog` et sa seed isolés ; rejouer cette seule seed reproduit exactement le même `GameLog`.
+- **Paramètres de `ExceptionalGameCriteria` :**
+
+| Paramètre | Rôle | Valeur |
+|---|---|---|
+| **N** (`TopN` / `BottomN`) | N parties les plus longues et N les plus courtes | **10** par défaut |
+| **X** (`MaxTurnThreshold`) | exceptionnelle si coups globaux **> X** (strict) | **200** par défaut, ✍️ à confirmer après simulation |
+| **Y** | exceptionnelle si coups globaux **< Y** (strict) | ✍️ **À fixer** (aucune valeur par défaut) |
+| **Plafond anti-boucle** | arrêt d'une partie qui ne se termine pas, toujours exceptionnelle | **250 000** (proposé) |
+| **`IncludeErrors`** | toute partie en erreur est exceptionnelle | `true` |
+
+- **Méthode pour fixer X et Y :** 10 000 parties en `Off` avec `startSeed = 1`, relever min / médiane / moyenne / max / écart-type, puis choisir X et Y pour isoler environ 1 à 2 % de chaque côté. Vérifier que le plafond de 250 000 est très au-dessus du max observé.
+- **Critères retenus :** 1 (durée extrême) + 2 (seuil X, plus seuil bas Y) + 4 (erreur). Critère 3 (événement rare : plusieurs Carrés, Bombe juste après un Carré, pioche épuisée très tôt…) reporté.
+- ❓ Reste à trancher : format du nom de fichier d'une seed rejouée seule.
+- Implémentation partielle : `ExceptionalGameDetector` (critères 2 et 4 via `IsExceptional`, critère 1 via `SelectExtremeDurations`) et `ExceptionalGameCriteria` existent dans `Domain/Log`. Reste à câbler l'extraction dans la simulation.
 - Plafond d'export CSV : 4 000 parties par fichier (voir étape 2).
-- Implémentation partielle : `ExceptionalGameDetector` (critères 2 et 4 via `IsExceptional`, critère 1 via `SelectExtremeDurations`) et `ExceptionalGameCriteria` existent dans `Domain/Log`. Reste à câbler l'extraction dans la simulation. 
 
-**5. Statistiques de simulation (SimulationStats) ⏳ À FAIRE — toujours calculées, même en LogMode.Off**
+**5. Statistiques de simulation (`SimulationStats`)** ⏳ À FAIRE, toujours calculées, même en `Off`
 
-- Nombre de coups : moyenne, médiane, minimum, maximum (avec la seed de la partie concernée), écart-type.
-- Classement par joueur : nombre de fois où chacun (Bot1 à Bot4) termine 1er, 2e, 3e, et Psycko (4e).
-- Répartition par siège de ces classements (détection d'un biais du premier joueur).
-- Ratio de coups pour gagner : pour chaque partie, nombre de Play du vainqueur rapporté au nombre total de Play de la partie (indicateur de difficulté / de qualité des adversaires).
-- Nombre de parties terminées normalement et nombre de parties en erreur.
-- Fréquence d'activation des cartes spéciales / Joker : reportée à T42.
-- Le bilan CSV (colonnes A-B) ne remplace pas SimulationStats : il n'affiche que les agrégats de base. L'écart-type, la répartition par siège et le ratio de coups restent à produire dans `SimulationStats.cs`.
+- Volume : `TotalGames`, `ErrorGames`, `ErrorRatePercent`.
+- Coups globaux (parties sans erreur) : moyenne, médiane, min, max, écart-type, avec `SeedOfMinGame` / `SeedOfMaxGame`.
+- Équité par siège : `WinsBySeat`, `WinRateBySeat`, `PsyckosBySeat`.
+- Comportement par siège : `AveragePlaysAtExitBySeat`, `AverageExitMoveBySeat`, `AveragePickupsBySeat`.
+- Difficulté : `AverageWinnerPlayRatio` (Plays du vainqueur ÷ coups globaux à sa sortie).
+- **Définitions :** coup global = Play, BlindPlay ou ramassage (le Don n'en est pas un). Play = `ApplyPlay` ou `ApplyBlindPlay` accepté. Psycko = dernier siège non `Finished`. Siège 0 = Bot1.
+- Fréquence des cartes spéciales / Joker : reportée à T42. Les seuils de validation d'équité (ex. écart max par siège) restent à fixer par Ekinox.
+- Le bilan CSV (colonnes A-B) ne remplace pas `SimulationStats` : il n'affiche que les agrégats de base. L'écart-type, la répartition par siège et le ratio de coups restent à produire dans `SimulationStats.cs`.
 
-**6. Affichage console direct** (`ConsoleLogPrinter`) ⏳ À FAIRE
+**6. Affichage console direct (`ConsoleLogPrinter`)** ⏳ À FAIRE
 
 - Pour les parties Humain vs Bots : affichage en direct dans la console, avec les noms `Humain`, `Bot1`, `Bot2`, `Bot3`.
 
@@ -246,6 +264,7 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
   - Un `GameLog` est exporté en CSV et relu sans perte.
   - Une partie en échec est identifiable et rejouable seule via sa seed.
   - Les statistiques de simulation sont affichées avec ou sans CSV.
+  - Zéro crash du processus sur 1 000 parties dans chacun des trois modes (cohérent avec T41b).
   - Validation par simulation console sur un lot de seeds (aucun test unitaire).
 ---
 

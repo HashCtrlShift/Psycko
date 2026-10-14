@@ -120,13 +120,8 @@ namespace Psycko.Core.Services
                     play.PlayerId,
                     ActionKind.Play,
                     play.Cards,
-                    PileSnapshot(turnResult.State),
-                    effects: GameLogEffectDetector.Detect(
-                        play,
-                        turnResult.State,
-                        false,
-                        turnResult.NextDirection,
-                        skipApplied: HasMoreThanTwoActivePlayers(turnResult.State))));
+                    PileSnapshot(turnResult.State)
+                    ));
 
                 tracker?.RecordPlay(playerIndex);
 

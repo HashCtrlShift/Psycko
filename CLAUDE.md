@@ -438,7 +438,7 @@ moteur) ou de la Présentation (choix humain).
 **Exemple validé** : P1 [Prêtre] → P2 [Joker de Verre] → P3 doit jouer ≤ Prêtre.
 
 ### Cartes non-Prêtre sous contrainte
-- Toute carte ≤ Prêtre reste jouable normalement pendant la contrainte, sous réserve des autres règles (Doublon/Carré/2/Bombe/Joker Noir/etc.).
+- Toute carte ≤ Prêtre reste jouable normalement pendant la contrainte, sous réserve des autres règles (Doublon/Carré/Bombe/Joker Noir).
 
 ### Durée de vie de la contrainte
 - ≤ Prêtre s'applique au tour immédiatement suivant la pose du Prêtre (ou sa relance via un nouveau Prêtre ou Joker de Verre).
