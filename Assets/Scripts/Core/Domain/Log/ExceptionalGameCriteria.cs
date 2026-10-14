@@ -11,25 +11,39 @@ namespace Psycko.Core.Domain.Log
         /// <summary>Nombre de parties les plus courtes à isoler.</summary>
         public int BottomN { get; }
 
-        /// <summary>Une partie dépassant ce nombre de coups est exceptionnelle.</summary>
-        public int MaxTurnThreshold { get; }
+        /// <summary>Seuil bas Y : une partie avec moins de Y coups globaux est exceptionnelle.</summary>
+        public int MinMovesThreshold { get; }
 
-        /// <summary>Si vrai, toute partie en erreur est exceptionnelle.</summary>
+        /// <summary>Seuil haut X : une partie avec plus de X coups globaux est exceptionnelle.</summary>
+        public int MaxMovesThreshold { get; }
+
+        /// <summary>Plafond anti-boucle : partie interrompue à ce nombre de coups (toujours exceptionnelle).</summary>
+        public int MoveCap { get; }
+
+        /// <summary>Si vrai, toute partie en erreur (dont plafond atteint) est exceptionnelle.</summary>
         public bool IncludeErrors { get; }
 
         public ExceptionalGameCriteria(
             int topN = 10,
             int bottomN = 10,
-            int maxTurnThreshold = 200,
+            int minMovesThreshold = 160,
+            int maxMovesThreshold = 8000,
+            int moveCap = 250000,
             bool includeErrors = true)
         {
             if (topN < 0) throw new ArgumentOutOfRangeException(nameof(topN));
             if (bottomN < 0) throw new ArgumentOutOfRangeException(nameof(bottomN));
-            if (maxTurnThreshold < 1) throw new ArgumentOutOfRangeException(nameof(maxTurnThreshold));
+            if (minMovesThreshold < 0) throw new ArgumentOutOfRangeException(nameof(minMovesThreshold));
+            if (maxMovesThreshold < 1) throw new ArgumentOutOfRangeException(nameof(maxMovesThreshold));
+            if (moveCap < 1) throw new ArgumentOutOfRangeException(nameof(moveCap));
+            if (minMovesThreshold >= maxMovesThreshold)
+                throw new ArgumentException("Le seuil bas doit être inférieur au seuil haut.", nameof(minMovesThreshold));
 
             TopN = topN;
             BottomN = bottomN;
-            MaxTurnThreshold = maxTurnThreshold;
+            MinMovesThreshold = minMovesThreshold;
+            MaxMovesThreshold = maxMovesThreshold;
+            MoveCap = moveCap;
             IncludeErrors = includeErrors;
         }
     }

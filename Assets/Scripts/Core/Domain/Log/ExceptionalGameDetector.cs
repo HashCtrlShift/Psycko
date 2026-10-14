@@ -7,8 +7,8 @@ namespace Psycko.Core.Domain.Log
     public static class ExceptionalGameDetector
     {
         /// <summary>
-        /// Nombre de coups d'une partie = nombre d'entrées d'action
-        /// (l'entrée GameEnd n'est pas un coup).
+        /// Nombre d'entrées d'action d'un log (l'entrée GameEnd n'est pas un coup).
+        /// Information de lecture du log ; les seuils X / Y portent sur GameResult.TotalMoves.
         /// </summary>
         public static int CountTurns(GameLog gameLog)
         {
@@ -18,23 +18,21 @@ namespace Psycko.Core.Domain.Log
 
         /// <summary>
         /// Critères individuels, évaluables au fil de l'eau :
-        /// partie en erreur ou au-delà du seuil de coups.
+        /// partie en erreur (dont plafond atteint), moins de Y coups ou plus de X coups globaux.
         /// </summary>
-        public static bool IsExceptional(
-            GameLog gameLog,
-            ExceptionalGameCriteria criteria,
-            bool hadError = false)
+        public static bool IsExceptional(GameResult result, ExceptionalGameCriteria criteria)
         {
-            if (gameLog == null) throw new ArgumentNullException(nameof(gameLog));
+            if (result == null) throw new ArgumentNullException(nameof(result));
             if (criteria == null) throw new ArgumentNullException(nameof(criteria));
 
-            if (hadError && criteria.IncludeErrors) return true;
-            return CountTurns(gameLog) > criteria.MaxTurnThreshold;
+            if (result.IsError) return criteria.IncludeErrors;
+            return result.TotalMoves < criteria.MinMovesThreshold
+                || result.TotalMoves > criteria.MaxMovesThreshold;
         }
 
         /// <summary>
-        /// Critère collectif : retourne les indices des N parties les plus longues
-        /// et des N plus courtes, à appeler une fois toutes les durées connues.
+        /// Critère collectif : retourne les indices des BottomN parties les plus courtes
+        /// et des TopN plus longues, à appeler une fois toutes les durées connues.
         /// </summary>
         public static IReadOnlyCollection<int> SelectExtremeDurations(
             IReadOnlyList<int> turnCounts,

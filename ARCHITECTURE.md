@@ -121,7 +121,7 @@ Psycko/
 │   │   │       │   ├── GameLogEffectDetector.cs      Traduit le résultat d'un coup en liste d'effets pour le log.
 │   │   │       │   ├── GameLogRecorder.cs            Enregistre chaque action/coup avec horodatage/tour
 │   │   │       │   ├── GameResultTracker.cs          Collecte les compteurs d'une partie (coups, plays, ramassages)
-│   │   │       │   ├── ListGameLogRecorder.cs        >Recorder en mémoire : une instance par partie
+│   │   │       │   ├── ListGameLogRecorder.cs        Recorder en mémoire : une instance par partie
 │   │   │       │   └── SimulationStats.cs            Agrège les GameResult (moyenne, médiane, écart-type, équité par siège)
 │   │   │       │
 │   │   │       ├── Turn/
@@ -163,14 +163,19 @@ Psycko/
 │   │           └── GameplayLocal.unity
 │   │
 │   └── Tests/
-│       └── EditMode/                      (NUnit EditMode, miroir de la structure Core, 1 fichier de test par fichier de règle)
+│       └── EditMode/                      NUnit EditMode, miroir de la structure Core, 1 fichier de test par fichier de règle
 └── Tools/
-    ├── PsyckoConsole/                     (app console dotnet, simulation de parties + parties humain contre bots)
-    │    ├── ConsoleHumanAgent.cs           Console pour le jeu "Humain"
-    │    ├── Program.cs                     Programme de Tests
-    │    └── PsyckoConsole.csproj           (Compile Include relatif vers Assets/Scripts/Core et Assets/Scripts/Bots)
+    ├── PsyckoConsole/                     app console dotnet, simulation de parties + parties humain contre bots
+    │    ├── ConsoleHumanAgent.cs          Console pour le jeu "Humain"
+    │    ├── Program.cs                    Programme de Tests
+    │    └── PsyckoConsole.csproj          Compile Include relatif vers Assets/Scripts/Core et Assets/Scripts/Bots
     │ 
     └── Tools/PsyckoConsole/
+        ├── bin
+        │    ├── Debug/net8.0
+        │    └── Release/net8.0
+        ├── Logs                           Fichier de Répertoire des Logs
+        └── .gitignore
 
 ## Notes 
 - **Notion** : Source d'un grand nombre d'informations sur le projet 

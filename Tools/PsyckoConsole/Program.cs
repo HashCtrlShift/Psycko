@@ -37,7 +37,10 @@ namespace Psycko.Console
             int games = args.Length > 1 ? int.Parse(args[1]) : 1000;
             int startSeed = args.Length > 2 ? int.Parse(args[2]) : 1;
             var logMode = ParseLogMode(args.Length > 3 ? args[3] : "exceptional");
-            var criteria = new ExceptionalGameCriteria(); // X, N à caler après petites simulations
+
+            // Valeurs par défaut : N=10, Y=160, X=8000, plafond=250000.
+            // Pour tester le plafond, abaisser temporairement ici (ex. maxMovesThreshold: 250, moveCap: 300).
+            var criteria = new ExceptionalGameCriteria();
 
             var botRandom = new Random(); // décisions NON reproductibles (choix assumé)
             var checker = new CardPlayabilityChecker();
@@ -55,12 +58,15 @@ namespace Psycko.Console
             for (int i = 0; i < games; i++)
             {
                 int seed = startSeed + i;
-                var outcome = GameRunner.Run(seed, agents, SimNames, recordLog: logMode != LogMode.Off);
+                var outcome = GameRunner.Run(
+                    seed, agents, SimNames,
+                    recordLog: logMode != LogMode.Off,
+                    moveCap: criteria.MoveCap);
                 allResults.Add(outcome.Result);
 
                 if (outcome.Error != null)
                 {
-                    System.Console.WriteLine($"[ERREUR] seed {seed} : {outcome.Error}");
+                    System.Console.WriteLine($"[ERREUR] seed {seed} : {outcome.Error.Message}");
                 }
 
                 if (outcome.Log == null) continue; // LogMode.Off
@@ -75,13 +81,14 @@ namespace Psycko.Console
                 }
 
                 // ExceptionalOnly : critères individuels au fil de l'eau…
-                if (ExceptionalGameDetector.IsExceptional(outcome.Log, criteria, outcome.Error != null))
+                if (ExceptionalGameDetector.IsExceptional(outcome.Result, criteria))
                 {
-                    kept.Add((outcome.Log, outcome.Result, outcome.Error != null ? "erreur" : "> seuil"));
+                    kept.Add((outcome.Log, outcome.Result, Reason(outcome, criteria)));
                     continue;
                 }
 
                 // …et tampons des N plus courtes / N plus longues (les autres logs sont libérés).
+                // Ici la partie n'est pas en erreur (une erreur est déjà exceptionnelle si IncludeErrors).
                 if (!outcome.Result.IsError)
                 {
                     KeepExtreme(shortest, (outcome.Log, outcome.Result), criteria.BottomN, longest: false);
@@ -99,16 +106,35 @@ namespace Psycko.Console
             {
                 kept.AddRange(shortest.Select(x => (x.Log, x.Result, "plus courte")));
                 kept.AddRange(longest.Select(x => (x.Log, x.Result, "plus longue")));
-                var unique = kept.GroupBy(k => k.Log.Seed).Select(g => g.First()).OrderBy(k => k.Log.Seed).ToList();
+                var unique = kept
+                    .GroupBy(k => k.Log.Seed)
+                    .Select(g => g.First())
+                    .OrderBy(k => k.Log.Seed)
+                    .ToList();
 
                 foreach (var k in unique)
-                    System.Console.WriteLine($"Exceptionnelle : seed {k.Log.Seed} ({k.Reason}, {k.Result.TotalMoves} coups)");
+                    System.Console.WriteLine(
+                        $"Exceptionnelle : seed {k.Log.Seed} ({k.Reason}, {k.Result.TotalMoves} coups)");
 
                 if (unique.Count > 0)
                     Write(unique.Select(k => k.Log).ToList(), unique.Select(k => k.Result).ToList());
             }
 
             return allResults.Any(r => r.IsError) ? 1 : 0;
+        }
+
+        private static string Reason(GameRunOutcome outcome, ExceptionalGameCriteria criteria)
+        {
+            if (outcome.Error != null)
+            {
+                return outcome.Error.Message.Contains("Plafond anti-boucle")
+                    ? $"plafond {criteria.MoveCap} coups"
+                    : "erreur";
+            }
+
+            return outcome.Result.TotalMoves < criteria.MinMovesThreshold
+                ? $"< {criteria.MinMovesThreshold} coups"
+                : $"> {criteria.MaxMovesThreshold} coups";
         }
 
         private static void FlushBatch(List<GameLog> logs, List<GameResult> results)
