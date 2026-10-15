@@ -26,8 +26,8 @@ namespace Psycko.Core.Domain.Log
         public ExceptionalGameCriteria(
             int topN = 10,
             int bottomN = 10,
-            int minMovesThreshold = 160,
-            int maxMovesThreshold = 8000,
+            int minMovesThreshold = 250,
+            int maxMovesThreshold = 6000,
             int moveCap = 250000,
             bool includeErrors = true)
         {

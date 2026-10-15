@@ -9,6 +9,7 @@ namespace Psycko.Core.Services.Log
     /// <summary>
     /// Statistiques dérivées d'un lot de GameResult (jamais de GameLog : fonctionne en LogMode.Off).
     /// Écart-type : formule de POPULATION. Médiane : moyenne des deux centraux si effectif pair.
+    /// Percentiles : méthode du rang le plus proche (valeur réellement observée).
     /// Rang : 0 = vainqueur ... dernier = Psycko. Siège = index 0..n-1 (Bot1 = siège 0).
     /// </summary>
     public sealed class SimulationStats
@@ -26,6 +27,12 @@ namespace Psycko.Core.Services.Log
         public int SeedOfMinGame { get; }
         public int SeedOfMaxGame { get; }
         public double StdDevMoves { get; }
+
+        /// <summary>Percentile 1 (rang le plus proche) des coups globaux, parties sans erreur.</summary>
+        public int P1Moves { get; }
+
+        /// <summary>Percentile 99 (rang le plus proche) des coups globaux, parties sans erreur.</summary>
+        public int P99Moves { get; }
 
         // --- Par siège (index = siège) ---
         public IReadOnlyList<int> WinsBySeat { get; }
@@ -111,7 +118,18 @@ namespace Psycko.Core.Services.Log
                 int mid = moves.Count / 2;
                 MedianMoves = moves.Count % 2 == 1 ? moves[mid] : (moves[mid - 1] + moves[mid]) / 2.0;
                 StdDevMoves = Math.Sqrt(moves.Sum(m => (m - AverageMoves) * (m - AverageMoves)) / moves.Count);
+                P1Moves = NearestRankPercentile(moves, 1);
+                P99Moves = NearestRankPercentile(moves, 99);
             }
+        }
+
+        /// <summary>Rang le plus proche : valeur au rang ceil(p/100 * N) (1-indexé) d'une liste triée croissante.</summary>
+        private static int NearestRankPercentile(IReadOnlyList<int> sorted, int percent)
+        {
+            int rank = (int)Math.Ceiling(percent / 100.0 * sorted.Count);
+            if (rank < 1) rank = 1;
+            if (rank > sorted.Count) rank = sorted.Count;
+            return sorted[rank - 1];
         }
 
         public override string ToString()
@@ -121,6 +139,7 @@ namespace Psycko.Core.Services.Log
             sb.AppendLine($"Parties : {TotalGames} (terminées : {SuccessfulGames}, erreurs : {ErrorGames} = {ErrorRatePercent:F4} %)");
             sb.AppendLine($"Coups   : moy {AverageMoves:F1} | méd {MedianMoves:F1} | écart-type {StdDevMoves:F1}");
             sb.AppendLine($"          min {MinMoves} (seed {SeedOfMinGame}) | max {MaxMoves} (seed {SeedOfMaxGame})");
+            sb.AppendLine($"Percentiles : P1 {P1Moves} | P99 {P99Moves}");
             sb.AppendLine($"Ratio Plays/coups du vainqueur à sa sortie (moy) : {AverageWinnerPlayRatio:P1}");
             sb.AppendLine("Siège | Victoires (%) | Psycko | Plays à la sortie | Coup de sortie | Ramassages/partie");
             for (int s = 0; s < WinsBySeat.Count; s++)

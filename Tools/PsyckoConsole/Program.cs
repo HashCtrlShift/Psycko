@@ -96,7 +96,7 @@ namespace Psycko.Console
                 }
             }
 
-            PrintStats(allResults);
+            System.Console.WriteLine(new SimulationStats(allResults));
 
             if (logMode == LogMode.All)
             {
@@ -189,15 +189,6 @@ namespace Psycko.Console
         {
             foreach (var path in CsvLogWriter.WriteToFiles(logs, results, LogDirectory))
                 System.Console.WriteLine($"Log écrit : {path}");
-        }
-
-        private static void PrintStats(IReadOnlyList<GameResult> results)
-        {
-            var ok = results.Where(r => !r.IsError).Select(r => r.TotalMoves).OrderBy(x => x).ToList();
-            System.Console.WriteLine($"Parties : {results.Count} | erreurs : {results.Count(r => r.IsError)}");
-            if (ok.Count == 0) return;
-            System.Console.WriteLine(
-                $"Coups min {ok.First()} | moy {ok.Average():0.#} | méd {ok[ok.Count / 2]} | max {ok.Last()}");
         }
 
         private static LogMode ParseLogMode(string value) => value.ToLowerInvariant() switch

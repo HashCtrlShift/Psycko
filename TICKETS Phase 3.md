@@ -243,17 +243,17 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
   1. `GameResult.Error` met `TotalMoves` à 0 : une partie interrompue affiche « 0 coups » et perd son nombre de coups réel.
   2. Un mode inconnu en ligne de commande (par exemple `on`) bascule silencieusement sur `ExceptionalOnly`.
 
-**5. Statistiques de simulation (`SimulationStats`)** ⏳ À FAIRE, toujours calculées, même en `Off`
-
-- Volume : `TotalGames`, `ErrorGames`, `ErrorRatePercent`.
-- Coups globaux (parties sans erreur) : moyenne, médiane, min, max, écart-type, **P1, P99**, avec `SeedOfMinGame` / `SeedOfMaxGame`.
-- Équité par siège : `WinsBySeat`, `WinRateBySeat`, `PsyckosBySeat`.
-- Comportement par siège : `AveragePlaysAtExitBySeat`, `AverageExitMoveBySeat`, `AveragePickupsBySeat`.
-- Difficulté : `AverageWinnerPlayRatio` (Plays du vainqueur ÷ coups globaux à sa sortie).
-- **Définitions :** coup global = Play, BlindPlay ou ramassage (le Don n'en est pas un). Play = `ApplyPlay` ou `ApplyBlindPlay` accepté. Psycko = dernier siège non `Finished`. Siège 0 = Bot1.
-- **Usage de P1 / P99 :** recaler X et Y sur un lot de 10 000 parties, puis vérifier que le plafond de 250 000 reste très au-dessus du max observé.
-- Fréquence des cartes spéciales / Joker : reportée à T42. Les seuils de validation d'équité (ex. écart max par siège) restent à fixer par Ekinox.
-- Le bilan CSV (colonnes A-B) ne remplace pas `SimulationStats` : il n'affiche que les agrégats de base. L'écart-type, la répartition par siège et le ratio de coups restent à produire dans `SimulationStats.cs`.
+**5 :  SimulationStats P1/P99 + branchement console** ✅ Validé
+- SimulationStats : ajout P1Moves / P99Moves (rang le plus proche), ligne dédiée « Percentiles » dans ToString().
+- Program : PrintStats remplacé par new SimulationStats(allResults), affiché en fin de sim dans les 3 modes (off / all / exceptional).
+- Validation : build vert, 0 avertissement. Sommes victoires = Psycko = parties terminées (1000 et 10000).
+- Relevé 10 000 parties (2 runs, bots non seedés) :
+  P1 = 250 / 246 ; P99 = 5 536 / 6 122 ; médiane 874 / 875 ; moyenne 1 167,7 / 1 199,7 ;
+  min 151 / 110 ; max 27 327 / 21 644 ; 0 erreur.
+- Proposition (en attente d'accord) : Y 160 → 250, X 8 000 → 6 000.
+- Fichiers : Core/Services/Log/SimulationStats.cs, Tools/PsyckoConsole/Program.cs.
+- Anomalies connues non corrigées : GameResult.Error met TotalMoves à 0 ; mode inconnu → ExceptionalOnly silencieux.
+- À planifier : mode play (humain vs 3 bots) doit supporter les trois LogMode (ticket séparé).
 
 **6. Affichage console direct (`ConsoleLogPrinter`)** ⏳ À FAIRE
 
