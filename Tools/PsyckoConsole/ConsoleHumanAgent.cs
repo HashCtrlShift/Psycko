@@ -1,17 +1,17 @@
 #nullable enable
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Psycko.Core.Domain;
 using Psycko.Core.Domain.Exchange;
 using Psycko.Core.Interfaces;
+using Psycko.Core.Services.Log.Format;
 
 namespace Psycko.Console
 {
     /// <summary>Agent humain en console. 'q' = abandon (partie marquée en erreur, log conservé).</summary>
     public sealed class ConsoleHumanAgent : IPlayerAgent
     {
+        private static readonly CardFormatter Fmt = new CardFormatter();
+        private static string J(IEnumerable<Card> cards) => string.Join(" ", cards.Select(Fmt.Format));
         private readonly ICardPlayabilityChecker _checker;
 
         public ConsoleHumanAgent(ICardPlayabilityChecker checker) => _checker = checker;
@@ -100,17 +100,17 @@ namespace Psycko.Console
 
         private static void ShowTable(IPlayerVisibleState s)
         {
-            System.Console.WriteLine($"\n--- Pile : {string.Join(" ", s.Pile.Cards)} | contrainte {s.Constraint} {s.RefRank} | pioche {s.DrawPileCount}");
+            System.Console.WriteLine($"\n--- Pile : {J(s.Pile.Cards)} | contrainte {s.Constraint} {s.RefRank} | pioche {s.DrawPileCount}");
             foreach (var o in s.Opponents)
-                System.Console.WriteLine($"  {o.Name} [{o.CurrentPhase}] main {o.HandCount} | FaceUp {string.Join(" ", o.FaceUp)} | FaceDown {o.FaceDownCount}");
-            System.Console.WriteLine($"  Toi : FaceUp {string.Join(" ", s.SelfFaceUp)} | FaceDown {s.SelfFaceDown.Count}");
+                System.Console.WriteLine($"  {o.Name} [{o.CurrentPhase}] main {o.HandCount} | FaceUp {J(o.FaceUp)} | FaceDown {o.FaceDownCount}");
+            System.Console.WriteLine($"  Toi : FaceUp {J(s.SelfFaceUp)} | FaceDown {s.SelfFaceDown.Count}");
         }
 
         private static void Show(string label, IReadOnlyList<Card> cards, Func<Card, bool>? playable = null)
         {
             System.Console.WriteLine(label + " :");
             for (int i = 0; i < cards.Count; i++)
-                System.Console.WriteLine($"  [{i}] {cards[i]}{(playable != null && playable(cards[i]) ? "  ✓" : "")}");
+                               System.Console.WriteLine($"  [{i}] {Fmt.Format(cards[i])}{(playable != null && playable(cards[i]) ? "  ✓" : "")}");
         }
 
         private static int Ask(string prompt, int count, bool allowEmpty = false)

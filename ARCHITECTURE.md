@@ -17,6 +17,7 @@
 
 ## Structure du Code
 
+```
 Psycko/
 ├── CLAUDE.md
 ├── ARCHITECTURE.md
@@ -30,27 +31,27 @@ Psycko/
 │   ├── Scripts/
 │   │   ├── Bots/                          (C# pur, dépend Core — noEngineReferences: true)
 │   │   │   ├── Psycko.Bots.asmdef
-│   │   │   └── RandomBot.cs          Agent qui sélectionne aléatoirement un option parmi celles possibles.
-│   │   │ 
+│   │   │   └── RandomBot.cs               Agent qui sélectionne aléatoirement une option parmi celles possibles
+│   │   │
 │   │   ├── Core/                          (C# pur, zéro dépendance Unity — noEngineReferences: true)
 │   │   │   ├── Psycko.Core.asmdef
 │   │   │   ├── Domain/
-│   │   │   │   ├── Exchange/ 
-│   │   │   │   │    ├── ExchangeChoice.cs            Un échange pré-partie : 1 carte de la Main contre 1 carte FaceUp du même joueur
-│   │   │   │   │    ├── ExchangeRejectionReason.cs   Enum d'erreurs liées à l'échange
-│   │   │   │   │    ├── PreGameExchange.cs           Résultat d'une opération d'échange : nouvel état, ou rejet motivé
-│   │   │   │   │    └── PreGameExchangeState.cs      État immuable de la phase d'échange pré-partie
-│   │   │   │   │   
+│   │   │   │   ├── Exchange/
+│   │   │   │   │   ├── ExchangeChoice.cs            Échange pré-partie : 1 carte Main contre 1 carte FaceUp du même joueur
+│   │   │   │   │   ├── ExchangeRejectionReason.cs   Enum d'erreurs liées à l'échange
+│   │   │   │   │   ├── PreGameExchange.cs           Résultat d'une opération d'échange : nouvel état, ou rejet motivé
+│   │   │   │   │   └── PreGameExchangeState.cs      État immuable de la phase d'échange pré-partie
+│   │   │   │   │
 │   │   │   │   ├── Log/
-│   │   │   │   │    ├── ActionKind.cs              Types d'actions enregistrables dans le log d'une partie
-│   │   │   │   │    ├── EffectKind.cs              Effet enregistré dans la colonne "Effets" du GameLog
-│   │   │   │   │    ├── EffectLogDetail.cs         Détail immuable d'un effet enregistré dans une entrée de log
-│   │   │   │   │    ├── ExceptionalGameCriteria.cs Seuils qui rendent une partie "exceptionnelle"
-│   │   │   │   │    ├── ExceptionalGameDetector.cs Isole les parties "exceptionnelles"
-│   │   │   │   │    ├── GameLog.cs                 Log complet et immuable d'une partie
-│   │   │   │   │    ├── GameLogEntry.cs            Entrée immuable du log de partie
-│   │   │   │   │    ├── GameResult.cs              Résultat chiffré d'une partie (coups, classement, ramassages, erreur)
-│   │   │   │   │    └── LogMode.cs                 Modes de Logging pour la simulation (Off / All / ExceptionalOnly)
+│   │   │   │   │   ├── ActionKind.cs                Types d'actions enregistrables dans le log d'une partie
+│   │   │   │   │   ├── EffectKind.cs                Effet enregistré dans la colonne "Effets" du GameLog
+│   │   │   │   │   ├── EffectLogDetail.cs           Détail immuable d'un effet enregistré dans une entrée de log
+│   │   │   │   │   ├── ExceptionalGameCriteria.cs   Seuils qui rendent une partie "exceptionnelle"
+│   │   │   │   │   ├── ExceptionalGameDetector.cs   Isole les parties "exceptionnelles"
+│   │   │   │   │   ├── GameLog.cs                   Log complet et immuable d'une partie
+│   │   │   │   │   ├── GameLogEntry.cs              Entrée immuable du log de partie
+│   │   │   │   │   ├── GameResult.cs                Résultat chiffré d'une partie (coups, classement, ramassages, erreur)
+│   │   │   │   │   └── LogMode.cs                   Modes de logging pour la simulation (Off / All / ExceptionalOnly)
 │   │   │   │   │
 │   │   │   │   ├── Card.cs                       Création des Cartes
 │   │   │   │   ├── Deck.cs                       Création de la Pioche et Mélange
@@ -68,61 +69,63 @@ Psycko/
 │   │   │   │   ├── Player.cs                     Définit un Joueur
 │   │   │   │   ├── PlayerVisibleState.cs         Vue immuable de l'état de la partie pour UN joueur
 │   │   │   │   └── PlayRejectionReason.cs        Définit le Rejet d'un Play
-│   │   │   │ 
-│   │   │   ├── Interfaces/ 
-│   │   │   │   ├── ICardFormatter.cs             contrat commun : Format(Card) → string 
+│   │   │   │
+│   │   │   ├── Interfaces/
+│   │   │   │   ├── ICardFormatter.cs             Contrat commun : Format(Card) → string
 │   │   │   │   ├── ICardPlayabilityChecker.cs    Contrat de jouabilité des cartes d'un joueur
 │   │   │   │   ├── IGameLogRecorder.cs           Contrat d'enregistrement des actions d'une partie
+│   │   │   │   ├── IGameObserver.cs              Contrat d'observation en direct d'une partie (Console, puis Présentation)
 │   │   │   │   ├── IGameState.cs                 Interface composite
 │   │   │   │   ├── IGameStateCommand.cs          Contrat de transition
 │   │   │   │   ├── IGameStateQuery.cs            Lecture seule de l'état d'une partie
-│   │   │   │   ├── IPlayerAgent.cs               Contrat de décision d'un agent joueur.
-│   │   │   │   └── IPlayerVisibleState.cs        Vue Filtrée pour les joueurs.
-│   │   │   │ 
+│   │   │   │   ├── IPlayerAgent.cs               Contrat de décision d'un agent joueur
+│   │   │   │   └── IPlayerVisibleState.cs        Vue filtrée pour les joueurs
+│   │   │   │
 │   │   │   ├── Rules/
 │   │   │   │   ├── Comparison/
 │   │   │   │   │   └── HeightComparison.cs       Compare la Hauteur de 2 DefRank
-│   │   │   │   │ 
+│   │   │   │   │
 │   │   │   │   ├── Detection/
 │   │   │   │   │   ├── PairDetection.cs          Définit un "Doublon"
 │   │   │   │   │   └── QuadDetection.cs          Définit un "Carré"
 │   │   │   │   │
-│   │   │   │   ├──Jokers/
+│   │   │   │   ├── Jokers/
 │   │   │   │   │   ├── BlackJokerResolver.cs     Définit le Joker Noir
 │   │   │   │   │   ├── ColorJokerResolver.cs     Définit le Joker Couleur
 │   │   │   │   │   └── GlassJokerResolver.cs     Définit le Joker de Verre
-│   │   │   │   │ 
+│   │   │   │   │
 │   │   │   │   ├── Phase/
 │   │   │   │   │   ├── LuckPhaseResolver.cs      Phase 3 - La Chance
-│   │   │   │   │   ├── PhaseResolver.cs          Contrat abstrait commun aux phases de jeu 
+│   │   │   │   │   ├── PhaseResolver.cs          Contrat abstrait commun aux phases de jeu
 │   │   │   │   │   ├── TalentPhaseResolver.cs    Phase 2 - Le Talent
 │   │   │   │   │   └── WorkPhaseResolver.cs      Phase 1 - Le Travail
-│   │   │   │   │ 
+│   │   │   │   │
 │   │   │   │   ├── SpecialCards/
 │   │   │   │   │   ├── JackHandler.cs            Définit le Valet
 │   │   │   │   │   ├── PriestHandler.cs          Définit le Prêtre
 │   │   │   │   │   ├── SevenHandler.cs           Définit le 7
 │   │   │   │   │   └── TwoHandler.cs             Définit le 2
-│   │   │   │   │ 
-│   │   │   │   └──Validation/
+│   │   │   │   │
+│   │   │   │   └── Validation/
 │   │   │   │       ├── CardPlayability.cs           Détermine si une carte est jouable d'après l'état actuel de la Partie
 │   │   │   │       ├── CardPlayabilityChecker.cs    Détecte les cartes jouables d'un joueur
 │   │   │   │       ├── HandReconstructionPolicy.cs  Contrat de Pioche commun à Step2 et Step4
-│   │   │   │       └── LastCardValidator.cs         Valide la règle : interdiction de terminer une phase sur un 2.
-│   │   │   │ 
+│   │   │   │       └── LastCardValidator.cs         Valide la règle : interdiction de terminer une phase sur un 2
+│   │   │   │
 │   │   │   └── Services/
 │   │   │       ├── Log/
-│   │   │       │   ├── Format/ 
-│   │   │       │   │     ├── CardFormatter.cs         "2♥", "Valet♠", "Joker de Verre"
-│   │   │       │   │     └── CardSymbols.cs           ♥ ♦ ♣ ♠ — universel, aucune langue
-│   │   │       │   │ 
+│   │   │       │   ├── Format/
+│   │   │       │   │   ├── CardFormatter.cs          "2♥", "Valet♠", "Joker de Verre"
+│   │   │       │   │   └── CardSymbols.cs            ♥ ♦ ♣ ♠ — universel, aucune langue
+│   │   │       │   │
 │   │   │       │   ├── CsvLogFormatter.cs            Traduit une entrée de log en texte lisible en français
 │   │   │       │   ├── CsvLogWriter.cs               Exporte les GameLog en CSV Excel (bilan + 4 colonnes par partie)
-│   │   │       │   ├── GameLogEffectDetector.cs      Traduit le résultat d'un coup en liste d'effets pour le log.
+│   │   │       │   ├── GameLogEffectDetector.cs      Traduit le résultat d'un coup en liste d'effets pour le log
 │   │   │       │   ├── GameLogRecorder.cs            Enregistre chaque action/coup avec horodatage/tour
 │   │   │       │   ├── GameResultTracker.cs          Collecte les compteurs d'une partie (coups, plays, ramassages)
 │   │   │       │   ├── ListGameLogRecorder.cs        Recorder en mémoire : une instance par partie
-│   │   │       │   └── SimulationStats.cs            Agrège les GameResult (moyenne, médiane, écart-type, équité par siège)
+│   │   │       │   ├── ObservableLogRecorder.cs      Recorder qui relaie chaque entrée à un IGameObserver en direct
+│   │   │       │   └── SimulationStats.cs            Agrège les GameResult (moyenne, médiane, écart-type, P1/P99, équité par siège)
 │   │   │       │
 │   │   │       ├── Turn/
 │   │   │       │   ├── PickupResolution.cs               Résultat immutable de BeginTurn/ResolvePickup
@@ -136,12 +139,12 @@ Psycko/
 │   │   │       │   └── TurnResult.cs                     Résultat immutable porté entre les Steps (état + intentions)
 │   │   │       │
 │   │   │       ├── BlindPlayResolutions.cs       Carte Révélée en Luck
-│   │   │       ├── CardDealer.cs                 Distribue un paquet mélangé 
-│   │   │       ├── GameOrchestrator.cs           Définit le déroulement d'une partie    
-│   │   │       ├── GameResultCalculator.cs       Définit la Fin d'un partie.       
-│   │   │       ├── GameRunner.cs                 Joue une partie complète
+│   │   │       ├── CardDealer.cs                 Distribue un paquet mélangé
+│   │   │       ├── GameOrchestrator.cs           Définit le déroulement d'une partie
+│   │   │       ├── GameResultCalculator.cs       Définit la Fin d'une partie
+│   │   │       ├── GameRunner.cs                 Joue une partie complète (seed → distribution → échange → tours → GameResult), notifie un IGameObserver optionnel. Contient GameRunOutcome (Result + Log optionnel + Error)
 │   │   │       ├── GameSeed.cs                   Génération + stockage de la seed RNG d'une partie
-│   │   │       └── PlayResult.cs                 Définit un appel à GameOrchestrator      
+│   │   │       └── PlayResult.cs                 Définit un appel à GameOrchestrator
 │   │   │
 │   │   └── Presentation/                  (Unity 2D, dépend Core + Bots, zéro logique de jeu)
 │   │       ├── UI/
@@ -149,33 +152,33 @@ Psycko/
 │   │       │   ├── ZoneView.cs
 │   │       │   ├── PlayerSeatView.cs
 │   │       │   └── GameTableView.cs
-│   │       │ 
+│   │       │
 │   │       ├── Controllers/
 │   │       │   ├── GameplayController.cs
 │   │       │   ├── InputHandler.cs
 │   │       │   └── AnimationController.cs
-│   │       │ 
+│   │       │
 │   │       ├── Models/
 │   │       │   ├── CardSkinDefinition.cs
 │   │       │   └── HumanSelectionState.cs
-│   │       │ 
+│   │       │
 │   │       └── Scenes/
 │   │           └── GameplayLocal.unity
 │   │
 │   └── Tests/
 │       └── EditMode/                      NUnit EditMode, miroir de la structure Core, 1 fichier de test par fichier de règle
+│
 └── Tools/
-    ├── PsyckoConsole/                     app console dotnet, simulation de parties + parties humain contre bots
-    │    ├── ConsoleHumanAgent.cs          Console pour le jeu "Humain"
-    │    ├── Program.cs                    Programme de Tests
-    │    └── PsyckoConsole.csproj          Compile Include relatif vers Assets/Scripts/Core et Assets/Scripts/Bots
-    │ 
-    └── Tools/PsyckoConsole/
-        ├── bin
-        │    ├── Debug/net8.0
-        │    └── Release/net8.0
-        ├── Logs                           Fichier de Répertoire des Logs
-        └── .gitignore
+    └── PsyckoConsole/                     App console dotnet : simulation de parties + parties Humain contre Bots
+        ├── ConsoleGameLocal.cs            Interface de choix : simulation ou partie Humain vs Bots, puis mode de log (off / all / exceptional)
+        ├── ConsoleHumanAgent.cs           Agent "Humain" en console ('q' = abandon), cartes formatées via CardFormatter
+        ├── ConsoleLogPrinter.cs           Affichage en direct d'une partie (IGameObserver), mains des bots masquées sauf --reveal
+        ├── Program.cs                     Commandes : sim [parties] [seed] [off|all|exceptional] / play [seed] [off|all|exceptional] [--reveal]
+        ├── PsyckoConsole.csproj           Compile Include relatif vers Assets/Scripts/Core et Assets/Scripts/Bots
+        ├── .gitignore                     Ignore bin/, obj/ et Logs/
+        ├── bin/                           (ignoré) Debug/net8.0, Release/net8.0
+        └── Logs/                          (ignoré) CSV générés
+```
 
 ## Notes 
 - **Notion** : Source d'un grand nombre d'informations sur le projet 

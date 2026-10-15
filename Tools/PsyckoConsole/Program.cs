@@ -1,8 +1,5 @@
 #nullable enable
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Psycko.Bots;
 using Psycko.Core.Domain.Log;
 using Psycko.Core.Interfaces;
@@ -27,7 +24,9 @@ namespace Psycko.Console
 
         public static int Main(string[] args)
         {
-            string mode = args.Length > 0 ? args[0].ToLowerInvariant() : "sim";
+            System.Console.OutputEncoding = System.Text.Encoding.UTF8;
+            if (args.Length == 0) return ConsoleGameLocal.Run();
+            string mode = args[0].ToLowerInvariant();
             return mode == "play" ? Play(args) : Simulate(args);
         }
 
@@ -161,10 +160,26 @@ namespace Psycko.Console
         // ───────────── Partie humaine ─────────────
         private static int Play(string[] args)
         {
-            int seed = args.Length > 1 ? int.Parse(args[1]) : Environment.TickCount;
+            bool reveal = args.Any(a => a == "--reveal");
+            var positional = args.Skip(1).Where(a => a != "--reveal").ToArray();
+
+            int seed = positional.Length > 0 ? int.Parse(positional[0]) : Environment.TickCount;
+            string modeText = positional.Length > 1 ? positional[1].ToLowerInvariant() : "all";
+
+            LogMode logMode;
+            switch (modeText)
+            {
+                case "off": logMode = LogMode.Off; break;
+                case "all": logMode = LogMode.All; break;
+                case "exceptional": logMode = LogMode.ExceptionalOnly; break;
+                default:
+                    System.Console.WriteLine($"Mode de logs inconnu : '{modeText}'.");
+                    System.Console.WriteLine("Usage : play [seed] [off|all|exceptional] [--reveal]");
+                    return 2;
+            }
+
             var botRandom = new Random();
             var checker = new CardPlayabilityChecker();
-
             var agents = new List<IPlayerAgent>
             {
                 new ConsoleHumanAgent(checker),
@@ -173,14 +188,26 @@ namespace Psycko.Console
                 new RandomBot(botRandom, checker),
             };
 
-            var outcome = GameRunner.Run(seed, agents, PlayNames, recordLog: true);
+            var criteria = new ExceptionalGameCriteria();
+            var printer = new ConsoleLogPrinter(PlayNames, reveal);
+            var outcome = GameRunner.Run(
+                seed, agents, PlayNames,
+                recordLog: logMode != LogMode.Off,
+                moveCap: criteria.MoveCap,
+                observer: printer);
 
             System.Console.WriteLine(outcome.Error != null
                 ? $"Partie interrompue : {outcome.Error.Message}"
-                : $"Fin de partie. Psycko : siège {outcome.Result.PsyckoSeat}");
+                : $"Fin de partie. Psycko : {PlayNames[outcome.Result.PsyckoSeat ?? 0]}");
 
-            // Toujours écrit, même partie abandonnée ('q') ou en erreur.
-            Write(new List<GameLog> { outcome.Log! }, new List<GameResult> { outcome.Result });
+            if (outcome.Log != null &&
+                (logMode == LogMode.All ||
+                 (logMode == LogMode.ExceptionalOnly &&
+                  ExceptionalGameDetector.IsExceptional(outcome.Result, criteria))))
+            {
+                Write(new List<GameLog> { outcome.Log }, new List<GameResult> { outcome.Result });
+            }
+
             return 0;
         }
 

@@ -255,11 +255,17 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
 - Anomalies connues non corrigées : GameResult.Error met TotalMoves à 0 ; mode inconnu → ExceptionalOnly silencieux.
 - À planifier : mode play (humain vs 3 bots) doit supporter les trois LogMode (ticket séparé).
 
-**6. Affichage console direct (`ConsoleLogPrinter`)** ⏳ À FAIRE
+**6. Affichage console direct (`ConsoleLogPrinter`)** ✅ FAIT
 
-- Pour les parties Humain vs Bots : affichage en direct dans la console, avec les noms `Humain`, `Bot1`, `Bot2`, `Bot3`.
+- Affichage en direct des parties Humain vs Bots, avec les noms `Humain`, `Bot1`, `Bot2`, `Bot3`.
+- `ConsoleLogPrinter` est dans `Tools/PsyckoConsole/` (Core reste pur). Il est branché sur `GameRunner` via `IGameObserver` (événement par événement, sans modification des règles métier).
+- Pile affichée en intégralité. Cartes formatées par `CardFormatter` (ex. `7♥`, `Prêtre♣`, `Joker de Verre`).
+- Mains des bots masquées par défaut. Option `--reveal` pour les afficher.
+- Commande `play [seed] [off|all|exceptional] [--reveal]`, `all` par défaut.
+- Interface `ConsoleGameLocal` : choix entre simulation et partie Humain vs Bots, puis choix du mode de log `off` / `all` / `exceptional`.
+- Validation par simulation console : `play <seed>` dans les 3 modes, partie abandonnée (`q`) sans crash, `sim 1000 1` dans les 3 modes avec 0 erreur.
 
-**7. `.gitignore`** ⏳ À FAIRE : ajout des dossiers de logs et d'exports CSV générés (notamment `Tools/PsyckoConsole/Logs/`).
+**7. `.gitignore`** ✅ FAIT : dossiers de logs et d'exports CSV générés ignorés (notamment `Tools/PsyckoConsole/Logs/`).
 
 - **Dépendances** : T38a, T38b, T38bis, T38c, T37.
 - **Critères d'acceptation globaux** :
@@ -269,6 +275,9 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
   - Les statistiques de simulation sont affichées avec ou sans CSV.
   - Zéro crash du processus sur 1 000 parties dans chacun des trois modes (cohérent avec T41b).
   - Validation par simulation console sur un lot de seeds (aucun test unitaire).
+- **Anomalies connues, hors périmètre T38d (tickets séparés)** :
+  - `GameResult.Error` met `TotalMoves` à 0.
+  - Un mode de log inconnu bascule silencieusement sur `ExceptionalOnly` côté `sim`.
 
 ## T41 — Tools/PsyckoConsole/ (ticket parent — 2 sous-tickets)
 

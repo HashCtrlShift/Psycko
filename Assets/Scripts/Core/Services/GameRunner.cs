@@ -50,7 +50,8 @@ namespace Psycko.Core.Services
             IReadOnlyList<IPlayerAgent> agents,
             IReadOnlyList<string> names,
             bool recordLog,
-            int moveCap = DefaultMoveCap)
+            int moveCap = DefaultMoveCap,
+            IGameObserver? observer = null)
         {
             if (agents is null) throw new ArgumentNullException(nameof(agents));
             if (names is null) throw new ArgumentNullException(nameof(names));
@@ -60,7 +61,10 @@ namespace Psycko.Core.Services
             int playerCount = agents.Count;
             var orchestrator = new GameOrchestrator();
             var tracker = new GameResultTracker(seed, playerCount);
-            var recorder = recordLog ? new GameLogRecorder() : null;
+            var baseRecorder = recordLog ? new GameLogRecorder() : null;
+            IGameLogRecorder? recorder = observer is null
+                ? baseRecorder
+                : new ObservableLogRecorder(baseRecorder, observer);
 
             GameState? state = null;
 
@@ -97,17 +101,18 @@ namespace Psycko.Core.Services
                             $"Plafond anti-boucle atteint ({moveCap} coups).");
 
                     state = PlayOneTurn(state, agents, orchestrator, recorder, tracker);
+                    observer?.OnStateChanged(state);
                 }
 
                 var result = tracker.Build(state);
-                return new GameRunOutcome(result, BuildLog(seed, recorder), null);
+                return new GameRunOutcome(result, BuildLog(seed, baseRecorder), null);
             }
             catch (Exception ex)
             {
                 recorder?.Record(GameLogEntry.GameEnd(null));
                 return new GameRunOutcome(
                     GameResult.Error(seed, playerCount),
-                    BuildLog(seed, recorder),
+                    BuildLog(seed, baseRecorder),
                     ex);
             }
         }
