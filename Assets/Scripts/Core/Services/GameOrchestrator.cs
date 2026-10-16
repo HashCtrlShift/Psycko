@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Psycko.Core.Domain;
 using Psycko.Core.Domain.Log;
+using Psycko.Core.Rules.Detection;
 using Psycko.Core.Rules.Validation;
 using Psycko.Core.Services.Turn;
 using Psycko.Core.Interfaces;
@@ -16,11 +17,18 @@ namespace Psycko.Core.Services
     /// Logging (T38b) : side-effect pur via IGameLogRecorder optionnel,
     /// aucune branche logique ne dépend du recorder.
     /// Effets du log (T38d) : GameLogEffectDetector lit l'état APRÈS pose du coup
-    /// et AVANT destruction de la Pile (Carré / Doublon relus sur Pile.Cards / Plays).
+    /// et AVANT destruction de la Pile (Carré relu sur Pile.Cards / Plays).
     /// Pile détruite (2, Bombe, Carré) : la contrainte est réinitialisée à
     /// (Normal, Three) — pile vide = aucune contrainte.
     /// Fin de joueur : Hand = 0 ET FaceDown = 0 (FaceUp déjà ramassé) → Finished,
     /// vérifiée à la sortie de chaque chemin qui retire des cartes (FinishIfEmpty).
+    /// Doublon (log) : Step6 remet TurnResult.SkipNext à false une fois le tour avancé,
+    /// le drapeau n'est donc plus exploitable. Le log recalcule la règle de Step5
+    /// via IsDoublonApplied (Carré prime, plus de 2 joueurs actifs, PairDetection).
+    /// Don du 7 : la ligne Play porte l'éventuel Doublon, la ligne GiftCard porte
+    /// l'effet Don, et la ligne post-Don ne porte que le Carré.
+    /// Proverbe (log) : As réel + changement de phase du poseur entre le début et la fin
+    /// du coup (transition ou Finished). Calculé par comparaison de CurrentPhase avant/après.
     /// </summary>
     public sealed class GameOrchestrator
     {
@@ -80,6 +88,9 @@ namespace Psycko.Core.Services
                 || !play.Cards.All(c => CardPlayability.IsPlayable(c, state)))
                 return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
 
+            // Phase du poseur AVANT le coup : sert au Proverbe (log).
+            var phaseBefore = state.Players[playerIndex].CurrentPhase;
+
             var turnResult = TurnManager.ApplyPlay(state, play);
 
             // ⭐ GARDE CRITIQUE T24bis : 2 terminal → ramassage forcé, pas destruction/rejeu
@@ -112,16 +123,24 @@ namespace Psycko.Core.Services
             // (ni pioche, ni destruction, ni changement de joueur) : tout est rejoué par
             // ResolveGiftAndContinue via ResolveRemainder. Le coup est loggé tout de suite,
             // avec la pile telle qu'elle est à ce stade.
-            // Le Doublon est loggé ici (une seule fois). La destruction (Carré) n'est PAS
-            // loggée ici : elle l'est après le Don, sur l'entrée post-Don (Bug 5 : doublon de log).
+            // Le Doublon est loggé ici (une seule fois), par miroir de Step5 qui n'a pas
+            // encore tourné : pas de Carré (le Carré prime), plus de 2 joueurs actifs, paire.
+            // La destruction (Carré) n'est PAS loggée ici : elle l'est après le Don,
+            // sur l'entrée post-Don (Bug 5 : doublon de log).
+            // Pas de Proverbe ici : un 7 n'est jamais un As.
             if (turnResult.RequiresGiftResolution)
             {
+                var giftPlayEffects = new List<EffectLogDetail>(1);
+
+                if (IsDoublonApplied(turnResult.State, play))
+                    giftPlayEffects.Add(new EffectLogDetail(EffectKind.Doublon));
+
                 recorder?.Record(GameLogEntry.PlayerAction(
                     play.PlayerId,
                     ActionKind.Play,
                     play.Cards,
-                    PileSnapshot(turnResult.State)
-                    ));
+                    PileSnapshot(turnResult.State),
+                    effects: giftPlayEffects.AsReadOnly()));
 
                 tracker?.RecordPlay(playerIndex);
 
@@ -138,6 +157,9 @@ namespace Psycko.Core.Services
 
             newState = FinishIfEmpty(newState, playerIndex);
 
+            // Proverbe : le poseur a changé de phase (transition ou Finished) avec ce coup.
+            bool phaseTransition = newState.Players[playerIndex].CurrentPhase != phaseBefore;
+
             recorder?.Record(GameLogEntry.PlayerAction(
                 play.PlayerId,
                 ActionKind.Play,
@@ -148,7 +170,8 @@ namespace Psycko.Core.Services
                     stateAfterPlacement,
                     turnResult.DestroysPile,
                     turnResult.NextDirection,
-                    skipApplied: turnResult.SkipNext)));
+                    skipApplied: IsDoublonApplied(stateAfterPlacement, play),
+                    phaseTransition: phaseTransition)));
 
             tracker?.RecordPlay(playerIndex);
             tracker?.ObserveState(newState);
@@ -207,12 +230,14 @@ namespace Psycko.Core.Services
             var transferred = (GameState)((IGameStateCommand)pendingResult.State)
                 .TransferCard(donorIndex, recipientSeatIndex, choice.CardToGive);
 
+            // La ligne GiftCard porte l'effet Don (une seule occurrence par Don).
             recorder?.Record(GameLogEntry.PlayerAction(
                 donor.Id,
                 ActionKind.GiftCard,
                 new[] { choice.CardToGive },
                 PileSnapshot(transferred),
-                targetPlayerId: choice.RecipientPlayerId));
+                targetPlayerId: choice.RecipientPlayerId,
+                effects: new[] { new EffectLogDetail(EffectKind.Don) }));
 
             // 2. Step4 : décision de re-pioche finale sur l'état RÉEL après Don,
             //    puis exécution immédiate (le Core décide, l'orchestrateur exécute).
@@ -329,6 +354,9 @@ namespace Psycko.Core.Services
                 play.EffectiveRank == DefRank.Two
                 && player.FaceDown.Count == 1;
 
+            // Phase du poseur AVANT le coup : sert au Proverbe (log).
+            var phaseBefore = player.CurrentPhase;
+
             var revealedState = (GameState)state.PlayCards(play);
 
             // ⭐ 2 terminal OU carte non jouable → ramassage forcé
@@ -389,6 +417,9 @@ namespace Psycko.Core.Services
             // Fin de joueur AVANT Step6 : le siège suivant est calculé sans lui.
             next = FinishIfEmpty(next, playerIndex);
 
+            // Proverbe : le poseur a changé de phase (transition ou Finished) avec ce coup.
+            bool phaseTransition = next.Players[playerIndex].CurrentPhase != phaseBefore;
+
             var advanceValid = Step6_AdvanceTurnResolver.Resolve(
                 next,
                 pileEffects.SkipNext,
@@ -407,7 +438,8 @@ namespace Psycko.Core.Services
                     stateBeforeDestruction,
                     destroysPile,
                     effects.NextDirection,
-                    skipApplied: pileEffects.SkipNext)));
+                    skipApplied: IsDoublonApplied(stateBeforeDestruction, play),
+                    phaseTransition: phaseTransition)));
 
             tracker?.RecordPlay(playerIndex);
             return BlindPlayResolution.Of(Accept(next, recorder, tracker), card);
@@ -566,8 +598,21 @@ namespace Psycko.Core.Services
         }
 
         /// <summary>
-        /// Miroir du test de Step5 (Doublon désactivé à 2 joueurs actifs ou moins).
-        /// Utilisé uniquement par le log, avant que Step5 ait tourné (branche Don).
+        /// Miroir de la règle Doublon de Step5, lu sur l'état APRÈS pose et AVANT
+        /// destruction. Nécessaire car Step6 remet TurnResult.SkipNext à false une
+        /// fois le tour avancé : le drapeau n'est plus exploitable par le log.
+        /// Le Carré prime sur le Doublon ; pas de Doublon à 2 joueurs actifs ou moins.
+        /// Le Doublon se détecte entre le Play et la Pile (PairDetection lit Pile.Plays
+        /// et traverse les Jokers de Verre). Un Joker posé en dernier n'a pas de hauteur
+        /// effective : PairDetection renvoie false, aucun filtre supplémentaire requis.
+        /// </summary>
+        private static bool IsDoublonApplied(GameState stateAfterPlacement, Play play)
+            => !QuadDetection.IsQuadDetected(stateAfterPlacement)
+               && HasMoreThanTwoActivePlayers(stateAfterPlacement)
+               && PairDetection.IsPairDetected(stateAfterPlacement);
+
+        /// <summary>
+        /// Désactivation du Doublon à 2 joueurs actifs ou moins (miroir de Step5).
         /// </summary>
         private static bool HasMoreThanTwoActivePlayers(GameState state)
             => state.Players.Count(p => p.CurrentPhase != DefPhase.Finished) > 2;

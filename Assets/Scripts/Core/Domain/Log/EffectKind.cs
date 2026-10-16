@@ -5,7 +5,7 @@ namespace Psycko.Core.Domain.Log
     /// Une entrée peut en combiner plusieurs (ex. DetruiteCarre + SensReverse).
     /// Convention : on logge le RÉSULTAT observé, pas la carte causale.
     /// Le Joker Couleur n'a donc pas d'entrée propre : il apparaît comme DetruiteBombe.
-    /// Don est ajouté en fin d'enum (compteurs d'effets T42).
+    /// Don et Proverbe sont ajoutés en fin d'enum (compteurs d'effets T42).
     /// </summary>
     public enum EffectKind
     {
@@ -17,6 +17,7 @@ namespace Psycko.Core.Domain.Log
         PriestEffect,   // Contrainte PriestReversed posée
         JokerVerre,
         JokerNoir,
-        Don             // Don du 7 (carte transférée)
+        Don,            // Don du 7 (carte transférée)
+        Proverbe        // « Finir sur un As, c'est la classe ! » (As réel + transition de phase)
     }
 }

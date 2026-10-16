@@ -279,6 +279,55 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
   - `GameResult.Error` met `TotalMoves` à 0.
   - Un mode de log inconnu bascule silencieusement sur `ExceptionalOnly` côté `sim`.
 
+# T39 — Correctifs de compilation Step3 / TurnManager / GameOrchestrator
+
+Statut : Correctifs proposés (à valider par compilation locale avant merge)
+Dépendances : T38d (étape 1/7), T23 (câblage TurnManager), T38c (formateur de cartes)
+Périmètre : Psycko.Core uniquement (zéro dépendance Unity)
+
+## Contexte
+Après la découpe de la chaîne Step1→Step6 et le câblage de Step3_CardEffectsResolver dans TurnManager et GameOrchestrator, la compilation (Unity et VS Code / OmniSharp) remonte une série d'erreurs Roslyn. Elles ont toutes la même origine : un fichier Step3_CardEffectsResolver.cs mal formé, et une duplication de la méthode Resolve. Ce ticket regroupe l'ensemble des correctifs de la session.
+
+## Erreurs initiales observées (tableau : Fichier | Ligne | Code | Message)
+- GameOrchestrator.cs | 354 | CS0103 | Step3_CardEffectsResolver n'existe pas dans le contexte
+- Turn/Step3_CardEffectsResolver.cs | 14 | CS0116 | Un namespace ne peut pas contenir directement des membres
+- Turn/Step3_CardEffectsResolver.cs | 68 | CS0103 | GlassJokerResolver n'existe pas dans le contexte
+- TurnManager.cs | 112 | CS0103 | Step3_CardEffectsResolver n'existe pas dans le contexte
+
+## Erreurs apparues ensuite (même tableau)
+- GameOrchestrator.cs | 354 | CS0121 | Appel ambigu entre deux Resolve (lignes 17 et 33)
+- Turn/Step3_CardEffectsResolver.cs | 24 | CS0117 | TurnManager ne contient pas de définition de Resolve
+- Turn/Step3_CardEffectsResolver.cs | 33 | CS0111 | Resolve déjà défini avec la même signature
+- TurnManager.cs | 112 | CS0121 | Appel ambigu entre deux Resolve
+
+## Causes racines (liste numérotée)
+1. Accolades mal positionnées dans Step3_CardEffectsResolver.cs : la déclaration de la classe statique était absente ou fermée trop tôt. La méthode Resolve se retrouvait directement dans le namespace (CS0116), donc la classe n'existait pas pour les appelants (CS0103).
+2. Imports manquants : le namespace Psycko.Core.Rules.Jokers n'était pas importé, donc GlassJokerResolver introuvable (CS0103).
+3. Duplication de Resolve : deux corps identiques coexistaient dans le même fichier (copie en double), d'où l'ambiguïté (CS0121) et le doublon de signature (CS0111).
+4. Mauvais appel : Step3_CardEffectsResolver appelait TurnManager.Resolve, qui n'existe pas (CS0117). L'appel doit être local.
+
+## Correctifs appliqués
+C1 — Structure du fichier : le fichier doit contenir, dans l'ordre : les imports (System, Psycko.Core.Domain, Psycko.Core.Rules.Jokers, Psycko.Core.Rules.SpecialCards), le namespace Psycko.Core.Services.Turn, une seule classe statique Step3_CardEffectsResolver avec une seule méthode publique statique Resolve(GameState, Play) retournant TurnResult. Vérifier que la déclaration de classe existe avec ses accolades appariées ; fin de fichier : fermeture méthode, puis classe, puis namespace.
+C2 — Imports : ajouter les using des namespaces Rules.Jokers et Rules.SpecialCards ; vérifier qu'ils correspondent aux fichiers réels de SevenHandler, TwoHandler, JackHandler, PriestHandler, GlassJokerResolver, BlackJokerResolver, ColorJokerResolver.
+C3 — Supprimer la seconde occurrence de Resolve (celle de la ligne 33) ; une seule méthode doit subsister.
+C4 — Ligne 24 : remplacer l'appel TurnManager.Resolve par un appel local à Resolve (ou Step3_CardEffectsResolver.Resolve si l'appel vient d'ailleurs dans la chaîne).
+
+## Critères d'acceptation (cases à cocher)
+- Step3_CardEffectsResolver.cs compile sans CS0116, CS0103, CS0111, CS0117
+- Une seule méthode Resolve(GameState, Play) dans le fichier
+- GameOrchestrator.cs ligne 354 : plus de CS0103 ni CS0121
+- TurnManager.cs ligne 112 : plus de CS0103 ni CS0121
+- Compilation verte dans Unity et dans VS Code (OmniSharp)
+- Aucune modification de la logique de jeu : seule la structure du fichier change
+
+## Tests à passer avant merge
+Aucun test unitaire nouveau (correctif de structure). Ekinox confirme la compilation, puis relance les tests NUnit EditMode existants (aucune régression attendue) et vérifie les tests de régression T38d : Carré de 7 avec Don, 2 isolé, Bombe isolée donnent le même résultat qu'avant.
+
+## Points ouverts
+- Vérifier les namespaces réels des handlers (supposés d'après ARCHITECTURE.md, non confirmés dans le code)
+- Chercher d'éventuels doublons résiduels de Resolve dans les autres fichiers du dossier Turn/
+- Mettre à jour ARCHITECTURE.md si le namespace réel de Step3 diffère de Psycko.Core.Services.Turn
+
 ## T41 — Tools/PsyckoConsole/ (ticket parent — 2 sous-tickets)
 
 - **Contexte** : application console dotnet pour simuler des parties complètes et valider Core + Bots avant Presentation. Références : `Psycko.Core` et `Psycko.Bots` uniquement (zéro Unity). Le dossier n'existe pas encore (pas de `Program.cs`).

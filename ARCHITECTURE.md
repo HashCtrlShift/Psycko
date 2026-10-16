@@ -87,6 +87,7 @@ Psycko/
 │   │   │   │   │
 │   │   │   │   ├── Detection/
 │   │   │   │   │   ├── PairDetection.cs          Définit un "Doublon"
+│   │   │   │   │   ├── ProverbDetection.cs       Définit le "Proverbe"
 │   │   │   │   │   └── QuadDetection.cs          Définit un "Carré"
 │   │   │   │   │
 │   │   │   │   ├── Jokers/
