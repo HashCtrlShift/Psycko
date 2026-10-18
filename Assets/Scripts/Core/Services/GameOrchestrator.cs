@@ -29,6 +29,9 @@ namespace Psycko.Core.Services
     /// l'effet Don, et la ligne post-Don ne porte que le Carré.
     /// Proverbe (log) : As réel + changement de phase du poseur entre le début et la fin
     /// du coup (transition ou Finished). Calculé par comparaison de CurrentPhase avant/après.
+    /// Valet (log) : SensReverse n'est loggé que si le sens a réellement changé ;
+    /// le sens d'AVANT coup est lu sur l'état reçu en entrée et passé à Detect
+    /// (previousDirection), car les états intermédiaires ne sont pas fiables pour ça.
     /// </summary>
     public sealed class GameOrchestrator
     {
@@ -90,6 +93,9 @@ namespace Psycko.Core.Services
 
             // Phase du poseur AVANT le coup : sert au Proverbe (log).
             var phaseBefore = state.Players[playerIndex].CurrentPhase;
+
+            // CHANGE : sens de jeu AVANT le coup, lu sur l'état reçu en entrée (log du Valet).
+            var directionBefore = state.Direction;
 
             var turnResult = TurnManager.ApplyPlay(state, play);
 
@@ -172,6 +178,7 @@ namespace Psycko.Core.Services
                     stateAfterPlacement,
                     turnResult.DestroysPile,
                     turnResult.NextDirection,
+                    previousDirection: directionBefore,   // CHANGE
                     skipApplied: IsDoublonApplied(stateAfterPlacement, play),
                     reachedPhase: reachedPhase)));
 
@@ -290,6 +297,7 @@ namespace Psycko.Core.Services
                 stateBeforeDestruction,
                 remainder.DestroysPile,
                 remainder.NextDirection,
+                previousDirection: state.Direction,   // CHANGE : sens avant coup (état reçu en entrée)
                 includeDoublon: false,
                 reachedPhase: donorReachedPhase));
 
@@ -355,6 +363,9 @@ namespace Psycko.Core.Services
 
             // Phase du poseur AVANT le coup : sert au Proverbe (log).
             var phaseBefore = player.CurrentPhase;
+
+            // CHANGE : sens de jeu AVANT le coup (log du Valet).
+            var directionBefore = state.Direction;
 
             var revealedState = (GameState)state.PlayCards(play);
 
@@ -439,6 +450,7 @@ namespace Psycko.Core.Services
                     stateBeforeDestruction,
                     destroysPile,
                     effects.NextDirection,
+                    previousDirection: directionBefore,   // CHANGE
                     skipApplied: IsDoublonApplied(stateBeforeDestruction, play),
                     reachedPhase: reachedPhase)));
 

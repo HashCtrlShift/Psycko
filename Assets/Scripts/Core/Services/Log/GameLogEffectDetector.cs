@@ -20,6 +20,8 @@ namespace Psycko.Core.Services.Log
     ///   - Don du 7 : l'effet Don est porté par la ligne GiftCard, loggée par
     ///     l'orchestrateur, qui y ajoute aussi les effets de la suite du tour.
     ///   - Prêtre et Valet ne coexistent jamais dans un Play (D2).
+    ///   - Valet : SensReverse loggé uniquement si le sens a réellement changé
+    ///     (le Valet est sans effet à 2 joueurs actifs ou moins).
     ///   - Proverbe : As réel posé qui déclenche une transition de phase du poseur
     ///     (ou sa fin de partie).
     ///   - PhaseTransition : Detail = phase atteinte (Talent / Luck / Finished).
@@ -28,11 +30,19 @@ namespace Psycko.Core.Services.Log
     {
         /// <param name="play">Coup joué.</param>
         /// <param name="stateAfterPlacement">
-        /// État avec le coup DÉJÀ posé sur la Pile, AVANT toute destruction.
-        /// Sert à relire Pile.Cards / Pile.Plays pour le Carré.
+        /// État avec le coup DÉJÀ posé sur la Pile, AVANT toute destruction et AVANT
+        /// l'application de la nouvelle direction.
+        /// Sert à relire Pile.Cards / Pile.Plays pour le Carré, et Direction (sens
+        /// d'avant coup) pour détecter une inversion effective.
         /// </param>
-        /// <param name="destroysPile">Intention de destruction (2, Bombe, Carré).</param>
-        /// <param name="nextDirection">Sens de jeu après le coup (Valet : toujours inversé).</param>
+        /// <param name="destroysPile">Intention de destruction (2, Bombe, Carré).</param>        
+        /// <param name="nextDirection">
+        /// Sens de jeu après le coup (le Valet l'inverse seulement à 3 joueurs actifs ou plus).
+        /// </param>
+        /// <param name="previousDirection">
+        /// Sens de jeu AVANT le coup. Sert à détecter une inversion effective du Valet.
+        /// Si null, l'inversion est considérée comme effective dès que nextDirection est renseigné.
+        /// </param>
         /// <param name="skipApplied">Le saut du joueur suivant est-il appliqué (Doublon effectif) ? Défaut : false.</param>
         /// <param name="includeDoublon">Faux pour la continuation d'un Don (Doublon déjà loggé). Défaut : true.</param>
         /// <param name="reachedPhase">Phase atteinte par le poseur avec ce coup, null si inchangée. Défaut : null.</param>
@@ -41,6 +51,7 @@ namespace Psycko.Core.Services.Log
             IGameStateQuery stateAfterPlacement,
             bool destroysPile,
             PlayDirection? nextDirection,
+            PlayDirection? previousDirection = null,
             bool skipApplied = false,
             bool includeDoublon = true,
             DefPhase? reachedPhase = null)
@@ -95,10 +106,16 @@ namespace Psycko.Core.Services.Log
                         break;
 
                     case DefRank.Jack:
-                        // Le Valet change toujours le sens de jeu.
-                        effects.Add(new EffectLogDetail(
-                            EffectKind.SensReverse,
-                            DirectionLabel(nextDirection)));
+                        // Effet loggé seulement si le sens a réellement changé
+                        // (inchangé à 2 joueurs actifs ou moins).
+                        if (nextDirection.HasValue
+                            && (!previousDirection.HasValue
+                                || nextDirection.Value != previousDirection.Value))
+                        {
+                            effects.Add(new EffectLogDetail(
+                                EffectKind.SensReverse,
+                                DirectionLabel(nextDirection)));
+                        }
                         break;
 
                     default:

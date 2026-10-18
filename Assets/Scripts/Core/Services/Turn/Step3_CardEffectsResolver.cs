@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Psycko.Core.Domain;
 using Psycko.Core.Rules.Jokers;
 using Psycko.Core.Rules.SpecialCards;
@@ -7,14 +8,14 @@ namespace Psycko.Core.Services.Turn
 {
     public static class Step3_CardEffectsResolver
     {
-    /// <summary>
-    /// Étape 3 — Effets spéciaux. Appelée APRÈS Step2 (main reconstituée) et AVANT Step4.
-    /// Interroge les handlers (contrat uniforme) et PRODUIT des intentions :
-    /// contrainte, direction, destruction de pile, rejeu, et le drapeau RequiresGiftResolution.
-    /// Aucune mutation, aucun choix de destinataire (→ GameOrchestrator).
-    /// Le Don est un booléen : UN seul don par coup, quel que soit le nombre de 7 posés.
-    /// </summary>
-    public static TurnResult Resolve(GameState state, Play play)
+        /// <summary>
+        /// Étape 3 — Effets spéciaux. Appelée APRÈS Step2 (main reconstituée) et AVANT Step4.
+        /// Interroge les handlers (contrat uniforme) et PRODUIT des intentions :
+        /// contrainte, direction, destruction de pile, rejeu, et le drapeau RequiresGiftResolution.
+        /// Aucune mutation, aucun choix de destinataire (→ GameOrchestrator).
+        /// Le Don est un booléen : UN seul don par coup, quel que soit le nombre de 7 posés.
+        /// </summary>
+        public static TurnResult Resolve(GameState state, Play play)
         {
             if (state is null) throw new ArgumentNullException(nameof(state));
             if (play is null) throw new ArgumentNullException(nameof(play));
@@ -46,7 +47,10 @@ namespace Psycko.Core.Services.Turn
                         break;
                     case DefRank.Jack:
                         constraint = JackHandler.ResolveConstraint(state);
-                        direction = JackHandler.ResolveDirection(state);
+                        // À 2 joueurs actifs ou moins, inverser le sens ne change pas le
+                        // joueur suivant : le Valet n'a alors aucun effet de direction
+                        // (miroir de la règle du Doublon).
+                        direction = JackHandler.ResolveDirection(state, CountActivePlayers(state));
                         destroysPile = JackHandler.DestroysPile;
                         grantsReplay = JackHandler.GrantsReplay;
                         break;
@@ -98,5 +102,12 @@ namespace Psycko.Core.Services.Turn
                 .WithGrantsReplay(grantsReplay)
                 .WithRequiresGiftResolution(requiresGift);
         }
+
+        /// <summary>
+        /// Nombre de joueurs encore actifs (phase différente de Finished).
+        /// Évalué avant FinishIfEmpty : le poseur compte encore comme actif.
+        /// </summary>
+        private static int CountActivePlayers(GameState state)
+            => state.Players.Count(p => p.CurrentPhase != DefPhase.Finished);
     }
 }

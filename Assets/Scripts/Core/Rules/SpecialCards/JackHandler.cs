@@ -4,16 +4,23 @@ using Psycko.Core.Interfaces;
 namespace Psycko.Core.Rules.SpecialCards
 {
     /// <summary>
-    /// Valet — INVERSION DU SENS DE JEU.
+    /// Valet — INVERSION DU SENS DE JEU (à 3 joueurs actifs ou plus).
     /// Se comporte comme une carte standard du point de vue de la hauteur :
     /// il pose une contrainte Normal avec sa propre hauteur en référence
     /// (le joueur suivant doit jouer Valet ou plus).
-    /// Son unique effet propre est de renverser le sens de jeu.
+    /// Son unique effet propre est de renverser le sens de jeu, sauf à 2 joueurs
+    /// actifs ou moins où l'inversion ne changerait pas le joueur suivant :
+    /// le sens reste alors inchangé (aucun effet).
     /// Aucune destruction de pile, aucun rejeu.
     /// Ce handler DÉCLARE l'effet : il ne l'applique pas (voir Rules/Phase et TurnManager).
     /// </summary>
     public static class JackHandler
     {
+        /// <summary>
+        /// Nombre minimal de joueurs actifs pour que l'inversion du sens ait un effet.
+        /// </summary>
+        public const int MinActivePlayersForReverse = 3;
+
         /// <summary>
         /// Contrainte transmise au joueur suivant après la pose d'un Valet :
         /// (Normal, Jack). Identique à n'importe quelle carte standard.
@@ -29,15 +36,23 @@ namespace Psycko.Core.Rules.SpecialCards
         }
 
         /// <summary>
-        /// Sens de jeu après la pose d'un Valet : l'inverse du sens courant.
+        /// Sens de jeu après la pose d'un Valet : l'inverse du sens courant si au moins
+        /// <see cref="MinActivePlayersForReverse"/> joueurs sont actifs, sinon le sens
+        /// courant inchangé.
         /// Un Doublon/Carré de Valets est UN SEUL coup (Play) : l'inversion
         /// ne s'applique qu'une fois, conformément à la règle
         /// « on applique une seule fois l'effet d'un groupe de cartes ».
         /// </summary>
-        public static PlayDirection ResolveDirection(IGameStateQuery state)
+        /// <param name="state">État courant (lecture seule).</param>
+        /// <param name="activePlayerCount">Nombre de joueurs encore actifs (non Finished).</param>
+        public static PlayDirection ResolveDirection(IGameStateQuery state, int activePlayerCount)
         {
             if (state is null)
                 throw new System.ArgumentNullException(nameof(state));
+
+            // À 2 joueurs actifs ou moins : inverser ne change pas le siège suivant.
+            if (activePlayerCount < MinActivePlayersForReverse)
+                return state.Direction;
 
             return Reverse(state.Direction);
         }
