@@ -93,7 +93,7 @@ namespace Psycko.Core.Services
 
             var turnResult = TurnManager.ApplyPlay(state, play);
 
-            // ⭐ GARDE CRITIQUE T24bis : 2 terminal → ramassage forcé, pas destruction/rejeu
+            // GARDE CRITIQUE : 2 terminal → ramassage forcé, pas destruction/rejeu
             // CLAUDE.md § 2 Card : "Si c'est la dernière carte du joueur : le joueur pose son 2,
             // ramasse la pile et passe son tour (y compris le 2 qui vient d'être posé).
             // Pas de destruction, pas de rejeu."
@@ -157,8 +157,10 @@ namespace Psycko.Core.Services
 
             newState = FinishIfEmpty(newState, playerIndex);
 
-            // Proverbe : le poseur a changé de phase (transition ou Finished) avec ce coup.
-            bool phaseTransition = newState.Players[playerIndex].CurrentPhase != phaseBefore;
+            // Phase atteinte par le poseur avec ce coup (null si inchangée) : Proverbe + PhaseTransition.
+            DefPhase? reachedPhase = newState.Players[playerIndex].CurrentPhase != phaseBefore
+                ? newState.Players[playerIndex].CurrentPhase
+                : (DefPhase?)null;
 
             recorder?.Record(GameLogEntry.PlayerAction(
                 play.PlayerId,
@@ -171,7 +173,7 @@ namespace Psycko.Core.Services
                     turnResult.DestroysPile,
                     turnResult.NextDirection,
                     skipApplied: IsDoublonApplied(stateAfterPlacement, play),
-                    phaseTransition: phaseTransition)));
+                    reachedPhase: reachedPhase)));
 
             tracker?.RecordPlay(playerIndex);
             tracker?.ObserveState(newState);
@@ -230,15 +232,6 @@ namespace Psycko.Core.Services
             var transferred = (GameState)((IGameStateCommand)pendingResult.State)
                 .TransferCard(donorIndex, recipientSeatIndex, choice.CardToGive);
 
-            // La ligne GiftCard porte l'effet Don (une seule occurrence par Don).
-            recorder?.Record(GameLogEntry.PlayerAction(
-                donor.Id,
-                ActionKind.GiftCard,
-                new[] { choice.CardToGive },
-                PileSnapshot(transferred),
-                targetPlayerId: choice.RecipientPlayerId,
-                effects: new[] { new EffectLogDetail(EffectKind.Don) }));
-
             // 2. Step4 : décision de re-pioche finale sur l'état RÉEL après Don,
             //    puis exécution immédiate (le Core décide, l'orchestrateur exécute).
             var step4 = Step4_FinalDrawResolver.Resolve(
@@ -283,24 +276,30 @@ namespace Psycko.Core.Services
 
             newState = FinishIfEmpty(newState, donorIndex);
 
-            // Suite du coup de 7 : seule la destruction (Carré) est loggée ici,
-            // sur la ligne qui suit le Don, avec les cartes du coup (Bug 5 : plus de ligne vide).
-            var postGiftEffects = GameLogEffectDetector.Detect(
+            // Une seule ligne après le Play : la ligne GiftCard, écrite ICI (après calcul de la
+            // suite du tour) pour porter Don + effets de suite (Carré, Proverbe, PhaseTransition
+            // du donneur). Plus de 3e ligne Play : les cartes du coup ne sont loggées qu'une fois.
+            var donorPhaseBefore = state.Players[donorIndex].CurrentPhase;
+            DefPhase? donorReachedPhase = newState.Players[donorIndex].CurrentPhase != donorPhaseBefore
+                ? newState.Players[donorIndex].CurrentPhase
+                : (DefPhase?)null;
+
+            var giftEffects = new List<EffectLogDetail> { new EffectLogDetail(EffectKind.Don) };
+            giftEffects.AddRange(GameLogEffectDetector.Detect(
                 play,
                 stateBeforeDestruction,
                 remainder.DestroysPile,
                 remainder.NextDirection,
-                afterGift: true);
+                includeDoublon: false,
+                reachedPhase: donorReachedPhase));
 
-            if (postGiftEffects.Count > 0)
-            {
-                recorder?.Record(GameLogEntry.PlayerAction(
-                    play.PlayerId,
-                    ActionKind.Play,
-                    play.Cards,
-                    PileSnapshot(newState),
-                    effects: postGiftEffects));
-            }
+            recorder?.Record(GameLogEntry.PlayerAction(
+                donor.Id,
+                ActionKind.GiftCard,
+                new[] { choice.CardToGive },
+                PileSnapshot(newState),
+                targetPlayerId: choice.RecipientPlayerId,
+                effects: giftEffects));
 
             return Accept(newState, recorder, tracker);
         }
@@ -417,8 +416,10 @@ namespace Psycko.Core.Services
             // Fin de joueur AVANT Step6 : le siège suivant est calculé sans lui.
             next = FinishIfEmpty(next, playerIndex);
 
-            // Proverbe : le poseur a changé de phase (transition ou Finished) avec ce coup.
-            bool phaseTransition = next.Players[playerIndex].CurrentPhase != phaseBefore;
+            // Phase atteinte par le poseur avec ce coup (null si inchangée) : Proverbe + PhaseTransition.
+            DefPhase? reachedPhase = next.Players[playerIndex].CurrentPhase != phaseBefore
+                ? next.Players[playerIndex].CurrentPhase
+                : (DefPhase?)null;
 
             var advanceValid = Step6_AdvanceTurnResolver.Resolve(
                 next,
@@ -439,7 +440,7 @@ namespace Psycko.Core.Services
                     destroysPile,
                     effects.NextDirection,
                     skipApplied: IsDoublonApplied(stateBeforeDestruction, play),
-                    phaseTransition: phaseTransition)));
+                    reachedPhase: reachedPhase)));
 
             tracker?.RecordPlay(playerIndex);
             return BlindPlayResolution.Of(Accept(next, recorder, tracker), card);

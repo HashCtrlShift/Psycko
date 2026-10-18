@@ -21,9 +21,49 @@ namespace Psycko.Core.Services.Log
         public string FormatCards(IEnumerable<Card> cards)
             => string.Join(" ", (cards ?? Enumerable.Empty<Card>()).Select(c => _cards.Format(c)));
 
-        /// <summary>Formate les effets, séparés par " + " (ordre conservé).</summary>
+        /// <summary>
+        /// Formate les effets (noms seuls), séparés par " + " (ordre conservé).
+        /// Les précisions (sens, phase) sont affichées dans la colonne Détail.
+        /// </summary>
         public string FormatEffects(IEnumerable<EffectLogDetail> effects)
-            => string.Join(" + ", effects ?? Enumerable.Empty<EffectLogDetail>());
+            => string.Join(" + ", (effects ?? Enumerable.Empty<EffectLogDetail>())
+                .Select(e => e.Kind.ToString()));
+
+        /// <summary>
+        /// Formate la colonne Détail : le texte propre de l'entrée (raison de départ, etc.)
+        /// puis les précisions des effets (sens de jeu, phase atteinte), séparés par " ; ".
+        /// Chaîne vide s'il n'y a rien à afficher.
+        /// </summary>
+        public string FormatDetail(GameLogEntry entry)
+        {
+            if (entry == null) throw new ArgumentNullException(nameof(entry));
+
+            var parts = new List<string>();
+
+            if (!string.IsNullOrEmpty(entry.Detail))
+                parts.Add(entry.Detail);
+
+            foreach (var effect in entry.Effects)
+            {
+                if (string.IsNullOrEmpty(effect.Detail))
+                    continue;
+
+                switch (effect.Kind)
+                {
+                    case EffectKind.SensReverse:
+                        parts.Add("Sens : " + effect.Detail);
+                        break;
+                    case EffectKind.PhaseTransition:
+                        parts.Add("Phase : " + effect.Detail);
+                        break;
+                    default:
+                        parts.Add(effect.Kind + " : " + effect.Detail);
+                        break;
+                }
+            }
+
+            return string.Join(" ; ", parts);
+        }
 
         /// <summary>Formate une action en texte lisible.</summary>
         public string Format(GameLogEntry entry)

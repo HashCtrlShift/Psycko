@@ -117,7 +117,7 @@ namespace Psycko.Core.Services.Log
                     cells[c] = formatter.Format(entry);
                     cells[c + 1] = formatter.FormatCards(entry.PileBefore);
                     cells[c + 2] = formatter.FormatEffects(entry.Effects);
-                    cells[c + 3] = entry.Detail ?? string.Empty;
+                    cells[c + 3] = formatter.FormatDetail(entry);
                 }
 
                 writer.WriteLine(Csv(cells));

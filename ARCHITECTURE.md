@@ -44,6 +44,7 @@ Psycko/
 │   │   │   │   │
 │   │   │   │   ├── Log/
 │   │   │   │   │   ├── ActionKind.cs                Types d'actions enregistrables dans le log d'une partie
+│   │   │   │   │   ├── EffectCategory.cs            Catégories des Effets enregistrés
 │   │   │   │   │   ├── EffectKind.cs                Effet enregistré dans la colonne "Effets" du GameLog
 │   │   │   │   │   ├── EffectLogDetail.cs           Détail immuable d'un effet enregistré dans une entrée de log
 │   │   │   │   │   ├── ExceptionalGameCriteria.cs   Seuils qui rendent une partie "exceptionnelle"

@@ -10,20 +10,19 @@ namespace Psycko.Core.Services.Log
     /// Traduit un coup en liste d'effets pour le log. Lecture seule : ne modifie
     /// aucun état et ne décide rien.
     /// Ordre : Carré / Doublon (exclusifs) d'abord, puis l'effet propre de la carte,
-    /// puis le Proverbe.
+    /// puis le Proverbe, puis PhaseTransition (le Proverbe s'affiche avant la transition).
     ///   - Carré : jamais sur 2 / Joker Couleur / Joker Noir (D1), garanti par
     ///     QuadDetection qui s'arrête sur Noir/Couleur et par la destruction du 2.
     ///   - Doublon : exclu si un Carré est détecté (le Carré prime). Affiché uniquement
-    ///     si skipApplied est vrai : c'est la décision officielle de Step5 (saut
-    ///     effectivement appliqué, jamais à 2 joueurs actifs). Aucune redétection
-    ///     par PairDetection ici, pour ne jamais diverger de Step5.
-    ///   - Doublon après Don (afterGift) : jamais redétecté, seul le Carré l'est.
+    ///     si skipApplied est vrai (décision officielle de Step5) ET includeDoublon est vrai.
+    ///     Pour la continuation d'un Don, l'appelant passe includeDoublon = false :
+    ///     le Doublon est déjà écrit sur la ligne Play.
     ///   - Don du 7 : l'effet Don est porté par la ligne GiftCard, loggée par
-    ///     l'orchestrateur (ResolveGiftAndContinue). Le 7 n'a aucun effet de carte
-    ///     ici (la carte transite de main en main).
+    ///     l'orchestrateur, qui y ajoute aussi les effets de la suite du tour.
     ///   - Prêtre et Valet ne coexistent jamais dans un Play (D2).
     ///   - Proverbe : As réel posé qui déclenche une transition de phase du poseur
-    ///     (ou sa fin de partie). Décision fournie par l'appelant (phaseTransition).
+    ///     (ou sa fin de partie).
+    ///   - PhaseTransition : Detail = phase atteinte (Talent / Luck / Finished).
     /// </summary>
     internal static class GameLogEffectDetector
     {
@@ -35,35 +34,27 @@ namespace Psycko.Core.Services.Log
         /// <param name="destroysPile">Intention de destruction (2, Bombe, Carré).</param>
         /// <param name="nextDirection">Sens de jeu après le coup (Valet : toujours inversé).</param>
         /// <param name="skipApplied">Le saut du joueur suivant est-il appliqué (Doublon effectif) ? Défaut : false.</param>
-        /// <param name="afterGift">Vrai pour la ligne qui suit le Don : seul le Carré est retenu. Défaut : false.</param>
-        /// <param name="phaseTransition">Le poseur a-t-il changé de phase avec ce coup (ou fini) ? Défaut : false.</param>
+        /// <param name="includeDoublon">Faux pour la continuation d'un Don (Doublon déjà loggé). Défaut : true.</param>
+        /// <param name="reachedPhase">Phase atteinte par le poseur avec ce coup, null si inchangée. Défaut : null.</param>
         public static IReadOnlyList<EffectLogDetail> Detect(
             Play play,
             IGameStateQuery stateAfterPlacement,
             bool destroysPile,
             PlayDirection? nextDirection,
             bool skipApplied = false,
-            bool afterGift = false,
-            bool phaseTransition = false)
+            bool includeDoublon = true,
+            DefPhase? reachedPhase = null)
         {
-            var effects = new List<EffectLogDetail>(3);
+            var effects = new List<EffectLogDetail>(4);
 
             bool isQuad = QuadDetection.IsQuadDetected(stateAfterPlacement);
-
-            // Après un Don : seul le Carré (destruction) est loggé.
-            if (afterGift)
-            {
-                if (isQuad)
-                    effects.Add(new EffectLogDetail(EffectKind.DetruiteCarre));
-                return effects.AsReadOnly();
-            }
 
             // 1) Carré / Doublon d'abord (exclusifs : le Carré prime).
             if (isQuad)
             {
                 effects.Add(new EffectLogDetail(EffectKind.DetruiteCarre));
             }
-            else if (skipApplied && !play.IsJokerPlay)
+            else if (includeDoublon && skipApplied && !play.IsJokerPlay)
             {
                 effects.Add(new EffectLogDetail(EffectKind.Doublon));
             }
@@ -117,8 +108,14 @@ namespace Psycko.Core.Services.Log
             }
 
             // 3) Proverbe : As réel + transition de phase (ou fin) du poseur.
-            if (ProverbDetection.IsProverb(play, phaseTransition))
+            if (ProverbDetection.IsProverb(play, reachedPhase.HasValue))
                 effects.Add(new EffectLogDetail(EffectKind.Proverbe));
+
+            // 4) Changement de phase du poseur (après le Proverbe).
+            if (reachedPhase.HasValue)
+                effects.Add(new EffectLogDetail(
+                    EffectKind.PhaseTransition,
+                    PhaseLabel(reachedPhase.Value)));
 
             return effects.AsReadOnly();
         }
@@ -131,6 +128,17 @@ namespace Psycko.Core.Services.Log
             return direction.Value == PlayDirection.Clockwise
                 ? "Horaire"
                 : "Antihoraire";
+        }
+
+        private static string PhaseLabel(DefPhase phase)
+        {
+            switch (phase)
+            {
+                case DefPhase.Talent:   return "Talent";
+                case DefPhase.Luck:     return "Luck";
+                case DefPhase.Finished: return "Finished";
+                default:                return phase.ToString();
+            }
         }
     }
 }
