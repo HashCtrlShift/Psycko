@@ -171,7 +171,7 @@ Types immuables dans `Domain/Log` : `GameLog`, `GameLogEntry`, `ActionKind`, `Ef
   - Compilation verte.
 - **Piste de test NUnit futur** : test paramétré sur les 63 cartes (format attendu, unicité, correspondance bijective avec `DefRank` / `DefSuit` / `DefJokerType`).
 
-### T38d — Finalisation du logging : correctifs, export, cas exceptionnels, statistiques 🔄 EN COURS (étapes 1-2 terminées, correctifs de simulation faits, étapes 3-4 à valider)
+### T38d — Finalisation du logging : correctifs, export, cas exceptionnels, statistiques ✅ FAIT (étapes 0 à 7 réalisées ; anomalies connues et proposition X/Y en attente d’accord)
 
 Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec un commit par étape.
 
@@ -265,6 +265,8 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
 - Interface `ConsoleGameLocal` : choix entre simulation et partie Humain vs Bots, puis choix du mode de log `off` / `all` / `exceptional`.
 - Validation par simulation console : `play <seed>` dans les 3 modes, partie abandonnée (`q`) sans crash, `sim 1000 1` dans les 3 modes avec 0 erreur.
 
+**Note — écart doc/code à vérifier lors de l’audit** : la description de l’étape 1 cite `skipApplied` / `afterGift`, alors que le code récent utilise `includeDoublon` / `reachedPhase`. Des événements de log ont aussi été ajoutés récemment (transitions de Phase, victoires, ramassages avec distinction d’un retournement raté) ; ils restent à documenter.
+
 **7. `.gitignore`** ✅ FAIT : dossiers de logs et d'exports CSV générés ignorés (notamment `Tools/PsyckoConsole/Logs/`).
 
 - **Dépendances** : T38a, T38b, T38bis, T38c, T37.
@@ -281,7 +283,7 @@ Ce ticket regroupe tout ce qui reste de T38. Il se fait **dans cet ordre**, avec
 
 # T39 — Correctifs de compilation Step3 / TurnManager / GameOrchestrator
 
-Statut : Correctifs proposés (à valider par compilation locale avant merge)
+Statut : ✅ ABSORBÉ PAR T38c / À CLORE (cohérent avec l’ordre d’exécution ; T38c absorbe T39 et T40)
 Dépendances : T38d (étape 1/7), T23 (câblage TurnManager), T38c (formateur de cartes)
 Périmètre : Psycko.Core uniquement (zéro dépendance Unity)
 
@@ -330,34 +332,42 @@ Aucun test unitaire nouveau (correctif de structure). Ekinox confirme la compila
 
 ## T41 — Tools/PsyckoConsole/ (ticket parent — 2 sous-tickets)
 
-- **Contexte** : application console dotnet pour simuler des parties complètes et valider Core + Bots avant Presentation. Références : `Psycko.Core` et `Psycko.Bots` uniquement (zéro Unity). Le dossier n'existe pas encore (pas de `Program.cs`).
+- **Contexte** : application console dotnet pour simuler des parties complètes et valider Core + Bots avant Presentation. Références : `Psycko.Core` et `Psycko.Bots` uniquement (zéro Unity). Le dossier `Tools/PsyckoConsole/` contient `Program.cs`, `ConsoleGameLocal.cs`, `PsyckoConsole.csproj` et `ConsoleLogPrinter`. Le menu Simuler/Jouer et les commandes `sim <n> <seed> <off|all|exceptional>` et `play [seed] [off|all|exceptional] [--reveal]` existent et sont validés.
 
-### T41a — Squelette console et partie unique instrumentée ⏳ À FAIRE
+### T41a — Squelette console et partie unique instrumentée ✅ FAIT
 
-- Création du projet dotnet dans `Tools/PsyckoConsole/` et de `Program.cs`.
+- Le projet dotnet existe dans `Tools/PsyckoConsole/` avec `Program.cs`, `ConsoleGameLocal.cs`, `PsyckoConsole.csproj` et `ConsoleLogPrinter`.
 - **Menu** : Simuler / Jouer (Humain vs 3 Bots).
-- Orchestration d'**une** partie complète :
-  - initialisation de `GameState` (deck 63 cartes, seed T37) ;
-  - boucle tant que `!GameResultCalculator.IsGameOver`, avec appel des agents (`IPlayerAgent`) selon `ActivePlayerIndex` ;
-  - gestion des chemins de décision : pose, pickup, Don, FaceDown (Luck) ;
-  - arrêt propre sur blocage, avec un **seuil de coups maximum configurable** (anti-boucle infinie).
+- **Commandes validées** : `sim <n> <seed> <off|all|exceptional>` et `play [seed] [off|all|exceptional] [--reveal]`.
+- L'orchestration couvre une partie complète, l'initialisation de `GameState`, la boucle de jeu et les chemins pose, pickup, Don et FaceDown (Luck), avec arrêt propre et seuil anti-boucle.
 - Noms des joueurs : `Bot1` à `Bot4` en simulation ; `Humain`, `Bot1`, `Bot2`, `Bot3` en partie contre les bots.
-- Intégration du recorder et de la seed (T38).
-- **Critères d'acceptation** : `dotnet run` exécute une partie de bout en bout, **déterministe pour une seed donnée** (distribution initiale), sans intervention manuelle.
+- Intégration du recorder, de la seed et de l'affichage direct.
+- **Critères couverts** : le lanceur exécute une partie de bout en bout et la distribution initiale est déterminée par la seed.
 
-### T41b : Simulation de masse ⏳ À FAIRE
+### T41b — Simulation de masse ✅ FAIT (hors points T42 ci-dessous)
 
-- Paramètres réglables : nombre de parties (jusqu'à 1M, défaut raisonnable), seed de départ (int), incrémentation des seeds, LogMode, seuil de coups maximum, ExceptionalGameCriteria.
-- Branchement des modules de T38d (CsvLogWriter, SimulationStats, ExceptionalGameDetector).
-- Mémoire bornée en ExceptionalOnly : on ne garde que les N parties les plus longues et N plus courtes au fil de l'eau, plus les parties en erreur ou au-delà du seuil, jamais tous les logs.
-- Affichage de progression régulier (ex. tous les 10 000 parties), sans ralentissement notable.
-- Isolation des erreurs : une partie qui lève une exception est isolée (seed + log exportés) et la boucle continue.
-- Contrôle de plage : refuser un lancement où startSeed + gameCount dépasse int.MaxValue.
-- Rapport final : statistiques de T38d (durées, classements, Psycko par bot, ratios, taux d'erreur).
-- Critère d'acceptation : 1M parties sans crash du processus (hors parties individuellement en échec, isolées).
-- Hors périmètre global T41 : interface graphique, intégration Unity, multijoueur réseau.
-- Dépendances globales T41 : T35, T36, T37, T38 (complet), T38c.
+- **Couvert** : paramètres nombre de parties, seed de départ et `LogMode` ; branchement de `CsvLogWriter`, `SimulationStats` et `ExceptionalGameDetector` ; isolation des erreurs ; rapport final des statistiques.
+- **Logs en mode `exceptional`** :
+  - Plafond de logs `ExceptionalLogCap = 200` : au-delà, les parties exceptionnelles sont comptées mais pas loguées.
+  - Écriture par lots de `ExceptionalBatchSize = 50` parties par fichier CSV (`Logs\GameLogs_<seedMin>_<seedMax>_<horodatage>_<n>.csv`).
+  - Exceptionnelle = partie de moins de 250 coups ou de plus de 6000 coups (préfixe console `Exceptionnelle : seed ...`).
+  - Extrêmes = les 10 parties les plus courtes et les 10 plus longues, écrites dans un fichier dédié (préfixes console `Extrême Courte : seed ...` et `Extrême Longue : seed ...`), distincts des vraies exceptionnelles.
+  - Résumé final : `Exceptionnelles : X détectées, Y loguées, Z non loguées (plafond N). Extrêmes écrites : M.`
+- **Validations par exécution** :
+  - `sim 20000 1 off` : 20 000 parties terminées, 0 erreur, environ 1 min 07 en Release.
+  - `sim 1000 1 exceptional` : 1 000 parties terminées, 0 erreur, plafond et lots vérifiés (tests à cap 5 / lot 2, puis valeurs finales 200 / 50 avec 354 exceptionnelles détectées sur 20 000 parties).
+  - Statistiques cohérentes : moyenne d'environ 1 166 coups, médiane 860, P1 254, P99 5733 ; victoires par siège équilibrées (24,8 à 25,2 %).
+- **Point ouvert (mémoire)** : la RAM atteint environ 13,6 Go lors d'une simulation de 20 000 parties. La mémoire est bornée en `exceptional` pour les logs, mais la consommation globale reste à analyser (agrégation au fil de l'eau de `SimulationStats` à évaluer pour 1M parties).
+- **À vérifier dans le cadre de T42** : progression affichée tous les 10 000 parties ; garde de plage refusant `startSeed + gameCount` au-delà de `int.MaxValue` ; capacité à exécuter 1M parties sans crash du processus.
+- Ces trois points restent à confirmer et ne sont pas présentés comme démontrés.
 
+### Hors périmètre global T41
+
+Interface graphique, intégration Unity, multijoueur réseau.
+
+### Dépendances globales T41
+
+T35, T36, T37, T38 (complet), T38c.
 ---
 
 ## T42 — Simulation (exécution et analyse des 1M parties) ⏳ À FAIRE
@@ -371,12 +381,12 @@ Aucun test unitaire nouveau (correctif de structure). Ekinox confirme la compila
   - Pour chaque échec : isoler la seed et ouvrir un ticket de correction dédié dans Core.
   - Rapport de synthèse : tickets ouverts, taux de réussite global, recommandation GO / NO-GO vers Bots avancés + NUnit + Presentation.
 - **Hors périmètre** : correction des bugs (tickets séparés), rédaction des tests NUnit définitifs (ticket futur nourri par cette analyse).
-- **Dépendances** : T35 à T41 clos et fonctionnels.
+- **Dépendances** : T35 à T41 clos et fonctionnels ; T44 et T45 sont nécessaires pour comparer RandomBot vs DiscardBot par type de bot (agrégation des vainqueurs/Psycko par type de bot et par siège).
 - **Critères d'acceptation** :
   - 1M parties exécutées, rapport chiffré produit.
   - Toute partie en échec a sa seed isolée et un ticket de correction si nécessaire.
   - Décision explicite actée avec Ekinox : GO vers NUnit + Presentation, ou itération sur Core/Bots.
-- ❓ **En suspens** : où implémenter la collecte de fréquence d'activation ? Dans `SimulationStats` (ajout après T38d) ou dans un compteur dédié ? À décider avant le lancement de T42.
+- ❓ **En suspens** : où implémenter la collecte de fréquence d'activation ? Dans `SimulationStats` (ajout après T38d) ou dans un compteur dédié ? La décision reste à prendre avant le lancement de T42.
 
 ---
 
@@ -389,12 +399,69 @@ Aucun test unitaire nouveau (correctif de structure). Ekinox confirme la compila
 - **Fichiers pressentis** : `Psycko.Core.Interfaces/IPlayerVisibleState.cs`, `Psycko.Bots/IPlayerAgent.cs`.
 - **Hors périmètre** : réécriture des bots existants tant que ce ticket n'est pas tranché.
 - **Dépendances** : T35 (clos).
-- **Statut** : dette technique, non bloquante. À trancher avant l'implémentation d'un bot stratégique (MCTS, heuristique).
+- **Statut** : dette technique, non bloquante. À trancher avant l'implémentation d'un bot stratégique (MCTS, heuristique). Le futur DiscardBot (T45) respecte la règle par construction ; T43 n’est donc pas bloquant pour lui.
 
 ---
 
+## T44 — Console configurable (RunConfiguration, BotFactory, ArgumentParser) ⏳ À FAIRE
+
+- **Contexte** : faire converger le lanceur en ligne de commande et le menu interactif vers une même configuration d’exécution, sans dupliquer le parsing ni la construction des parties.
+- **Travail attendu** :
+  - Introduire `RunConfiguration`, `BotFactory` et `ArgumentParser` dans `Tools/PsyckoConsole/`.
+  - Construire la même configuration depuis le CLI et le menu : mode sim/play, nombre de parties, seed, `LogMode`, reveal, `ExceptionalGameCriteria` (N/X/Y/plafond) réglables, type de bot par siège (`random`/`discard`/`human`) et noms des joueurs.
+  - Faire de `Program.cs` un simple point d’entrée ; `ConsoleGameLocal` ne construit plus que la configuration.
+  - Produire des erreurs d’arguments lisibles (sans `int.Parse` non protégé) et parser `LogMode` une seule fois.
+  - Permettre une partie 100 % bots observée en direct. Exemple : `dotnet run -- sim 10000 1 off --bots discard,random,random,random`.
+  - Corriger les deux anomalies connues : mode inconnu → erreur explicite, et `GameResult.Error` conserve le `TotalMoves` réel. Préciser la modification Core éventuelle pour ce dernier point.
+- **Fichiers pressentis** : `Tools/PsyckoConsole/Program.cs`, `ConsoleGameLocal.cs`, nouveaux `RunConfiguration.cs`, `BotFactory.cs`, `ArgumentParser.cs` ; Core uniquement pour `GameResult.Error` si nécessaire.
+- **Hors périmètre** : modification des règles métier, de Core hors correction `GameResult.Error`, ou ajout de tests unitaires dans la console.
+- **Dépendances** : T41, T38d ; T45 pour le type de bot DiscardBot.
+- **Critères d’acceptation** : CLI et menu produisent la même `RunConfiguration` ; commandes et erreurs lisibles ; un seul parsing du `LogMode` ; modes `off/all/exceptional` fonctionnels en sim et play ; configuration des sièges et noms fonctionnelle ; parties 100 % bots observables ; anomalies corrigées.
+- **Tests / validation** : validation par simulation console cohérente avec T38d : `sim 1000` dans les trois modes, 0 erreur ; pas de test unitaire dans la console.
+
+## T45 — DiscardBot (Psycko.Bots) ⏳ À FAIRE
+
+- **Contexte** : ajouter un bot déterministe permettant de comparer une stratégie simple à RandomBot dans les simulations.
+- **Travail attendu** : jouer la plus petite carte jouable selon l’ordre de hauteur via `HeightComparison` / `ICardPlayabilityChecker`, et non l’ordre brut du rang (le 2 est la plus forte, le 3 la plus faible) ; donner la plus petite carte au Don du 7 ; `ProposeExchanges` retourne une liste vide.
+- **Points à trancher explicitement** : Jokers (proposition : dernier recours seulement) ; groupes/Doublons/Carrés (proposition : une carte par coup, ou le plus petit groupe) ; destinataire du Don (proposition : même règle que RandomBot) ; égalités de hauteur (départage déterministe) ; FaceDown (index 0, sans lire la carte, règle T43 respectée par construction) ; `DecidePickup` avec `isForced` comme RandomBot.
+- **Fichiers pressentis** : `Assets/Scripts/Bots/DiscardBot.cs` et tests NUnit EditMode associés.
+- **Hors périmètre** : changement des règles Core, bot stratégique avancé, ou décision finale sur les points listés sans accord.
+- **Dépendances** : T36, T44 (pour placer le bot à un siège), T35.
+- **Critères d’acceptation** : choix de la plus petite carte ; le 2 n’est jamais choisi trop tôt ; Jokers en dernier selon la décision ; Don de la plus petite carte ; FaceDown sans lecture de la carte ; couverture ≥ 90 %.
+- **Tests NUnit EditMode** : plus petite carte, 2 jamais choisi trop tôt, Jokers en dernier, Don de la plus petite carte, FaceDown sans lecture. Avec un bot déterministe et trois aléatoires, comparer en permutant les sièges.
+
+## T46 — Audit documentaire et mise à jour Notion / ARCHITECTURE.md / CLAUDE.md ⏳ À FAIRE
+
+- **Contexte** : réaligner la documentation après T44–T45 et l’audit de T38d.
+- **Travail attendu** : mettre à jour `ARCHITECTURE.md` et `CLAUDE.md`, aligner la documentation de `GameLogEffectDetector`, des événements de log récents, et du statut Step3/T39 ; préparer le texte Notion.
+- **Fichiers pressentis** : `ARCHITECTURE.md`, `CLAUDE.md`, texte de passation/Notion.
+- **Hors périmètre** : écriture automatique dans Notion ; le texte Notion est fourni à Ekinox à coller.
+- **Dépendances** : T44, T45, audit T38d.
+- **Critères d’acceptation** : aucun écart doc/code identifié sans mention « à vérifier » ; texte Notion prêt à coller ; statuts et chemins cohérents.
+- **Tests** : relecture croisée des documents et vérification des noms/chemins.
+
+## T47 — Tickets d’anomalies séparés si non absorbés par T44 ⏳ À FAIRE
+
+- **Contexte** : conserver une traçabilité explicite des anomalies de T38d et décider si elles sont absorbées par T44.
+- **Anomalies à suivre** :
+  - (a) `GameResult.Error` avec `TotalMoves = 0` : proposition, absorbé par T44.
+  - (b) mode inconnu → `ExceptionalOnly` silencieux : proposition, absorbé par T44.
+  - (c) mode `play` doit supporter les trois `LogMode` : proposition, reste traité dans T44 car il concerne le même fichier et le même parsing ; à confirmer par Ekinox.
+- **Fichiers pressentis** : `Tools/PsyckoConsole/` et, pour (a), `GameResult` dans Core si nécessaire.
+- **Hors périmètre** : autres anomalies non listées et correction de règles métier.
+- **Dépendances** : T44 et confirmation d’Ekinox.
+- **Critères d’acceptation** : pour chaque anomalie, statut « absorbée par T44 » ou ticket séparé décidé ; aucun comportement silencieux non documenté.
+- **Tests** : cas d’argument inconnu, vérification du nombre réel de coups en erreur, et `play` dans `off/all/exceptional`.
+
 ## Ordre d'exécution
 
-✅ T35 → ✅ T36 → ✅ T37 → ✅ T38a → ✅ T38b → ✅ T38bis → ✅ T38c *(absorbe T39 et T40)* → 🔄 **T38d** (étape 1/7 ✅) → T41a → T41b → T42 → T43
+✅ T35 → ✅ T36 → ✅ T37 → ✅ T38a → ✅ T38b → ✅ T38bis → ✅ T38c (absorbe T39/T40) → ✅ T38d → ✅ T41a → 🔄 T41b (reste à vérifier) → T44 → T45 → T42 → T43 → T46
 
-**Prochaine étape : T38d, point 2** (Export CSV, `CsvLogWriter`), après validation des tests de régression de l'étape 1 et merge. Les deux points en suspens du point 4 (définition d'une « partie exceptionnelle » et plafond d'export CSV) sont à trancher avant d'implémenter les étapes 3 et 4.
+## Reste à faire
+
+1. Obtenir l’accord sur les seuils X/Y : Y 160 → 250 et X 8 000 → 6 000.
+2. Traiter ou confirmer les anomalies connues (TotalMoves réel, mode inconnu, LogMode de `play`) et clore T39.
+3. Réaliser T44 (console configurable), puis T45 (DiscardBot).
+4. Exécuter T42 et analyser la simulation à grande échelle ; décider où collecter la fréquence d’activation.
+5. Trancher T43, puis effectuer T46 (audit documentaire et texte Notion).
+6. Phase suivante : Présentation, dans un nouveau chat avec un document de passation.

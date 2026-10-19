@@ -17,7 +17,14 @@ namespace Psycko.Console
     public static class Program
     {
         private const string LogDirectory = "Logs"; // relatif à Tools/PsyckoConsole/
-        private const int LogBatchSize = 4000;      // aligné sur le plafond de CsvLogWriter
+        private const int ProgressStep = 10000;
+
+        // Mode All : un fichier CSV tous les LogBatchSize parties (mémoire bornée).
+        private const int LogBatchSize = 50;
+
+        // Mode Exceptional : écriture par lots, plafonnée en nombre total de logs détaillés.
+        private const int ExceptionalBatchSize = 50;
+        private const int ExceptionalLogCap = 200;
 
         private static readonly string[] SimNames = { "Bot1", "Bot2", "Bot3", "Bot4" };
         private static readonly string[] PlayNames = { "Humain", "Bot1", "Bot2", "Bot3" };
@@ -37,22 +44,31 @@ namespace Psycko.Console
             int startSeed = args.Length > 2 ? int.Parse(args[2]) : 1;
             var logMode = ParseLogMode(args.Length > 3 ? args[3] : "exceptional");
 
-            // Valeurs par défaut : N=10, Y=160, X=8000, plafond=250000.
-            // Pour tester le plafond, abaisser temporairement ici (ex. maxMovesThreshold: 250, moveCap: 300).
+            // Valeurs par défaut : N=10, Y=250, X=6000, plafond=250000.
             var criteria = new ExceptionalGameCriteria();
 
             var botRandom = new Random(); // décisions NON reproductibles (choix assumé)
             var checker = new CardPlayabilityChecker();
             var agents = SimNames.Select(_ => (IPlayerAgent)new RandomBot(botRandom, checker)).ToList();
 
-            var kept = new List<(GameLog Log, GameResult Result, string Reason)>();
+            // Tampons des extrêmes : bornés à TopN / BottomN.
             var shortest = new List<(GameLog Log, GameResult Result)>();
             var longest = new List<(GameLog Log, GameResult Result)>();
             var allResults = new List<GameResult>(games);
 
-            // Mode All : tampon borné, vidé tous les LogBatchSize parties.
+            // Tampon d'écriture (modes All et Exceptional) : borné, vidé par lots.
             var batchLogs = new List<GameLog>(LogBatchSize);
             var batchResults = new List<GameResult>(LogBatchSize);
+
+            int exceptionalDetected = 0;
+            int exceptionalLogged = 0;
+
+            if (games < 1 || (long)startSeed + games > int.MaxValue)
+            {
+                System.Console.WriteLine(
+                    $"Plage de seeds invalide : seedDépart {startSeed} + {games} parties dépasse {int.MaxValue}.");
+                return 2;
+            }
 
             for (int i = 0; i < games; i++)
             {
@@ -62,6 +78,8 @@ namespace Psycko.Console
                     recordLog: logMode != LogMode.Off,
                     moveCap: criteria.MoveCap);
                 allResults.Add(outcome.Result);
+                if ((i + 1) % ProgressStep == 0)
+                    System.Console.WriteLine($"[{i + 1}/{games}]");
 
                 if (outcome.Error != null)
                 {
@@ -79,14 +97,27 @@ namespace Psycko.Console
                     continue;
                 }
 
-                // ExceptionalOnly : critères individuels au fil de l'eau…
+                // ExceptionalOnly : critères individuels au fil de l'eau.
                 if (ExceptionalGameDetector.IsExceptional(outcome.Result, criteria))
                 {
-                    kept.Add((outcome.Log, outcome.Result, Reason(outcome, criteria)));
+                    exceptionalDetected++;
+                    string reason = Reason(outcome, criteria);
+                    System.Console.WriteLine(
+                        $"Exceptionnelle : seed {seed} ({reason}, {outcome.Result.TotalMoves} coups)");
+
+                    if (exceptionalLogged < ExceptionalLogCap)
+                    {
+                        exceptionalLogged++;
+                        batchLogs.Add(outcome.Log);
+                        batchResults.Add(outcome.Result);
+                        if (batchLogs.Count >= ExceptionalBatchSize)
+                            FlushBatch(batchLogs, batchResults);
+                    }
+                    // Au-delà du plafond : détectée et comptée, log libéré.
                     continue;
                 }
 
-                // …et tampons des N plus courtes / N plus longues (les autres logs sont libérés).
+                // Tampons des N plus courtes / N plus longues (les autres logs sont libérés).
                 // Ici la partie n'est pas en erreur (une erreur est déjà exceptionnelle si IncludeErrors).
                 if (!outcome.Result.IsError)
                 {
@@ -97,26 +128,33 @@ namespace Psycko.Console
 
             System.Console.WriteLine(new SimulationStats(allResults));
 
-            if (logMode == LogMode.All)
-            {
-                FlushBatch(batchLogs, batchResults); // reliquat
-            }
-            else if (logMode == LogMode.ExceptionalOnly)
-            {
-                kept.AddRange(shortest.Select(x => (x.Log, x.Result, "plus courte")));
-                kept.AddRange(longest.Select(x => (x.Log, x.Result, "plus longue")));
-                var unique = kept
-                    .GroupBy(k => k.Log.Seed)
-                    .Select(g => g.First())
-                    .OrderBy(k => k.Log.Seed)
-                    .ToList();
+            // Reliquat du tampon (All ou Exceptional).
+            FlushBatch(batchLogs, batchResults);
 
-                foreach (var k in unique)
+            if (logMode == LogMode.ExceptionalOnly)
+            {
+                var extremes = new List<(GameLog Log, GameResult Result)>();
+                extremes.AddRange(shortest);
+                extremes.AddRange(longest);
+
+                foreach (var x in shortest)
                     System.Console.WriteLine(
-                        $"Exceptionnelle : seed {k.Log.Seed} ({k.Reason}, {k.Result.TotalMoves} coups)");
+                        $"Extrême Courte : seed {x.Log.Seed} (plus courte, {x.Result.TotalMoves} coups)");
+                foreach (var x in longest)
+                    System.Console.WriteLine(
+                        $"Extrême Longue : seed {x.Log.Seed} (plus longue, {x.Result.TotalMoves} coups)");
 
-                if (unique.Count > 0)
-                    Write(unique.Select(k => k.Log).ToList(), unique.Select(k => k.Result).ToList());
+                if (extremes.Count > 0)
+                {
+                    var ordered = extremes.OrderBy(x => x.Log.Seed).ToList();
+                    Write(ordered.Select(x => x.Log).ToList(), ordered.Select(x => x.Result).ToList());
+                }
+
+                int notLogged = exceptionalDetected - exceptionalLogged;
+                System.Console.WriteLine(
+                    $"Exceptionnelles : {exceptionalDetected} détectées, {exceptionalLogged} loguées, " +
+                    $"{notLogged} non loguées (plafond {ExceptionalLogCap}). " +
+                    $"Extrêmes écrites : {extremes.Count}.");
             }
 
             return allResults.Any(r => r.IsError) ? 1 : 0;
@@ -157,7 +195,7 @@ namespace Psycko.Console
             buffer.Remove(drop);
         }
 
-        // ───────────── Partie humaine ─────────────
+                // ───────────── Partie humaine ─────────────
         private static int Play(string[] args)
         {
             bool reveal = args.Any(a => a == "--reveal");
