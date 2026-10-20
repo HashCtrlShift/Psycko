@@ -111,7 +111,7 @@ namespace Psycko.Core.Services
             {
                 recorder?.Record(GameLogEntry.GameEnd(null));
                 return new GameRunOutcome(
-                    GameResult.Error(seed, playerCount),
+                    GameResult.Error(seed, playerCount, tracker.TotalMovesSoFar, tracker.TotalPlaysSoFar),
                     BuildLog(seed, baseRecorder),
                     ex);
             }

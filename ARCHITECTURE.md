@@ -29,11 +29,11 @@ Psycko/
 │
 ├── Assets/
 │   ├── Scripts/
-│   │   ├── Bots/                          (C# pur, dépend Core — noEngineReferences: true)
+│   │   ├── Bots/                          C# pur, dépend Core — noEngineReferences: true
 │   │   │   ├── Psycko.Bots.asmdef
 │   │   │   └── RandomBot.cs               Agent qui sélectionne aléatoirement une option parmi celles possibles
 │   │   │
-│   │   ├── Core/                          (C# pur, zéro dépendance Unity — noEngineReferences: true)
+│   │   ├── Core/                          C# pur, zéro dépendance Unity — noEngineReferences: true
 │   │   │   ├── Psycko.Core.asmdef
 │   │   │   ├── Domain/
 │   │   │   │   ├── Exchange/
@@ -144,7 +144,7 @@ Psycko/
 │   │   │       ├── CardDealer.cs                 Distribue un paquet mélangé
 │   │   │       ├── GameOrchestrator.cs           Définit le déroulement d'une partie
 │   │   │       ├── GameResultCalculator.cs       Définit la Fin d'une partie
-│   │   │       ├── GameRunner.cs                 Joue une partie complète (seed → distribution → échange → tours → GameResult), notifie un IGameObserver optionnel. Contient GameRunOutcome (Result + Log optionnel + Error)
+│   │   │       ├── GameRunner.cs                 Joue une partie complète (seed → distribution → échange → tours → GameResult), notifie un IGameObserver optionnel. Contient GameRunOutcome (Result + Log optionnel + Error) Une boucle unique pour Console, Unity et réseau. En cas d'erreur, GameResult.Error reçoit TotalMoves/TotalPlays du tracker
 │   │   │       ├── GameSeed.cs                   Génération + stockage de la seed RNG d'une partie
 │   │   │       └── PlayResult.cs                 Définit un appel à GameOrchestrator
 │   │   │
@@ -172,10 +172,14 @@ Psycko/
 │
 └── Tools/
     └── PsyckoConsole/                     App console dotnet : simulation de parties + parties Humain contre Bots
-        ├── ConsoleGameLocal.cs            Interface de choix : simulation ou partie Humain vs Bots, puis mode de log (off / all / exceptional)
+        ├── ArgumentParser.cs              Parsing CLI : TryParse/TryParseLogMode/TryParseInt, messages lisibles, usage, code retour 2 si erreur
+        ├── BotFactory.cs                  Crée les agents selon SeatKind (Human, Random)
+        ├── ConsoleGameLocal.cs            IMenu interactif : ne construit que des arguments, rejoués dans ArgumentParser (aucune construction de partie dupliquée)
         ├── ConsoleHumanAgent.cs           Agent "Humain" en console ('q' = abandon), cartes formatées via CardFormatter
         ├── ConsoleLogPrinter.cs           Affichage en direct d'une partie (IGameObserver), mains des bots masquées sauf --reveal
-        ├── Program.cs                     Commandes : sim [parties] [seed] [off|all|exceptional] / play [seed] [off|all|exceptional] [--reveal]
+        ├── GameSession.cs                 Moteur d'exécution unique : Simulate (stats, logs, extrêmes) et Play (partie observée)
+        ├── Program.cs                     Point d'entrée minimal : parse les arguments (ou lance le menu) puis exécute la configurationexceptional [--reveal]
+        ├── RunConfiguration.cs            Configuration d'exécution unique et immuable (mode, parties, seed, LogMode, reveal, dry-run, critères, lot, plafond, sièges, noms), partagée par CLI et menu
         ├── PsyckoConsole.csproj           Compile Include relatif vers Assets/Scripts/Core et Assets/Scripts/Bots
         ├── .gitignore                     Ignore bin/, obj/ et Logs/
         ├── bin/                           (ignoré) Debug/net8.0, Release/net8.0
@@ -189,4 +193,182 @@ Psycko/
 
 ---
 
-**End of CLAUDE.md**
+# PsyckoConsole — Guide des commandes
+
+Application console `dotnet` de simulation et de jeu manuel (`Tools/PsyckoConsole/`).
+Elle utilise `Psycko.Core` et `Psycko.Bots`, sans dépendance Unity.
+
+## Lancer
+
+```powershell
+cd Tools\PsyckoConsole
+
+# Depuis les sources
+dotnet run -- <commande> [arguments] [options]
+
+# Depuis le build Release
+dotnet build -c Release
+dotnet bin\Release\net8.0\PsyckoConsole.dll <commande> [arguments] [options]
+```
+
+Sans argument, le menu interactif se lance (`ConsoleGameLocal`). Le menu et la ligne de commande construisent la même `RunConfiguration` et passent par le même point d'exécution (`Program.Execute`).
+
+## Commandes
+
+### `sim` — simulation de masse
+
+```
+sim <n> <seed> <off|all|exceptional> [options]
+```
+
+| Argument | Description | Contrainte |
+|---|---|---|
+| `n` | Nombre de parties | entier ≥ 1 |
+| `seed` | Seed de départ | entier ; `seed + n - 1` ≤ 2 147 483 647 |
+| mode de log | `off`, `all` ou `exceptional` | insensible à la casse |
+
+Les 3 arguments sont obligatoires. Sièges par défaut : 4 × `random`. Noms par défaut : `Bot1, Bot2, Bot3, Bot4`.
+
+### `play` — partie interactive
+
+```
+play [seed] [off|all|exceptional] [options]
+```
+
+| Argument | Défaut |
+|---|---|
+| `seed` | `Environment.TickCount` (différente à chaque lancement) |
+| mode de log | `all` |
+
+Sièges par défaut : toi au siège 0 (`human`) contre 3 `random`. Noms par défaut : `Humain, Bot1, Bot2, Bot3`. Une seule partie est jouée. Seed et mode de log sont positionnels : pour donner le mode, il faut aussi donner la seed.
+
+## Modes de log
+
+| Mode | Effet |
+|---|---|
+| `off` | Aucun log. Statistiques uniquement. |
+| `all` | Toutes les parties sont écrites en CSV, par lots de `--batch` parties. |
+| `exceptional` | Les parties exceptionnelles sont écrites (au plus `--cap`), plus les extrêmes (voir ci-dessous). |
+
+Les fichiers sont écrits dans `Logs/` (relatif à `Tools/PsyckoConsole/`). Chaque fichier écrit est annoncé par `Log écrit : <chemin>`.
+
+### Mode `exceptional` en détail
+
+Une partie est exceptionnelle si l'un de ces critères est vrai :
+
+- moins de `--short` coups ;
+- plus de `--long` coups ;
+- plafond `--move-cap` atteint ;
+- partie en erreur.
+
+Pendant la simulation, chaque exceptionnelle est annoncée : `Exceptionnelle : seed S (raison, N coups)`.
+Seules les `--cap` premières sont écrites ; les suivantes sont comptées mais non loguées.
+
+En fin de simulation, les 10 parties non exceptionnelles les plus courtes et les 10 plus longues sont ajoutées dans un fichier séparé (`Extrême Courte` / `Extrême Longue`). Un récapitulatif est affiché :
+
+```
+Exceptionnelles : X détectées, Y loguées, Z non loguées (plafond C). Extrêmes écrites : E.
+```
+
+## Sortie console
+
+- Progression en `sim` : `[i/N]` tous les `min(10 000, N/10)` parties.
+- Erreurs de partie : `[ERREUR] seed S : message (TotalMoves=M)`, limitées aux 20 premières, puis `... K autres erreurs non affichées.`
+- Fin de `sim` : le bloc de statistiques (`SimulationStats`).
+- Fin de `play` : `Fin de partie. Psycko : <nom>` ou `Partie interrompue : <message>`.
+
+## Codes de sortie
+
+| Code | Signification |
+|---|---|
+| `0` | Exécution terminée sans erreur de partie, ou `--dry-run` |
+| `1` | Au moins une partie en erreur (dont plafond `--move-cap` atteint) ; en `play`, partie interrompue |
+| `2` | Argument invalide, ou construction des bots impossible (ex. `discard`) |
+
+## Options
+
+| Option | Valeur | Défaut | Rôle |
+|---|---|---|---|
+| `--bots a,b,c,d` | 4 types parmi `random`, `human`, `discard` | voir commandes | Type de bot par siège. Un seul `human` maximum. |
+| `--names a,b,c,d` | 4 noms non vides et distincts (casse ignorée) | voir commandes | Noms des joueurs. |
+| `--short N` | entier ≥ 0 | 250 | Seuil bas : une partie avec **moins** de N coups est exceptionnelle. |
+| `--long X` | entier ≥ 1 | 6000 | Seuil haut : une partie avec **plus** de X coups est exceptionnelle. |
+| `--batch Y` | entier ≥ 1 | 50 | Parties par fichier CSV en mode `all`. |
+| `--cap Z` | entier ≥ 1 | 200 | Plafond de logs exceptionnels conservés. |
+| `--move-cap M` | entier ≥ 1 | 250 000 | Plafond anti-boucle : partie interrompue à M coups (toujours exceptionnelle, comptée en erreur). |
+| `--reveal` | aucune | désactivé | Affiche les mains des bots. **`play` uniquement.** |
+| `--dry-run` | aucune | désactivé | Affiche la configuration résolue et quitte (code 0), sans jouer. |
+
+Règle : `--short` doit être strictement inférieur à `--long`.
+
+Non réglables en ligne de commande (fixés dans `ArgumentParser`) : `TopN = 10` (10 parties les plus longues isolées), `BottomN = 10` (10 plus courtes). `IncludeErrors` reste à `true`.
+
+## Exemples
+
+```powershell
+# Validation de référence
+dotnet run -- sim 1000 1 off
+dotnet run -- sim 1000 1 all
+dotnet run -- sim 1000 1 exceptional
+
+# Réglage des critères exceptionnels
+dotnet run -- sim 10000 1 exceptional --short 300 --long 4000 --cap 50
+
+# Plafond anti-boucle personnalisé
+dotnet run -- sim 5 1 off --move-cap 500000
+
+# Partie humaine, seed fixe, log complet, mains visibles
+dotnet run -- play 42 all --reveal
+
+# Humain au siège 2, noms personnalisés
+dotnet run -- play 7 off --bots random,random,human,random --names A,B,Moi,D
+
+# Simulation 100 % bots avec noms
+dotnet run -- sim 100 1 off --names Ana,Ben,Cleo,Dan
+
+# Voir la configuration résolue sans lancer
+dotnet run -- sim 1000 1 all --batch 25 --dry-run
+```
+
+## Messages d'erreur
+
+Toute entrée invalide affiche un message, puis l'usage, et retourne le code 2, sans exception non gérée.
+
+| Cas | Message |
+|---|---|
+| Commande inconnue | `Commande inconnue : '<x>'.` |
+| `sim` incomplet | `sim attend <n> <seed> <off|all|exceptional>.` |
+| Nombre non numérique | `<libellé> doit être numérique : '<x>'.` |
+| Nombre hors plage | `<libellé> hors plage (<min> à <max>) : <v>.` |
+| Mode de log inconnu | `Mode de log inconnu : '<x>'. Valeurs possibles : off, all, exceptional.` |
+| `--bots` mauvais nombre | `--bots attend exactement 4 valeurs (reçu : N).` |
+| Type de bot inconnu | `Type de bot inconnu : '<x>'. Valeurs possibles : random, human, discard.` |
+| Deux humains | `Un seul siège humain est autorisé.` |
+| `--names` invalide | `--names attend 4 noms non vides et distincts.` |
+| `--reveal` en `sim` | `--reveal est réservé à play.` |
+| Option inconnue | `Option inconnue : '<x>'.` |
+| Valeur manquante | `Valeur manquante pour <option>.` |
+| Plage de seeds | `Plage de seeds invalide : seed X + N parties dépasse 2147483647.` |
+| `--short` ≥ `--long` | `--short doit être inférieur à --long.` |
+| `discard` demandé | `Bot 'discard' non disponible : il sera livré par T45.` (au moment de construire les agents) |
+
+## Codes de sortie
+
+| Code | Signification |
+|---|---|
+| `0` | Exécution terminée, ou `--dry-run` |
+| `2` | Argument invalide (message + usage affichés) |
+| `1` | Erreurs de parties détectées (à confirmer dans `GameSession`) |
+
+## Reproductibilité
+
+- La distribution des cartes dépend du seed : la partie *i* utilise `seed + i`.
+- Les décisions des bots ne dépendent pas du seed : `BotFactory` crée un `Random` sans seed (choix assumé). Deux exécutions avec le même seed ne donnent donc pas forcément la même partie.
+
+## Bots disponibles
+
+| Type | Statut |
+|---|---|
+| `random` | Disponible (`RandomBot`) |
+| `human` | Disponible (`ConsoleHumanAgent`), un seul siège |
+| `discard` | Reconnu par le parseur, refusé à la construction jusqu'à T45 |

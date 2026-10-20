@@ -403,21 +403,46 @@ T35, T36, T37, T38 (complet), T38c.
 
 ---
 
-## T44 — Console configurable (RunConfiguration, BotFactory, ArgumentParser) ⏳ À FAIRE
+## T44 — Console : RunConfiguration unique, CLI et menu unifiés
 
-- **Contexte** : faire converger le lanceur en ligne de commande et le menu interactif vers une même configuration d’exécution, sans dupliquer le parsing ni la construction des parties.
-- **Travail attendu** :
-  - Introduire `RunConfiguration`, `BotFactory` et `ArgumentParser` dans `Tools/PsyckoConsole/`.
-  - Construire la même configuration depuis le CLI et le menu : mode sim/play, nombre de parties, seed, `LogMode`, reveal, `ExceptionalGameCriteria` (N/X/Y/plafond) réglables, type de bot par siège (`random`/`discard`/`human`) et noms des joueurs.
-  - Faire de `Program.cs` un simple point d’entrée ; `ConsoleGameLocal` ne construit plus que la configuration.
-  - Produire des erreurs d’arguments lisibles (sans `int.Parse` non protégé) et parser `LogMode` une seule fois.
-  - Permettre une partie 100 % bots observée en direct. Exemple : `dotnet run -- sim 10000 1 off --bots discard,random,random,random`.
-  - Corriger les deux anomalies connues : mode inconnu → erreur explicite, et `GameResult.Error` conserve le `TotalMoves` réel. Préciser la modification Core éventuelle pour ce dernier point.
-- **Fichiers pressentis** : `Tools/PsyckoConsole/Program.cs`, `ConsoleGameLocal.cs`, nouveaux `RunConfiguration.cs`, `BotFactory.cs`, `ArgumentParser.cs` ; Core uniquement pour `GameResult.Error` si nécessaire.
-- **Hors périmètre** : modification des règles métier, de Core hors correction `GameResult.Error`, ou ajout de tests unitaires dans la console.
-- **Dépendances** : T41, T38d ; T45 pour le type de bot DiscardBot.
-- **Critères d’acceptation** : CLI et menu produisent la même `RunConfiguration` ; commandes et erreurs lisibles ; un seul parsing du `LogMode` ; modes `off/all/exceptional` fonctionnels en sim et play ; configuration des sièges et noms fonctionnelle ; parties 100 % bots observables ; anomalies corrigées.
-- **Tests / validation** : validation par simulation console cohérente avec T38d : `sim 1000` dans les trois modes, 0 erreur ; pas de test unitaire dans la console.
+**Statut : ✅ Livré (périmètre ajusté par rapport au ticket initial)**
+
+### Objectif réellement livré
+Un seul chemin de construction et d'exécution d'une partie, partagé par la ligne de commande et le menu interactif. `Program.cs` devient un point d'entrée minimal.
+
+### Livrables
+- `RunConfiguration` : configuration immuable unique (mode, nombre de parties, seed, LogMode, reveal, dry-run, critères exceptionnels, taille de lot, plafond de logs, sièges, noms). Validée à la construction (4 sièges, 4 noms distincts, un seul humain maximum).
+- `ArgumentParser` : `TryParse`, `TryParseLogMode`, `TryParseInt` avec messages lisibles, plus aucun `int.Parse` non protégé. `LogMode` parsé une seule fois. Usage affiché en cas d'erreur (code retour 2).
+- `BotFactory` : construit les agents selon `SeatKind` (`Random`, `Human`). `Discard` retourne une erreur explicite « livré par T45 ».
+- `GameSession` : moteur d'exécution unique (`Simulate` et `Play`).
+- `Program` : `Main` parse puis appelle `Execute` (partagé avec le menu).
+- `ConsoleGameLocal` : menu interactif qui ne construit que des arguments, rejoués dans `ArgumentParser`. Aucune construction de partie dupliquée.
+- `ConsoleLogPrinter` : affichage en direct, `--reveal` des mains des bots, partie 100 % bots supportée (`humanSeat = -1`).
+
+### Anomalies corrigées
+1. **Mode inconnu** : erreur explicite + usage, code retour 2.
+2. **`GameResult.Error` et `TotalMoves`** : `GameRunner` passe désormais `tracker.TotalMovesSoFar` et `tracker.TotalPlaysSoFar`. Modification Core : surcharge `GameResult.Error(seed, playerCount, totalMoves, totalPlays)` ; la surcharge à deux arguments est conservée par compatibilité et ne doit plus être appelée.
+
+### Écarts assumés par rapport au ticket initial
+- Le bot `discard` n'est pas livré : dépend de T45. `--bots discard,...` retourne une erreur claire.
+- Le menu interactif n'expose pas `--bots`, les noms, les critères exceptionnels ni `--dry-run` (CLI uniquement).
+- Décisions des bots non reproductibles (`new Random()` dans `BotFactory`) : choix assumé. La seed ne reproduit que la distribution.
+- `Simulate` n'utilise pas d'observer (suivi en direct réservé au mode `play`).
+
+### Dette connue (outil local, non exporté)
+- `ConsoleLogPrinter` compare `p.Id` avec un index de siège : correct tant que `Id == siège` (garanti par `GameRunner`).
+- `GameSession.Reason` détecte le plafond anti-boucle via le texte du message d'exception.
+- `TargetPlayerId` négatif non contrôlé dans `OnLogEntry`.
+- Agents partagés entre toutes les parties d'une simulation : à revoir si un bot à état arrive (T45).
+- Style : `#nullable enable` incohérent entre les fichiers de la console.
+
+### Validation à exécuter (locale)
+- `dotnet run -- sim 1000 1 off`, `all`, `exceptional` → 0 erreur attendue
+- `dotnet run -- play 1 off --bots random,random,random,random` → partie observée jusqu'au bout
+- `dotnet run -- sim 10 1 off --bots discard,random,random,random` → message T45, code 2
+- `dotnet run -- sim 10 1 inconnu` → erreur de mode + usage, code 2
+
+--- 
 
 ## T45 — DiscardBot (Psycko.Bots) ⏳ À FAIRE
 

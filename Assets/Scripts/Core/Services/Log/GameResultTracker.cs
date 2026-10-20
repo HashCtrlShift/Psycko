@@ -31,6 +31,9 @@ namespace Psycko.Core.Services.Log
         /// <summary>Nombre total de coups (Plays + ramassages + Dons) enregistrés jusqu'ici.</summary>
         public int TotalMovesSoFar => _totalMoves;
 
+        /// <summary>Nombre de Plays acceptés jusqu'ici (hors ramassages et Dons).</summary>
+        public int TotalPlaysSoFar => _totalPlays;
+
         public GameResultTracker(int seed, int playerCount)
         {
             if (playerCount <= 0) throw new ArgumentOutOfRangeException(nameof(playerCount));

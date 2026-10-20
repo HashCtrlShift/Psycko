@@ -137,6 +137,13 @@ namespace Psycko.Core.Services.Log
             var sb = new StringBuilder();
             sb.AppendLine("=== Statistiques de simulation ===");
             sb.AppendLine($"Parties : {TotalGames} (terminées : {SuccessfulGames}, erreurs : {ErrorGames} = {ErrorRatePercent:F4} %)");
+
+            if (SuccessfulGames == 0)
+            {
+                sb.AppendLine("Aucune partie terminée : statistiques indisponibles.");
+                return sb.ToString();
+            }
+
             sb.AppendLine($"Coups   : moy {AverageMoves:F1} | méd {MedianMoves:F1} | écart-type {StdDevMoves:F1}");
             sb.AppendLine($"          min {MinMoves} (seed {SeedOfMinGame}) | max {MaxMoves} (seed {SeedOfMaxGame})");
             sb.AppendLine($"Percentiles : P1 {P1Moves} | P99 {P99Moves}");

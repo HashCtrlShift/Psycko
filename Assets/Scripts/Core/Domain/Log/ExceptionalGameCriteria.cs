@@ -28,7 +28,7 @@ namespace Psycko.Core.Domain.Log
             int bottomN = 10,
             int minMovesThreshold = 250,
             int maxMovesThreshold = 6000,
-            int moveCap = 250000,
+            int moveCap = 250_000,
             bool includeErrors = true)
         {
             if (topN < 0) throw new ArgumentOutOfRangeException(nameof(topN));

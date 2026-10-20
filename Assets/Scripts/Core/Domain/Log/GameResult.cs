@@ -64,14 +64,20 @@ namespace Psycko.Core.Domain.Log
             PickupsBySeat = (pickupsBySeat ?? throw new ArgumentNullException(nameof(pickupsBySeat))).ToList().AsReadOnly();
             IsError = isError;
         }
-
-        /// <summary>Résultat d'une partie interrompue : seul le seed est exploitable.</summary>
-        public static GameResult Error(int seed, int playerCount)
+        /// <summary>
+        /// Résultat d'une partie interrompue : seul le seed est exploitable,
+        /// les compteurs (coups, plays) reflètent l'état au moment de l'interruption.
+        /// </summary>
+        public static GameResult Error(int seed, int playerCount, int totalMoves, int totalPlays)
         {
             var empty = Enumerable.Repeat(-1, playerCount);
             var zeros = Enumerable.Repeat(0, playerCount);
-            return new GameResult(seed, 0, 0, Enumerable.Empty<int>(),
+            return new GameResult(seed, totalMoves, totalPlays, Enumerable.Empty<int>(),
                 empty, empty, zeros, zeros, isError: true);
         }
+
+        /// <summary>Surcharge de compatibilité : compteurs à 0.</summary>
+        public static GameResult Error(int seed, int playerCount)
+            => Error(seed, playerCount, 0, 0);
     }
 }
