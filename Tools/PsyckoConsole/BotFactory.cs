@@ -30,8 +30,9 @@ namespace Psycko.Console
                         result.Add(new ConsoleHumanAgent(checker));
                         break;
                     case SeatKind.Discard:
-                        error = "Bot 'discard' non disponible : il sera livré par T45.";
-                        return false;
+                        // Déterministe et sans état : l'instance peut être partagée entre les parties.
+                        result.Add(new DiscardBot(checker));
+                        break;
                     default:
                         error = $"Type de siège inconnu : {seat}.";
                         return false;

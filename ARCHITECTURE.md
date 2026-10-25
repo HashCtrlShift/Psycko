@@ -30,6 +30,7 @@ Psycko/
 ├── Assets/
 │   ├── Scripts/
 │   │   ├── Bots/                          C# pur, dépend Core — noEngineReferences: true
+│   │   │   ├── DiscardBot.cs              Agent qui sélectionne la plus petite carte à jouer et applique une stratégie
 │   │   │   ├── Psycko.Bots.asmdef
 │   │   │   └── RandomBot.cs               Agent qui sélectionne aléatoirement une option parmi celles possibles
 │   │   │

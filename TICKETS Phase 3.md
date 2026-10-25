@@ -446,14 +446,27 @@ Un seul chemin de construction et d'exécution d'une partie, partagé par la lig
 
 ## T45 — DiscardBot (Psycko.Bots) ⏳ À FAIRE
 
-- **Contexte** : ajouter un bot déterministe permettant de comparer une stratégie simple à RandomBot dans les simulations.
-- **Travail attendu** : jouer la plus petite carte jouable selon l’ordre de hauteur via `HeightComparison` / `ICardPlayabilityChecker`, et non l’ordre brut du rang (le 2 est la plus forte, le 3 la plus faible) ; donner la plus petite carte au Don du 7 ; `ProposeExchanges` retourne une liste vide.
-- **Points à trancher explicitement** : Jokers (proposition : dernier recours seulement) ; groupes/Doublons/Carrés (proposition : une carte par coup, ou le plus petit groupe) ; destinataire du Don (proposition : même règle que RandomBot) ; égalités de hauteur (départage déterministe) ; FaceDown (index 0, sans lire la carte, règle T43 respectée par construction) ; `DecidePickup` avec `isForced` comme RandomBot.
-- **Fichiers pressentis** : `Assets/Scripts/Bots/DiscardBot.cs` et tests NUnit EditMode associés.
-- **Hors périmètre** : changement des règles Core, bot stratégique avancé, ou décision finale sur les points listés sans accord.
-- **Dépendances** : T36, T44 (pour placer le bot à un siège), T35.
-- **Critères d’acceptation** : choix de la plus petite carte ; le 2 n’est jamais choisi trop tôt ; Jokers en dernier selon la décision ; Don de la plus petite carte ; FaceDown sans lecture de la carte ; couverture ≥ 90 %.
-- **Tests NUnit EditMode** : plus petite carte, 2 jamais choisi trop tôt, Jokers en dernier, Don de la plus petite carte, FaceDown sans lecture. Avec un bot déterministe et trois aléatoires, comparer en permutant les sièges.
+- **Contexte** : bot déterministe et sans état, pour comparer une stratégie basique à RandomBot en simulation (T44 le place à un siège via `SeatKind.Discard`).
+- **Décisions actées (validées par Ekinox)** :
+  1. **Rang choisi** : le rang jouable le plus bas selon l'ordre de hauteur (`HeightComparison` / `ICardPlayabilityChecker`, jamais l'ordre brut de l'enum ; le 3 est le plus faible, le 2 le plus fort). Il ne monte que s'il ne peut pas faire autrement.
+  2. **Groupes** : il joue le maximum de cartes jouables du rang choisi (jusqu'à 4).
+  3. **Règle de sécurité** : s'il n'a aucun Joker en main et que le rang le plus élevé de sa main (main seule, hors FaceUp/FaceDown) existe en plusieurs exemplaires, il joue ces cartes une par une. Le 2 est concerné.
+  4. **Égalité de hauteur** : on joue à hauteur égale avant de monter. Départage déterministe entre cartes de même hauteur : ordre des couleurs puis index dans la main (ordre exact à fixer au codage).
+  5. **Jokers** : dernier recours, jamais choisis tant qu'une carte normale est jouable. Ordre : Noir, Verre, Couleur (Bombe).
+  6. **Le 2** : joué en avant-dernier, jamais en dernier. S'il reste deux cartes en main dont un 2, il joue le 2 d'abord ; avec trois cartes dont deux 2, il joue les deux 2 puis l'autre carte. Si le 2 est un FaceDown, le bot ne peut rien faire et ramasse.
+  7. **Don du 7** : donne la plus petite carte de la main. Destinataire : l'adversaire non `Finished` le plus avancé, par tri lexicographique : le moins de FaceDown, puis le moins de FaceUp, puis le moins de cartes en main, puis le plus petit `PlayerId`.
+  8. **FaceDown** : index 0, sans lire la carte (règle T43).
+  9. `ProposeExchanges` renvoie une liste vide. `DecidePickup` renvoie `isForced`, comme RandomBot.
+  10. **FaceUp** : à vérifier dans le Core (comportement avec main vide) puis à acter avant le code.
+  11. Aucun `Random`, aucun champ muté d'une partie à l'autre. Messages d'erreur en français.
+- **Fichiers** : `Assets/Scripts/Bots/DiscardBot.cs`, `BotFactory.cs` (branchement `SeatKind.Discard`, suppression du message d'erreur T45), `Assets/Tests/EditMode/Bots/DiscardBotTests.cs`, ligne `DiscardBot.cs` de `ARCHITECTURE.md`.
+- **Hors périmètre** : changement des règles ou du Core (sauf blocage prouvé, signalé avant), StrategicBot, MCTSBot.
+- **Dépendances** : T36, T44, T35.
+- **Critères d'acceptation** : choix par ordre de hauteur ; règle de sécurité ; Jokers en dernier ; le 2 en avant-dernier ; Don de la plus petite carte au joueur le plus avancé ; FaceDown sans lecture ; déterminisme ; couverture ≥ 90 %.
+- **Tests NUnit EditMode** : plus petite carte (hauteur, pas enum) ; règle de sécurité ; Jokers en dernier ; le 2 en avant-dernier ; Don (carte et destinataire, y compris égalités) ; FaceDown sans lecture ; déterminisme ; départage des égalités ; `ProposeExchanges` vide ; `DecidePickup` comme RandomBot ; robustesse (main vide, aucune option jouable).
+- **Validation** : `sim 10000` avec DiscardBot aux sièges 0 à 3 (permutation) ; `play 1 off` avec 4 DiscardBot, terminé et identique à seed égale ; non-régression `sim 1000` avec 4 RandomBot (comparaison de distribution, car les RandomBot ne sont pas reproductibles).
+
+---
 
 ## T46 — Audit documentaire et mise à jour Notion / ARCHITECTURE.md / CLAUDE.md ⏳ À FAIRE
 
@@ -480,7 +493,7 @@ Un seul chemin de construction et d'exécution d'une partie, partagé par la lig
 
 ## Ordre d'exécution
 
-✅ T35 → ✅ T36 → ✅ T37 → ✅ T38a → ✅ T38b → ✅ T38bis → ✅ T38c (absorbe T39/T40) → ✅ T38d → ✅ T41a → 🔄 T41b (reste à vérifier) → T44 → T45 → T42 → T43 → T46
+✅ T35 → ✅ T36 → ✅ T37 → ✅ T38a → ✅ T38b → ✅ T38bis → ✅ T38c (absorbe T39/T40) → ✅ T38d → ✅ T41a → ✅ T41b → ✅ T44 → T45 → T42 → T43 → T46
 
 ## Reste à faire
 

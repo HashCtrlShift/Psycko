@@ -64,7 +64,7 @@ namespace Psycko.Console
                     errorsSeen++;
                     if (errorsSeen <= MaxErrorLines)
                         System.Console.WriteLine(
-                            $"[ERREUR] seed {seed} : {outcome.Error.Message} (TotalMoves={outcome.Result.TotalMoves})");
+                            $"[ERREUR] seed {seed} : {outcome.Error.ToString()} (TotalMoves={outcome.Result.TotalMoves})");
                 }
 
                 if (outcome.Log == null) continue; // LogMode.Off
