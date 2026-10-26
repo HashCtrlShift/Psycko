@@ -85,9 +85,5 @@ namespace Psycko.Core.Domain.Log
             return new GameResult(seed, totalMoves, totalPlays, Enumerable.Empty<int>(),
                 empty, empty, zeros, zeros, isError: true);
         }
-
-        /// <summary>Surcharge de compatibilité : compteurs à 0.</summary>
-        public static GameResult Error(int seed, int playerCount)
-            => Error(seed, playerCount, 0, 0);
     }
 }

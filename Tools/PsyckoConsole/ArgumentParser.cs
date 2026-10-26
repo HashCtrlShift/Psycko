@@ -17,8 +17,15 @@ namespace Psycko.Console
             + "  play [seed] [off|all|exceptional] [options]\n"
             + "Options : --bots a,b,c,d  --names a,b,c,d  --short N  --long X  --batch Y  --cap Z  --move-cap M  --reveal  --dry-run";
 
-        private static readonly string[] SimNames = { "Bot1", "Bot2", "Bot3", "Bot4" };
-        private static readonly string[] PlayNames = { "Humain", "Bot1", "Bot2", "Bot3" };
+        /// <summary>Noms par défaut dérivés des sièges : Humain, puis Bot1..BotN dans l'ordre.</summary>
+        public static string[] DefaultNames(SeatKind[] seats)
+        {
+            var names = new string[seats.Length];
+            int botNumber = 1;
+            for (int i = 0; i < seats.Length; i++)
+                names[i] = seats[i] == SeatKind.Human ? "Humain" : $"Bot{botNumber++}";
+            return names;
+        }
 
         public static bool TryParseLogMode(string? text, out LogMode mode, out string? error)
         {
@@ -171,7 +178,7 @@ namespace Psycko.Console
             SeatKind[] seats = isSim
                 ? new[] { SeatKind.Random, SeatKind.Random, SeatKind.Random, SeatKind.Random }
                 : new[] { SeatKind.Human, SeatKind.Random, SeatKind.Random, SeatKind.Random };
-            string[] names = isSim ? SimNames : PlayNames;
+            string[]? names = null; // null = non fourni : noms dérivés des sièges après la boucle d'options
             int shortThreshold = defaults.MinMovesThreshold;
             int longThreshold = defaults.MaxMovesThreshold;
             int moveCap = defaults.MoveCap;
@@ -274,6 +281,8 @@ namespace Psycko.Console
                         return false;
                 }
             }
+
+            names ??= DefaultNames(seats);
 
             if ((long)seed + games - 1 > int.MaxValue)
             {

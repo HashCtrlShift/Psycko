@@ -500,19 +500,27 @@ Un seul chemin de construction et d'exécution d'une partie, partagé par la lig
 - **Critères d’acceptation** : aucun écart doc/code identifié sans mention « à vérifier » ; texte Notion prêt à coller ; statuts et chemins cohérents.
 - **Tests** : relecture croisée des documents et vérification des noms/chemins.
 
-## T47 — Tickets d’anomalies séparés si non absorbés par T44 ⏳ À FAIRE
+## T47 — Tickets d'anomalies séparés si non absorbés par T44 🔄 EN COURS
 
-- **Contexte** : conserver une traçabilité explicite des anomalies de T38d et décider si elles sont absorbées par T44.
+- **Contexte** : conserver une traçabilité explicite des anomalies de T38d et décider si elles sont absorbées par T44. Règle de travail : on contrôle et on corrige tout dans ce ticket.
 - **Anomalies à suivre** :
-  - (a) `GameResult.Error` avec `TotalMoves = 0` : proposition, absorbé par T44.
-  - (b) mode inconnu → `ExceptionalOnly` silencieux : proposition, absorbé par T44.
-  - (c) mode `play` doit supporter les trois `LogMode` : proposition, reste traité dans T44 car il concerne le même fichier et le même parsing ; à confirmer par Ekinox.
-- **Fichiers pressentis** : `Tools/PsyckoConsole/` et, pour (a), `GameResult` dans Core si nécessaire.
-- **Hors périmètre** : autres anomalies non listées et correction de règles métier.
-- **Dépendances** : T44 et confirmation d’Ekinox.
-- **Critères d’acceptation** : pour chaque anomalie, statut « absorbée par T44 » ou ticket séparé décidé ; aucun comportement silencieux non documenté.
-- **Tests** : cas d’argument inconnu, vérification du nombre réel de coups en erreur, et `play` dans `off/all/exceptional`.
-
+  - (a) `GameResult.Error` avec `TotalMoves = 0` : ✅ **CLÔTURÉE**.
+    - État réel : déjà absorbée par T44. `GameRunner.cs` L114 appelle `GameResult.Error(seed, playerCount, tracker.TotalMovesSoFar, tracker.TotalPlaysSoFar)`. C'est le seul appelant du dépôt.
+    - Action : suppression de la surcharge piège `Error(int seed, int playerCount)` (sans appelant, renvoyait 0/0).
+    - Fichier touché : `Assets/Scripts/Core/Domain/Log/GameResult.cs` (−3 lignes, aucune règle métier modifiée).
+    - Vérifications manuelles : `dotnet build` OK ; `dotnet run -- sim 5 1 off --move-cap 3` → `(TotalMoves=3)` sur 5/5 erreurs ; `--move-cap 7` → `(TotalMoves=7)` sur 5/5 erreurs (avant suppression de la surcharge).
+  - (b) mode inconnu → `ExceptionalOnly` silencieux : ⏳ **À INSTRUIRE**. État réel à vérifier dans `ArgumentParser.TryParseLogMode` et la valeur par défaut. Proposition initiale : absorbé par T44. Cible : erreur lisible, code retour 2, aucune exécution.
+  - (c) mode `play` doit supporter les trois `LogMode` : ⏳ **À INSTRUIRE**. État réel à vérifier dans `ArgumentParser`, `GameSession.Play`, `ConsoleGameLocal`, `RunConfiguration`. Proposition initiale : traité dans T44 (même fichier, même parsing) ; à confirmer par Ekinox.
+- **Fichiers pressentis** : `Tools/PsyckoConsole/` pour (b) et (c). Pour (a) : `GameResult.cs` (fait).
+- **Hors périmètre** : autres anomalies non listées et correction de règles métier. Anomalie signalée sans correction : affichage de progression de `sim`, où `[5/5]` n'apparaît pas avant l'erreur de la dernière seed (cause à vérifier ; proposition de ticket séparé, périmètre `Tools/PsyckoConsole`).
+- **Dépendances** : T44 et confirmation d'Ekinox pour (c).
+- **Critères d'acceptation** : pour chaque anomalie, statut « absorbée par T44 », « déjà corrigée » ou ticket séparé décidé ; aucun comportement silencieux non documenté ; toute valeur inconnue produit une erreur lisible (code retour 2).
+- **Tests (vérifications manuelles en console, NUnit différé en Phase 5)** :
+  - [x] (a) nombre réel de coups en erreur (`--move-cap 3` et `7`).
+  - [ ] (b) argument de mode inconnu → erreur explicite, code retour 2, aucune exécution.
+  - [ ] (c) `play` avec `off`, `all` et `exceptional`.
+  - [ ] Non-régression : 10 000 parties à seed fixe, avant/après, résultats identiques, 0 erreur.
+- **Reste à faire** : instruire (b) et (c) (fichier, lignes, comportement, scénario de reproduction), décision d'Ekinox, correction avec diff minimal, vérifications manuelles, non-régression.
 ## Ordre d'exécution
 
 ✅ T35 → ✅ T36 → ✅ T37 → ✅ T38a → ✅ T38b → ✅ T38bis → ✅ T38c (absorbe T39/T40) → ✅ T38d → ✅ T41a → ✅ T41b → ✅ T44 → ✅ T45 → ✅ T42 → ✅ T43 → T46
