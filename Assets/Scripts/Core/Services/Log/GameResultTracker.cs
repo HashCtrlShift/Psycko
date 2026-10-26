@@ -15,20 +15,26 @@ namespace Psycko.Core.Services.Log
     ///  - Coup global : Play, BlindPlay ou ramassage (le Don n'en est pas un).
     ///  - Play : ApplyPlay / ApplyBlindPlay acceptés (le ramassage n'est pas un Play).
     ///  - Coup de sortie : valeur du compteur global quand le siège passe Finished.
+    ///  - Effets (T42) : cumul par EffectKind des effets détectés sur les coups acceptés.
+    ///    Lecture seule du résultat de GameLogEffectDetector : aucune règle ici.
     /// </summary>
     public sealed class GameResultTracker
     {
+        private static readonly int EffectKindCount =
+            Enum.GetValues(typeof(EffectKind)).Length;
+
         private readonly int _seed;
         private readonly int[] _exitMove;
         private readonly int[] _playsAtExit;
         private readonly int[] _plays;
         private readonly int[] _pickups;
         private readonly bool[] _finished;
+        private readonly int[] _effectCounts = new int[EffectKindCount];
         private readonly List<int> _ranking = new List<int>();
         private int _totalMoves;
         private int _totalPlays;
-        
-        /// <summary>Nombre total de coups (Plays + ramassages + Dons) enregistrés jusqu'ici.</summary>
+
+        /// <summary>Nombre total de coups (Plays + ramassages) enregistrés jusqu'ici (le Don n'en est pas un).</summary>
         public int TotalMovesSoFar => _totalMoves;
 
         /// <summary>Nombre de Plays acceptés jusqu'ici (hors ramassages et Dons).</summary>
@@ -37,12 +43,12 @@ namespace Psycko.Core.Services.Log
         public GameResultTracker(int seed, int playerCount)
         {
             if (playerCount <= 0) throw new ArgumentOutOfRangeException(nameof(playerCount));
-             _seed = seed;
-             _exitMove = Enumerable.Repeat(-1, playerCount).ToArray();
-             _playsAtExit = Enumerable.Repeat(-1, playerCount).ToArray();
-             _plays = new int[playerCount];
-             _pickups = new int[playerCount];
-             _finished = new bool[playerCount];
+            _seed = seed;
+            _exitMove = Enumerable.Repeat(-1, playerCount).ToArray();
+            _playsAtExit = Enumerable.Repeat(-1, playerCount).ToArray();
+            _plays = new int[playerCount];
+            _pickups = new int[playerCount];
+            _finished = new bool[playerCount];
         }
 
         /// <summary>Un Play accepté (ApplyPlay ou ApplyBlindPlay) : +1 Play, +1 coup global.</summary>
@@ -59,6 +65,21 @@ namespace Psycko.Core.Services.Log
             _pickups[seatIndex]++;
             _totalMoves++;
         }
+
+        /// <summary>
+        /// Cumule les effets d'un coup (T42). Null ou liste vide : sans effet.
+        /// N'incrémente aucun compteur de coups ni de Plays.
+        /// </summary>
+        public void RecordEffects(IReadOnlyList<EffectLogDetail> effects)
+        {
+            if (effects == null) return;
+
+            for (int i = 0; i < effects.Count; i++)
+                _effectCounts[(int)effects[i].Kind]++;
+        }
+
+        /// <summary>Nombre d'activations enregistrées pour un effet (lecture, utile aux tests).</summary>
+        public int EffectCountSoFar(EffectKind kind) => _effectCounts[(int)kind];
 
         /// <summary>
         /// À appeler après chaque résolution : tout siège nouvellement Finished reçoit
@@ -99,7 +120,8 @@ namespace Psycko.Core.Services.Log
             }
 
             return new GameResult(_seed, _totalMoves, _totalPlays, ranking,
-                _exitMove, _playsAtExit, _plays, _pickups);
+                _exitMove, _playsAtExit, _plays, _pickups,
+                effectCounts: _effectCounts);
         }
     }
 }

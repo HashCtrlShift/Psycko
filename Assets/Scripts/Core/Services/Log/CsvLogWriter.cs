@@ -14,6 +14,8 @@ namespace Psycko.Core.Services.Log
     /// Écrit des GameLog en CSV (UTF-8 BOM, séparateur ';', compatible Excel).
     /// Colonnes : A-B = bilan ; puis 4 colonnes par partie
     /// (Action | Pile avant | Effets | Détail).
+    /// La colonne A porte les agrégats du fichier, dont le total des effets
+    /// (même ordre et mêmes libellés que le tableau de SimulationStats).
     /// </summary>
     public static class CsvLogWriter
     {
@@ -22,6 +24,22 @@ namespace Psycko.Core.Services.Log
 
         private const int SummaryColumns = 2;
         private const int ColumnsPerGame = 4;
+
+        /// <summary>Libellés des effets, identiques au tableau console (SimulationStats).</summary>
+        private static readonly EffectKind[] EffectOrder =
+        {
+            EffectKind.Doublon,
+            EffectKind.Detruite2,
+            EffectKind.DetruiteCarre,
+            EffectKind.DetruiteBombe,
+            EffectKind.SensReverse,
+            EffectKind.PriestEffect,
+            EffectKind.JokerVerre,
+            EffectKind.JokerNoir,
+            EffectKind.Don,
+            EffectKind.Proverbe,
+            EffectKind.PhaseTransition,
+        };
 
         /// <summary>
         /// Exporte les parties en un ou plusieurs fichiers de gamesPerFile parties maximum.
@@ -77,14 +95,14 @@ namespace Psycko.Core.Services.Log
         {
             int width = SummaryColumns + ColumnsPerGame * count;
 
-            // Colonnes de bilan : A = stats agrégées, B = détail par partie.
+            // Colonnes de bilan : A = stats agrégées (dont effets), B = détail par partie.
             var colA = BuildSummaryA(results, offset, count);
             var colB = BuildSummaryB(results, logs, offset, count);
 
             // Ligne d'en-têtes
             var header = new string[width];
-            header[0] = "Bilan (étape 5)";
-            header[1] = "Bilan (T41)";
+            header[0] = "Bilan";
+            header[1] = "Détail par partie";
             for (int i = 0; i < count; i++)
             {
                 int c = SummaryColumns + i * ColumnsPerGame;
@@ -124,7 +142,10 @@ namespace Psycko.Core.Services.Log
             }
         }
 
-        /// <summary>Colonne A : agrégats du fichier (parties, erreurs, coups moy/méd/min/max).</summary>
+        /// <summary>
+        /// Colonne A : agrégats du fichier. Parties, erreurs, coups (moy/méd/min/max),
+        /// puis total des effets dans l'ordre du tableau console.
+        /// </summary>
         private static List<string> BuildSummaryA(IReadOnlyList<GameResult> results, int offset, int count)
         {
             var lines = new List<string> { "Parties : " + count };
@@ -148,10 +169,20 @@ namespace Psycko.Core.Services.Log
                 lines.Add("Coups min : " + F(moves.First()));
                 lines.Add("Coups max : " + F(moves.Last()));
             }
+
+            // Total des effets, cumulé sur toutes les parties du fichier (y compris erreurs :
+            // les effets déjà survenus avant l'erreur sont comptés, comme dans SimulationStats).
+            lines.Add("Effets (total) :");
+            foreach (var kind in EffectOrder)
+            {
+                long total = slice.Sum(r => (long)r.EffectCounts[(int)kind]);
+                lines.Add(KindLabel(kind) + " : " + total.ToString(CultureInfo.InvariantCulture));
+            }
+
             return lines;
         }
 
-        /// <summary>Colonne B (emplacement T41) : une ligne par partie avec ses compteurs.</summary>
+        /// <summary>Colonne B : une ligne par partie avec ses compteurs.</summary>
         private static List<string> BuildSummaryB(IReadOnlyList<GameResult> results,
             IReadOnlyList<GameLog> logs, int offset, int count)
         {
@@ -172,6 +203,26 @@ namespace Psycko.Core.Services.Log
                 lines.Add(line);
             }
             return lines;
+        }
+
+        /// <summary>Libellés identiques à ceux de SimulationStats.</summary>
+        private static string KindLabel(EffectKind kind)
+        {
+            switch (kind)
+            {
+                case EffectKind.Doublon: return "Doublon";
+                case EffectKind.Detruite2: return "Detruite2";
+                case EffectKind.DetruiteCarre: return "DetruiteCarre";
+                case EffectKind.DetruiteBombe: return "DetruiteBombe";
+                case EffectKind.SensReverse: return "SensReverse";
+                case EffectKind.PriestEffect: return "PriestEffect";
+                case EffectKind.JokerVerre: return "JokerVerre";
+                case EffectKind.JokerNoir: return "JokerNoir";
+                case EffectKind.Don: return "Don";
+                case EffectKind.Proverbe: return "Proverbe";
+                case EffectKind.PhaseTransition: return "PhaseTransition";
+                default: return kind.ToString();
+            }
         }
 
         private static double Median(IList<double> sorted)

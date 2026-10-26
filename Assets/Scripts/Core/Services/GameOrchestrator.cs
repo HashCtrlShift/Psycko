@@ -32,6 +32,10 @@ namespace Psycko.Core.Services
     /// Valet (log) : SensReverse n'est loggé que si le sens a réellement changé ;
     /// le sens d'AVANT coup est lu sur l'état reçu en entrée et passé à Detect
     /// (previousDirection), car les états intermédiaires ne sont pas fiables pour ça.
+    /// Compteurs d'effets (T42) : les effets détectés pour le log alimentent aussi
+    /// tracker.RecordEffects, avec les MÊMES instances (cohérence log/compteurs, un seul
+    /// appel au détecteur). Fonctionne en LogMode.Off (recorder null). Aucun effet n'est
+    /// compté pour un coup rejeté, ni pour le 2 terminal (ramassage forcé, aucun effet de carte).
     /// </summary>
     public sealed class GameOrchestrator
     {
@@ -149,6 +153,7 @@ namespace Psycko.Core.Services
                     effects: giftPlayEffects.AsReadOnly()));
 
                 tracker?.RecordPlay(playerIndex);
+                tracker?.RecordEffects(giftPlayEffects);
 
                 return PlayResult.AwaitingGift(turnResult);
             }
@@ -168,21 +173,25 @@ namespace Psycko.Core.Services
                 ? newState.Players[playerIndex].CurrentPhase
                 : (DefPhase?)null;
 
+            // Effets détectés UNE fois : partagés entre le log et les compteurs (T42).
+            var playEffects = GameLogEffectDetector.Detect(
+                play,
+                stateAfterPlacement,
+                turnResult.DestroysPile,
+                turnResult.NextDirection,
+                previousDirection: directionBefore,   // CHANGE
+                skipApplied: IsDoublonApplied(stateAfterPlacement, play),
+                reachedPhase: reachedPhase);
+
             recorder?.Record(GameLogEntry.PlayerAction(
                 play.PlayerId,
                 ActionKind.Play,
                 play.Cards,
                 PileSnapshot(newState),
-                effects: GameLogEffectDetector.Detect(
-                    play,
-                    stateAfterPlacement,
-                    turnResult.DestroysPile,
-                    turnResult.NextDirection,
-                    previousDirection: directionBefore,   // CHANGE
-                    skipApplied: IsDoublonApplied(stateAfterPlacement, play),
-                    reachedPhase: reachedPhase)));
+                effects: playEffects));
 
             tracker?.RecordPlay(playerIndex);
+            tracker?.RecordEffects(playEffects);
             tracker?.ObserveState(newState);
             return Accept(newState, recorder, tracker);
         }
@@ -308,6 +317,9 @@ namespace Psycko.Core.Services
                 PileSnapshot(newState),
                 targetPlayerId: choice.RecipientPlayerId,
                 effects: giftEffects));
+
+            // Le Play du 7 a déjà été compté (et son Doublon) dans ApplyPlay : ici Don + suite.
+            tracker?.RecordEffects(giftEffects);
 
             return Accept(newState, recorder, tracker);
         }
@@ -439,22 +451,26 @@ namespace Psycko.Core.Services
 
             next = ExecuteActivePlayerIntent(next, advanceValid);
 
+            // Effets détectés UNE fois : partagés entre le log et les compteurs (T42).
+            var blindEffects = GameLogEffectDetector.Detect(
+                play,
+                stateBeforeDestruction,
+                destroysPile,
+                effects.NextDirection,
+                previousDirection: directionBefore,   // CHANGE
+                skipApplied: IsDoublonApplied(stateBeforeDestruction, play),
+                reachedPhase: reachedPhase);
+
             // Entrée unique : "[PlayerId] retourne [carte]" + effets, pile après résolution.
             recorder?.Record(GameLogEntry.PlayerAction(
                 player.Id,
                 ActionKind.BlindPlay,
                 new[] { card },
                 PileSnapshot(next),
-                effects: GameLogEffectDetector.Detect(
-                    play,
-                    stateBeforeDestruction,
-                    destroysPile,
-                    effects.NextDirection,
-                    previousDirection: directionBefore,   // CHANGE
-                    skipApplied: IsDoublonApplied(stateBeforeDestruction, play),
-                    reachedPhase: reachedPhase)));
+                effects: blindEffects));
 
             tracker?.RecordPlay(playerIndex);
+            tracker?.RecordEffects(blindEffects);
             return BlindPlayResolution.Of(Accept(next, recorder, tracker), card);
         }
 

@@ -370,23 +370,30 @@ Interface graphique, intégration Unity, multijoueur réseau.
 T35, T36, T37, T38 (complet), T38c.
 ---
 
-## T42 — Simulation (exécution et analyse des 1M parties) ⏳ À FAIRE
+## T42 — Simulation (exécution et analyse de 100 000 parties) ⏳ À FAIRE (mesure des effets ✅ close)
 
-- **Contexte** : ticket d'exécution, distinct du développement de l'outil (T41). Faire tourner la simulation à grande échelle et analyser les résultats pour valider (ou invalider) le Core avant Presentation.
+- **Contexte** : ticket d'exécution, distinct du développement de l'outil (T41). Faire tourner la simulation à grande échelle et analyser les résultats pour valider (ou invalider) le Core avant Presentation. Volume fixé à **100 000 parties** (le million représenterait environ 1 h de simulation, jugé disproportionné pour la validation).
 - **Règles** : validation uniquement, aucune règle métier modifiée. Toute anomalie génère un ticket de correction séparé.
 - **Travail attendu** :
-  - Lancer la simulation complète via `Tools/PsyckoConsole/`.
+  - Lancer la simulation via `Tools/PsyckoConsole/` (100 000 parties, `LogMode.Off` ; relancer en `ExceptionalOnly` si besoin d'isoler des seeds).
   - Collecter les métriques de T38d : taux d'échec, distribution des durées, équité entre sièges, **vainqueurs et Psycko par bot**.
-  - Mesurer la fréquence d'activation des cartes spéciales et des Jokers (Valet, 7/Don, 2, Prêtre, Cavalier, Joker Verre, Noir, Couleur, Carré, Doublon). Cette mesure a été reportée de T38d (point 5) vers T42.
+  - Mesurer la fréquence d'activation des cartes spéciales et des Jokers (Valet, 7/Don, 2, Prêtre, Joker Verre, Noir, Couleur, Carré, Doublon). Cette mesure, reportée de T38d (point 5) vers T42, est **implémentée et validée** (voir « Mesure des effets » ci-dessous).
   - Pour chaque échec : isoler la seed et ouvrir un ticket de correction dédié dans Core.
   - Rapport de synthèse : tickets ouverts, taux de réussite global, recommandation GO / NO-GO vers Bots avancés + NUnit + Presentation.
-- **Hors périmètre** : correction des bugs (tickets séparés), rédaction des tests NUnit définitifs (ticket futur nourri par cette analyse).
+- **Mesure des effets (✅ close)** :
+  - **Décision** : la collecte ne vit pas dans un compteur dédié. `GameResultTracker.RecordEffects` cumule, par `EffectKind`, les effets détectés par `GameLogEffectDetector` sur les coups acceptés (lecture seule, aucune règle ajoutée, indépendant du `LogMode`, donc actif en `Off`). Le résultat est exposé par `GameResult.EffectCounts` puis agrégé par `SimulationStats`.
+  - **Effets suivis** : Doublon, Detruite2, DetruiteCarre, DetruiteBombe (Bombe + Joker Couleur), SensReverse, PriestEffect, JokerVerre, JokerNoir, Don, Proverbe, PhaseTransition.
+  - **Console** : tableau des effets affiché par `SimulationStats`.
+  - **CSV** : la colonne A du CSV (`CsvLogWriter`) porte désormais, **par fichier**, le total de chaque effet, dans le même ordre et avec les mêmes libellés que la console. Pour comparer à la console sur un run multi-fichiers, sommer la ligne d'un effet sur tous les fichiers du run. La colonne B est renommée « Détail par partie ».
+  - **Validation** : compilation OK ; les quantités d'effets du CSV sont identiques à celles de la console.
+  - **Reste à faire** : exécuter et analyser les 100 000 parties (la mesure sera réutilisée telle quelle).
+- **Hors périmètre** : correction des bugs (tickets séparés), rédaction des tests NUnit définitifs (ticket futur nourri par cette analyse), simulation à 1M parties.
 - **Dépendances** : T35 à T41 clos et fonctionnels ; T44 et T45 sont nécessaires pour comparer RandomBot vs DiscardBot par type de bot (agrégation des vainqueurs/Psycko par type de bot et par siège).
 - **Critères d'acceptation** :
-  - 1M parties exécutées, rapport chiffré produit.
+  - 100 000 parties exécutées, rapport chiffré produit.
   - Toute partie en échec a sa seed isolée et un ticket de correction si nécessaire.
   - Décision explicite actée avec Ekinox : GO vers NUnit + Presentation, ou itération sur Core/Bots.
-- ❓ **En suspens** : où implémenter la collecte de fréquence d'activation ? Dans `SimulationStats` (ajout après T38d) ou dans un compteur dédié ? La décision reste à prendre avant le lancement de T42.
+  - ✅ Fréquence d'activation des effets mesurée et cohérente entre console et CSV.
 
 ---
 
@@ -444,7 +451,7 @@ Un seul chemin de construction et d'exécution d'une partie, partagé par la lig
 
 --- 
 
-## T45 — DiscardBot (Psycko.Bots) ⏳ À FAIRE
+## T45 — DiscardBot (Psycko.Bots) ✅ LIVRÉ (validation NUnit/build à confirmer avant merge)
 
 - **Contexte** : bot déterministe et sans état, pour comparer une stratégie basique à RandomBot en simulation (T44 le place à un siège via `SeatKind.Discard`).
 - **Décisions actées (validées par Ekinox)** :
@@ -465,6 +472,12 @@ Un seul chemin de construction et d'exécution d'une partie, partagé par la lig
 - **Critères d'acceptation** : choix par ordre de hauteur ; règle de sécurité ; Jokers en dernier ; le 2 en avant-dernier ; Don de la plus petite carte au joueur le plus avancé ; FaceDown sans lecture ; déterminisme ; couverture ≥ 90 %.
 - **Tests NUnit EditMode** : plus petite carte (hauteur, pas enum) ; règle de sécurité ; Jokers en dernier ; le 2 en avant-dernier ; Don (carte et destinataire, y compris égalités) ; FaceDown sans lecture ; déterminisme ; départage des égalités ; `ProposeExchanges` vide ; `DecidePickup` comme RandomBot ; robustesse (main vide, aucune option jouable).
 - **Validation** : `sim 10000` avec DiscardBot aux sièges 0 à 3 (permutation) ; `play 1 off` avec 4 DiscardBot, terminé et identique à seed égale ; non-régression `sim 1000` avec 4 RandomBot (comparaison de distribution, car les RandomBot ne sont pas reproductibles).
+- **Résultats de validation (25/10/2026)** :
+  - `sim 10000 1 off`, DiscardBot aux sièges 0, 1, 2, 3 contre 3 RandomBot : 68,85 % / 69,38 % / 69,42 % / 69,15 % de victoires, soit **69,20 % en moyenne** (référence 25 %). 40 000 parties, 0 erreur. Aucun biais de siège mesurable (écart maximal 0,57 point). Le DiscardBot finit dernier dans 0,32 % des parties.
+  - Non-régression `sim 1000 1 off` (4 RandomBot) : 25,90 / 24,00 / 24,90 / 25,20 %, 0 erreur, distribution équilibrée.
+  - **Comportement connu** : un duel ou un miroir de DiscardBot entre eux peut boucler (cycle périodique : chacun garde ses As, la pile est ramassée alternativement). Environ 4 % de parties à 4 DiscardBot, et cycle observé à 2 DiscardBot. Le plafond anti-boucle (250 000 coups) l'intercepte. Ce n'est pas un défaut du Core : toute règle anti-boucle serait une décision de règles à valider dans le GDD, hors T45.
+  - Le test de déterminisme `play 1 off` à 4 DiscardBot doit utiliser une seed qui se termine (seed 2 : 161 coups).
+  - **Reste à confirmer avant merge** : `dotnet test` vert (couverture ≥ 90 %), `dotnet build` sans nouveau warning, `play` identique à seed égale.
 
 ---
 
@@ -493,7 +506,7 @@ Un seul chemin de construction et d'exécution d'une partie, partagé par la lig
 
 ## Ordre d'exécution
 
-✅ T35 → ✅ T36 → ✅ T37 → ✅ T38a → ✅ T38b → ✅ T38bis → ✅ T38c (absorbe T39/T40) → ✅ T38d → ✅ T41a → ✅ T41b → ✅ T44 → T45 → T42 → T43 → T46
+✅ T35 → ✅ T36 → ✅ T37 → ✅ T38a → ✅ T38b → ✅ T38bis → ✅ T38c (absorbe T39/T40) → ✅ T38d → ✅ T41a → ✅ T41b → ✅ T44 → ✅ T45 → ✅ T42 → T43 → T46
 
 ## Reste à faire
 

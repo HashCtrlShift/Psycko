@@ -11,6 +11,8 @@ namespace Psycko.Core.Services.Log
     /// Écart-type : formule de POPULATION. Médiane : moyenne des deux centraux si effectif pair.
     /// Percentiles : méthode du rang le plus proche (valeur réellement observée).
     /// Rang : 0 = vainqueur ... dernier = Psycko. Siège = index 0..n-1 (Bot1 = siège 0).
+    /// Effets (T42) : cumul des GameResult.EffectCounts sur les parties sans erreur.
+    /// Index = (int)EffectKind. Les parties en erreur sont exclues (comme les autres stats).
     /// </summary>
     public sealed class SimulationStats
     {
@@ -54,6 +56,17 @@ namespace Psycko.Core.Services.Log
         /// </summary>
         public double AverageWinnerPlayRatio { get; }
 
+        // --- Effets (T42) ---
+
+        /// <summary>Total d'activations par EffectKind (index = (int)EffectKind), parties sans erreur.</summary>
+        public IReadOnlyList<long> EffectTotals { get; }
+
+        /// <summary>Moyenne d'activations par partie pour chaque EffectKind (parties sans erreur).</summary>
+        public IReadOnlyList<double> EffectPerGame { get; }
+
+        /// <summary>Nombre de parties sans erreur où l'effet s'est activé au moins une fois.</summary>
+        public IReadOnlyList<int> GamesWithEffect { get; }
+
         public SimulationStats(IReadOnlyList<GameResult> results)
         {
             if (results == null) throw new ArgumentNullException(nameof(results));
@@ -72,6 +85,10 @@ namespace Psycko.Core.Services.Log
             var pickupSum = new double[seats];
             double ratioSum = 0;
             int ratioCount = 0;
+
+            int effectKinds = Enum.GetValues(typeof(EffectKind)).Length;
+            var effectTotals = new long[effectKinds];
+            var gamesWithEffect = new int[effectKinds];
 
             foreach (var r in ok)
             {
@@ -95,6 +112,13 @@ namespace Psycko.Core.Services.Log
                     ratioSum += (double)r.PlaysAtExitBySeat[w] / r.ExitMoveBySeat[w];
                     ratioCount++;
                 }
+
+                int known = Math.Min(effectKinds, r.EffectCounts.Count);
+                for (int k = 0; k < known; k++)
+                {
+                    effectTotals[k] += r.EffectCounts[k];
+                    if (r.EffectCounts[k] > 0) gamesWithEffect[k]++;
+                }
             }
 
             WinsBySeat = wins;
@@ -106,6 +130,10 @@ namespace Psycko.Core.Services.Log
                 .Select(s => exitCount[s] == 0 ? 0 : exitMoveSum[s] / exitCount[s]).ToArray();
             AveragePickupsBySeat = pickupSum.Select(p => ok.Count == 0 ? 0 : p / ok.Count).ToArray();
             AverageWinnerPlayRatio = ratioCount == 0 ? 0 : ratioSum / ratioCount;
+
+            EffectTotals = effectTotals;
+            GamesWithEffect = gamesWithEffect;
+            EffectPerGame = effectTotals.Select(t => ok.Count == 0 ? 0 : (double)t / ok.Count).ToArray();
 
             if (ok.Count > 0)
             {
@@ -151,6 +179,15 @@ namespace Psycko.Core.Services.Log
             sb.AppendLine("Siège | Victoires (%) | Psycko | Plays à la sortie | Coup de sortie | Ramassages/partie");
             for (int s = 0; s < WinsBySeat.Count; s++)
                 sb.AppendLine($"Bot{s + 1,-2} | {WinsBySeat[s],9} ({WinRateBySeat[s]:F2}) | {PsyckosBySeat[s],6} | {AveragePlaysAtExitBySeat[s],17:F1} | {AverageExitMoveBySeat[s],14:F1} | {AveragePickupsBySeat[s],8:F1}");
+
+            sb.AppendLine();
+            sb.AppendLine("Effet                     |      Total | Par partie | Parties concernées (%)");
+            foreach (EffectKind kind in Enum.GetValues(typeof(EffectKind)))
+            {
+                int k = (int)kind;
+                double pct = 100.0 * GamesWithEffect[k] / SuccessfulGames;
+                sb.AppendLine($"{kind,-25} | {EffectTotals[k],10} | {EffectPerGame[k],10:F3} | {pct,8:F2}");
+            }
             return sb.ToString();
         }
     }

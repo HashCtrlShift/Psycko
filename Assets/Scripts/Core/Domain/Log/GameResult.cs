@@ -7,7 +7,8 @@ namespace Psycko.Core.Domain.Log
     /// <summary>
     /// Faits bruts d'une partie terminée. Immuable, neutre : aucune notion
     /// d'ELO ni de niveau (réutilisable par le futur système de classement).
-    /// Les index des tableaux sont les index de SIÈGE (0..n-1).
+    /// Les index des tableaux sont les index de SIÈGE (0..n-1), sauf EffectCounts
+    /// (index = (int)EffectKind).
     /// </summary>
     public sealed class GameResult
     {
@@ -40,6 +41,12 @@ namespace Psycko.Core.Domain.Log
         /// <summary>Ramassages par siège sur toute la partie.</summary>
         public IReadOnlyList<int> PickupsBySeat { get; }
 
+        /// <summary>
+        /// Activations d'effets sur la partie, indexées par (int)EffectKind (T42).
+        /// Liste vide si non fournie (partie en erreur, ou résultat construit sans compteurs).
+        /// </summary>
+        public IReadOnlyList<int> EffectCounts { get; }
+
         /// <summary>True si la partie a été interrompue par une exception.</summary>
         public bool IsError { get; }
 
@@ -52,7 +59,8 @@ namespace Psycko.Core.Domain.Log
             IEnumerable<int> playsAtExitBySeat,
             IEnumerable<int> playsBySeat,
             IEnumerable<int> pickupsBySeat,
-            bool isError = false)
+            bool isError = false,
+            IEnumerable<int> effectCounts = null)
         {
             Seed = seed;
             TotalMoves = totalMoves;
@@ -62,8 +70,10 @@ namespace Psycko.Core.Domain.Log
             PlaysAtExitBySeat = (playsAtExitBySeat ?? throw new ArgumentNullException(nameof(playsAtExitBySeat))).ToList().AsReadOnly();
             PlaysBySeat = (playsBySeat ?? throw new ArgumentNullException(nameof(playsBySeat))).ToList().AsReadOnly();
             PickupsBySeat = (pickupsBySeat ?? throw new ArgumentNullException(nameof(pickupsBySeat))).ToList().AsReadOnly();
+            EffectCounts = (effectCounts ?? Enumerable.Empty<int>()).ToList().AsReadOnly();
             IsError = isError;
         }
+
         /// <summary>
         /// Résultat d'une partie interrompue : seul le seed est exploitable,
         /// les compteurs (coups, plays) reflètent l'état au moment de l'interruption.
