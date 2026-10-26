@@ -500,36 +500,40 @@ Un seul chemin de construction et d'exécution d'une partie, partagé par la lig
 - **Critères d’acceptation** : aucun écart doc/code identifié sans mention « à vérifier » ; texte Notion prêt à coller ; statuts et chemins cohérents.
 - **Tests** : relecture croisée des documents et vérification des noms/chemins.
 
-## T47 — Tickets d'anomalies séparés si non absorbés par T44 🔄 EN COURS
+## T47 — Tickets d'anomalies séparés si non absorbés par T44 ✅ TERMINÉ
 
 - **Contexte** : conserver une traçabilité explicite des anomalies de T38d et décider si elles sont absorbées par T44. Règle de travail : on contrôle et on corrige tout dans ce ticket.
-- **Anomalies à suivre** :
+
+- **Anomalies suivies** :
   - (a) `GameResult.Error` avec `TotalMoves = 0` : ✅ **CLÔTURÉE**.
     - État réel : déjà absorbée par T44. `GameRunner.cs` L114 appelle `GameResult.Error(seed, playerCount, tracker.TotalMovesSoFar, tracker.TotalPlaysSoFar)`. C'est le seul appelant du dépôt.
     - Action : suppression de la surcharge piège `Error(int seed, int playerCount)` (sans appelant, renvoyait 0/0).
     - Fichier touché : `Assets/Scripts/Core/Domain/Log/GameResult.cs` (−3 lignes, aucune règle métier modifiée).
-    - Vérifications manuelles : `dotnet build` OK ; `dotnet run -- sim 5 1 off --move-cap 3` → `(TotalMoves=3)` sur 5/5 erreurs ; `--move-cap 7` → `(TotalMoves=7)` sur 5/5 erreurs (avant suppression de la surcharge).
-  - (b) mode inconnu → `ExceptionalOnly` silencieux : ⏳ **À INSTRUIRE**. État réel à vérifier dans `ArgumentParser.TryParseLogMode` et la valeur par défaut. Proposition initiale : absorbé par T44. Cible : erreur lisible, code retour 2, aucune exécution.
-  - (c) mode `play` doit supporter les trois `LogMode` : ⏳ **À INSTRUIRE**. État réel à vérifier dans `ArgumentParser`, `GameSession.Play`, `ConsoleGameLocal`, `RunConfiguration`. Proposition initiale : traité dans T44 (même fichier, même parsing) ; à confirmer par Ekinox.
-- **Fichiers pressentis** : `Tools/PsyckoConsole/` pour (b) et (c). Pour (a) : `GameResult.cs` (fait).
-- **Hors périmètre** : autres anomalies non listées et correction de règles métier. Anomalie signalée sans correction : affichage de progression de `sim`, où `[5/5]` n'apparaît pas avant l'erreur de la dernière seed (cause à vérifier ; proposition de ticket séparé, périmètre `Tools/PsyckoConsole`).
-- **Dépendances** : T44 et confirmation d'Ekinox pour (c).
-- **Critères d'acceptation** : pour chaque anomalie, statut « absorbée par T44 », « déjà corrigée » ou ticket séparé décidé ; aucun comportement silencieux non documenté ; toute valeur inconnue produit une erreur lisible (code retour 2).
-- **Tests (vérifications manuelles en console, NUnit différé en Phase 5)** :
-  - [x] (a) nombre réel de coups en erreur (`--move-cap 3` et `7`).
-  - [ ] (b) argument de mode inconnu → erreur explicite, code retour 2, aucune exécution.
-  - [ ] (c) `play` avec `off`, `all` et `exceptional`.
-  - [ ] Non-régression : 10 000 parties à seed fixe, avant/après, résultats identiques, 0 erreur.
-- **Reste à faire** : instruire (b) et (c) (fichier, lignes, comportement, scénario de reproduction), décision d'Ekinox, correction avec diff minimal, vérifications manuelles, non-régression.
+    - Vérifications : `dotnet build` OK ; `sim 5 1 off --move-cap 3` → `(TotalMoves=3)` sur 5/5 erreurs ; `--move-cap 7` → `(TotalMoves=7)` sur 5/5 erreurs.
+  - (b) mode inconnu → `ExceptionalOnly` silencieux : ✅ **CLÔTURÉE**.
+    - Vérification : `dotnet run -- play 1 foo --dry-run` → « Mode de log inconnu : 'foo'. Valeurs possibles : off, all, exceptional. », usage affiché, `code=2`, aucune exécution.
+    - Fichiers touchés : [à compléter : fichier(s) et lignes du diff, dans `Tools/PsyckoConsole/`].
+  - (c) mode `play` doit supporter les trois `LogMode` : ✅ **CLÔTURÉE** (confirmée par Ekinox, corrigée dans T47).
+    - Vérifications :
+      - `play 1 all --bots random,random,random,random` → partie jouée, `Log écrit : Logs\GameLogs_1_1_…csv`, `code=0` ;
+      - `play 1 exceptional --bots random,random,random,random` → partie jouée, `code=0` (fichier écrit uniquement si la partie est exceptionnelle) ;
+      - `play 1 off …` → aucun fichier écrit, `code=0` ;
+      - `play 1 off --dry-run` → `Mode=Play; Games=1; Log=Off; …` ; option `--bots` prise en compte (`Seats=Random,Random,Random,Random`, `Names=Bot1..Bot4`).
+    - Fichiers touchés : [à compléter : `ArgumentParser`, `GameSession`, `ConsoleGameLocal`, `RunConfiguration` selon le diff réel].
+
+- **Non-régression** : `sim 10000 1 off` → 10 000 terminées, 0 erreur, `code=0`. Les statistiques exactes ne sont pas comparables d'un run à l'autre : seul le deck est seedé, les bots ne le sont pas (moy 1157,6 puis 1149,3 coups). La comparaison « résultats identiques » n'est donc pas applicable ; le critère retenu est 0 erreur et des stats cohérentes.
+
+- **Hors périmètre, signalé sans correction** :
+  - affichage de progression de `sim` : `[5/5]` n'apparaît pas avant l'erreur de la dernière seed (cause à vérifier). Proposition de ticket séparé, périmètre `Tools/PsyckoConsole` ;
+  - les bots ne sont pas seedés : les parties ne sont pas rejouables à partir de la seule seed. Proposition de ticket séparé : dériver le RNG de chaque bot de la seed de la partie et du siège.
+
+- **Critères d'acceptation** : chaque anomalie est clôturée ou a un ticket séparé décidé ; aucun comportement silencieux ; toute valeur inconnue produit une erreur lisible avec code retour 2. ✅
+
+- **Tests (vérifications manuelles, NUnit différé en Phase 5)** :
+  - [x] (a) nombre réel de coups en erreur (`--move-cap 3` et `7`)
+  - [x] (b) mode inconnu → erreur explicite, code 2, aucune exécution
+  - [x] (c) `play` avec `off`, `all` et `exceptional`
+  - [x] Non-régression : 10 000 parties, 0 erreur (stats non comparables, bots non seedés)
 ## Ordre d'exécution
 
-✅ T35 → ✅ T36 → ✅ T37 → ✅ T38a → ✅ T38b → ✅ T38bis → ✅ T38c (absorbe T39/T40) → ✅ T38d → ✅ T41a → ✅ T41b → ✅ T44 → ✅ T45 → ✅ T42 → ✅ T43 → T46
-
-## Reste à faire
-
-1. Obtenir l’accord sur les seuils X/Y : Y 160 → 250 et X 8 000 → 6 000.
-2. Traiter ou confirmer les anomalies connues (TotalMoves réel, mode inconnu, LogMode de `play`) et clore T39.
-3. Réaliser T44 (console configurable), puis T45 (DiscardBot).
-4. Exécuter T42 et analyser la simulation à grande échelle ; décider où collecter la fréquence d’activation.
-5. Trancher T43, puis effectuer T46 (audit documentaire et texte Notion).
-6. Phase suivante : Présentation, dans un nouveau chat avec un document de passation.
+✅ T35 → ✅ T36 → ✅ T37 → ✅ T38a → ✅ T38b → ✅ T38bis → ✅ T38c (absorbe T39/T40) → ✅ T38d → ✅ T41a → ✅ T41b → ✅ T44 → ✅ T45 → ✅ T42 → ✅ T43 → T46 → ✅ T47
