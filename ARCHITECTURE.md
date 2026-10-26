@@ -75,6 +75,7 @@ Psycko/
 │   │   │   ├── Interfaces/
 │   │   │   │   ├── ICardFormatter.cs             Contrat commun : Format(Card) → string
 │   │   │   │   ├── ICardPlayabilityChecker.cs    Contrat de jouabilité des cartes d'un joueur
+│   │   │   │   ├── IFaceDownBlindView.cs         Vue minimale pour le choix aveugle FaceDown : expose uniquement FaceDownCount (aucun contenu de carte)
 │   │   │   │   ├── IGameLogRecorder.cs           Contrat d'enregistrement des actions d'une partie
 │   │   │   │   ├── IGameObserver.cs              Contrat d'observation en direct d'une partie (Console, puis Présentation)
 │   │   │   │   ├── IGameState.cs                 Interface composite
@@ -143,6 +144,7 @@ Psycko/
 │   │   │       │
 │   │   │       ├── BlindPlayResolutions.cs       Carte Révélée en Luck
 │   │   │       ├── CardDealer.cs                 Distribue un paquet mélangé
+│   │   │       ├── FaceDownBlindView.cs           Implémentation immuable de IFaceDownBlindView, construite par GameRunner pour chaque tour aveugle
 │   │   │       ├── GameOrchestrator.cs           Définit le déroulement d'une partie
 │   │   │       ├── GameResultCalculator.cs       Définit la Fin d'une partie
 │   │   │       ├── GameRunner.cs                 Joue une partie complète (seed → distribution → échange → tours → GameResult), notifie un IGameObserver optionnel. Contient GameRunOutcome (Result + Log optionnel + Error) Une boucle unique pour Console, Unity et réseau. En cas d'erreur, GameResult.Error reçoit TotalMoves/TotalPlays du tracker

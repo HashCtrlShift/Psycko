@@ -79,11 +79,10 @@ namespace Psycko.Console
 
         public bool DecidePickup(IPlayerVisibleState s, bool isForced) => true;
 
-        public Play? ProposeFaceDownPlay(IPlayerVisibleState s)
+                public int? ProposeFaceDownIndex(IFaceDownBlindView view)
         {
-            ShowTable(s);
-            int i = Ask($"FaceDown à retourner (0..{s.SelfFaceDown.Count - 1})", s.SelfFaceDown.Count);
-            return Play.CreateSingle(s.SelfPlayerId, s.SelfFaceDown[i], CardLayer.FaceDown);
+            System.Console.WriteLine($"\n--- Tour aveugle : {view.SelfFaceDownCount} carte(s) FaceDown ---");
+            return Ask($"Position FaceDown à retourner (0..{view.SelfFaceDownCount - 1})", view.SelfFaceDownCount);
         }
 
         public GiftResolutionChoice ResolveGift(IPlayerVisibleState s)

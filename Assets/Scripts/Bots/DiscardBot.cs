@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,7 +24,7 @@ namespace Psycko.Bots
                 ?? throw new ArgumentNullException(nameof(playabilityChecker));
         }
 
-        public Play ProposeNormalPlay(IPlayerVisibleState state)
+        public Play? ProposeNormalPlay(IPlayerVisibleState state)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
             if (state.SelfHand.Count == 0) return null;
@@ -52,7 +54,7 @@ namespace Psycko.Bots
             // Les Jokers sont des recours ultimes, dans l'ordre Noir, Verre, Couleur.
             var joker = playable
                 .Where(x => x.Card.IsJoker && x.Card.JokerType.HasValue)
-                .OrderBy(x => JokerPriority(x.Card.JokerType.Value))
+                .OrderBy(x => JokerPriority(x.Card.JokerType!.Value))
                 .ThenBy(x => x.Index)
                 .FirstOrDefault();
             return joker.Card == null
@@ -60,10 +62,10 @@ namespace Psycko.Bots
                 : Play.CreateSingle(state.SelfPlayerId, joker.Card, CardLayer.Hand);
         }
 
-        private Play ProposeStandard(IPlayerVisibleState state, List<IndexedCard> standard, bool hasJoker)
+        private Play? ProposeStandard(IPlayerVisibleState state, List<IndexedCard> standard, bool hasJoker)
         {
             DefRank lowestPlayable = standard
-                .Select(x => x.Card.Rank.Value)
+                .Select(x => x.Card.Rank!.Value)
                 .OrderBy(r => (int)r)
                 .First();
 
@@ -76,7 +78,7 @@ namespace Psycko.Bots
             {
                 var ranksInHand = state.SelfHand
                     .Where(c => !c.IsJoker && c.Rank.HasValue)
-                    .Select(c => c.Rank.Value)
+                    .Select(c => c.Rank!.Value)
                     .ToList();
                 if (ranksInHand.Count > 0)
                 {
@@ -127,7 +129,7 @@ namespace Psycko.Bots
                 && o.HandCount + o.FaceUp.Count + o.FaceDownCount <= OpponentEndgameThreshold);
         }
 
-        private Play SingleIfNotTerminal(IPlayerVisibleState state, IndexedCard chosen)
+        private Play? SingleIfNotTerminal(IPlayerVisibleState state, IndexedCard chosen)
         {
             // Un 2 qui viderait les trois couches est interdit : on laisse le
             // Core déclencher le ramassage/fallback.
@@ -142,12 +144,11 @@ namespace Psycko.Bots
             return isForced;
         }
 
-        public Play ProposeFaceDownPlay(IPlayerVisibleState state)
+        /// <summary>Choisit toujours la position 0, à l'aveugle (aucun contenu accessible).</summary>
+        public int? ProposeFaceDownIndex(IFaceDownBlindView view)
         {
-            if (state == null) throw new ArgumentNullException(nameof(state));
-            if (state.SelfHand.Count > 0 || state.SelfFaceDown.Count == 0) return null;
-            // L'index 0 est choisi sans lire la carte : la valeur n'est jamais inspectée.
-            return Play.CreateSingle(state.SelfPlayerId, state.SelfFaceDown[0], CardLayer.FaceDown);
+            if (view == null) throw new ArgumentNullException(nameof(view));
+            return view.SelfFaceDownCount == 0 ? (int?)null : 0;
         }
 
         public GiftResolutionChoice ResolveGift(IPlayerVisibleState state)

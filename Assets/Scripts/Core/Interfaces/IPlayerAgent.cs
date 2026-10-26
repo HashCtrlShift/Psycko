@@ -2,7 +2,6 @@
 
 using System.Collections.Generic;
 using Psycko.Core.Domain;
-using Psycko.Core.Interfaces;
 using Psycko.Core.Domain.Exchange;
 
 namespace Psycko.Core.Interfaces
@@ -22,15 +21,17 @@ namespace Psycko.Core.Interfaces
         bool DecidePickup(IPlayerVisibleState state, bool isForced);
 
         /// <summary>
-        /// Propose une pose FaceDown (phase Luck). La carte est choisie à l'aveugle
-        /// par position — son contenu n'est pas inspecté avant la décision.
+        /// Choisit, à l'aveugle, la position (0 à SelfFaceDownCount - 1) de la carte FaceDown
+        /// à retourner (phase Luck). La vue ne donne que le nombre de cartes : aucun contenu
+        /// n'est accessible. Un index null ou hors bornes est une erreur de l'agent, rejetée
+        /// par l'appelant (aucun repli silencieux).
         /// </summary>
-        Play? ProposeFaceDownPlay(IPlayerVisibleState state);
+        int? ProposeFaceDownIndex(IFaceDownBlindView view);
 
         /// <summary>Choisit la résolution d'un Don (appelé si RequiresGiftResolution).</summary>
         GiftResolutionChoice ResolveGift(IPlayerVisibleState state);
 
-                /// <summary>
+        /// <summary>
         /// Propose, pendant l'échange pré-partie, une liste d'échanges Main↔FaceUp à appliquer
         /// dans l'ordre. Chacun est revalidé par Core (PreGameExchange). Liste vide = aucun échange.
         /// </summary>

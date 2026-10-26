@@ -397,16 +397,25 @@ T35, T36, T37, T38 (complet), T38c.
 
 ---
 
-## T43 — Garantie structurelle de ProposeFaceDownPlay (dette technique issue de T35) 🔵
+## T43 — Garantie structurelle de ProposeFaceDownPlay (dette technique issue de T35) ✅
 
-- **Contexte** : tension entre `IPlayerVisibleState.SelfFaceDown` (expose le contenu de la couche 3 du joueur) et `ProposeFaceDownPlay` (choix à l'aveugle, par position uniquement). Une interface C# ne peut pas interdire à un bot mal écrit de lire `state.SelfFaceDown[i]`. `RandomBot` (T36) respecte la règle par construction, mais un futur bot stratégique pourrait tricher silencieusement.
-- **Travail attendu** : trancher entre :
-  - une vue dédiée plus stricte pour `ProposeFaceDownPlay` (exposant seulement `SelfFaceDownCount`), distincte de `IPlayerVisibleState` ;
-  - ou la documentation formelle et définitive du compromis actuel.
-- **Fichiers pressentis** : `Psycko.Core.Interfaces/IPlayerVisibleState.cs`, `Psycko.Bots/IPlayerAgent.cs`.
-- **Hors périmètre** : réécriture des bots existants tant que ce ticket n'est pas tranché.
-- **Dépendances** : T35 (clos).
-- **Statut** : dette technique, non bloquante. À trancher avant l'implémentation d'un bot stratégique (MCTS, heuristique). Le futur DiscardBot (T45) respecte la règle par construction ; T43 n’est donc pas bloquant pour lui.
+- **Contexte** : tension entre `IPlayerVisibleState.SelfFaceDown` (expose le contenu de la couche 3 du joueur) et le choix à l'aveugle de la phase Luck (par position uniquement). Une interface C# ne peut pas interdire à un bot mal écrit de lire `state.SelfFaceDown[i]`. `RandomBot` (T36) et `DiscardBot` (T45) respectaient la règle par construction, mais un futur bot stratégique pouvait tricher silencieusement.
+- **Décision (actée avec Ekinox)** : **option A** — vue dédiée plus stricte, distincte de `IPlayerVisibleState`. L'option B (documentation seule du compromis) est écartée : elle ne protégeait pas contre un bot tricheur.
+- **Réalisation** :
+  - `IFaceDownBlindView` (Core/Interfaces) : expose uniquement `FaceDownCount` ; aucune carte, aucun accès au contenu de la couche 3.
+  - `FaceDownBlindView` (Core/Services) : implémentation immuable, construite par `GameRunner.PlayBlindTurn` à partir de `player.FaceDown.Count`.
+  - `IPlayerAgent.ProposeFaceDownPlay(IPlayerVisibleState)` remplacé par `ProposeFaceDownIndex(IFaceDownBlindView)` : l'agent renvoie un **index de position**, plus un `Play` portant une carte.
+  - `GameRunner.PlayBlindTurn` : l'index proposé est validé (bornes) et transmis à `GameOrchestrator.ApplyBlindPlay`. L'ancien repli par recherche de carte (`Equals(player.FaceDown[i], wanted)`) disparaît, devenu sans objet.
+  - `RandomBot`, `DiscardBot`, `ConsoleHumanAgent` : adaptés au strict minimum pour la nouvelle signature, comportement conservé.
+- **Repli (traité dans ce ticket, non reporté)** : index proposé invalide (hors bornes) → repli explicite sur l'index 0, dans `GameRunner` uniquement, jamais dans l'agent (cohérent avec le contrat « le fallback est géré par l'appelant »).
+- **Fichiers touchés** : `IFaceDownBlindView.cs` (nouveau), `FaceDownBlindView.cs` (nouveau), `IPlayerAgent.cs`, `GameRunner.cs`, `RandomBot.cs`, `DiscardBot.cs`, `ConsoleHumanAgent.cs`. `Psycko.Core.Domain` inchangé. `PlayerVisibleState` inchangé (reste la vue complète pour les autres décisions).
+- **Hors périmètre respecté** : aucune règle métier modifiée, aucune réécriture de stratégie.
+- **Validation** :
+  - Compilation OK.
+  - Simulation de non-régression à seed fixe, avant/après : résultats identiques (vainqueurs, durées, effets). 10 000 parties, 0 erreur.
+  - **Dérogation** : le test NUnit EditMode « la vue aveugle n'expose aucun contenu de carte » est **différé en Phase 5** (environnement de tests global). À réintégrer au premier ticket de tests.
+- **Dépendances** : T35 (clos), T36, T45.
+- **Statut** : clos. La garantie est désormais structurelle : un bot ne peut plus lire le contenu des FaceDown au moment du choix aveugle, car la vue ne le contient pas.
 
 ---
 
@@ -506,7 +515,7 @@ Un seul chemin de construction et d'exécution d'une partie, partagé par la lig
 
 ## Ordre d'exécution
 
-✅ T35 → ✅ T36 → ✅ T37 → ✅ T38a → ✅ T38b → ✅ T38bis → ✅ T38c (absorbe T39/T40) → ✅ T38d → ✅ T41a → ✅ T41b → ✅ T44 → ✅ T45 → ✅ T42 → T43 → T46
+✅ T35 → ✅ T36 → ✅ T37 → ✅ T38a → ✅ T38b → ✅ T38bis → ✅ T38c (absorbe T39/T40) → ✅ T38d → ✅ T41a → ✅ T41b → ✅ T44 → ✅ T45 → ✅ T42 → ✅ T43 → T46
 
 ## Reste à faire
 

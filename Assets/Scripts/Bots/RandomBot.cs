@@ -120,44 +120,32 @@ namespace Psycko.Bots
 
             return isForced;
         }
-
         /// <summary>
-        /// Propose une carte FaceDown en phase Luck.
+        /// Choisit uniformément la position d'une carte FaceDown (phase Luck).
         /// </summary>
-        /// <param name="state">Vue filtrée de l'état du joueur.</param>
+        /// <param name="view">Vue aveugle : uniquement le nombre de cartes FaceDown.</param>
         /// <returns>
-        /// Un coup FaceDown construit à partir de l'index choisi, ou
-        /// <c>null</c> si aucune carte FaceDown n'est disponible.
+        /// L'index tiré, ou <c>null</c> si aucune carte FaceDown n'est disponible.
         /// </returns>
         /// <remarks>
-        /// L'index est tiré aléatoirement avant toute lecture du contenu de la
-        /// carte. Cette méthode respecte donc la discipline d'aveuglement
-        /// imposée pour la couche FaceDown.
+        /// Un seul tirage <c>random.Next(count)</c> : la consommation du générateur reste
+        /// identique à l'ancienne version, donc les simulations restent reproductibles.
+        /// Le contenu de la carte n'est inaccessible par construction.
         /// </remarks>
-        /// <exception cref="ArgumentNullException">
-        /// Levée si <paramref name="state"/> est nul.
-        /// </exception>
-        public Play? ProposeFaceDownPlay(IPlayerVisibleState state)
+        /// <exception cref="ArgumentNullException">Levée si <paramref name="view"/> est nul.</exception>
+        public int? ProposeFaceDownIndex(IFaceDownBlindView view)
         {
-            if (state == null)
+            if (view == null)
             {
-                throw new ArgumentNullException(nameof(state));
+                throw new ArgumentNullException(nameof(view));
             }
 
-            if (state.SelfHand.Count > 0
-                || state.SelfFaceDown.Count == 0)
+            if (view.SelfFaceDownCount == 0)
             {
                 return null;
             }
 
-            int selectedIndex = random.Next(state.SelfFaceDown.Count);
-
-            Card selectedCard = state.SelfFaceDown[selectedIndex];
-
-            return Play.CreateSingle(
-                state.SelfPlayerId,
-                selectedCard,
-                CardLayer.FaceDown);
+            return random.Next(view.SelfFaceDownCount);
         }
 
         /// <summary>

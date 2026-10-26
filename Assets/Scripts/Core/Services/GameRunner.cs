@@ -145,7 +145,7 @@ namespace Psycko.Core.Services
 
         // ── Un tour ──────────────────────────────────────────────────────
 
-        private static GameState PlayOneTurn(
+                private static GameState PlayOneTurn(
             GameState state,
             IReadOnlyList<IPlayerAgent> agents,
             GameOrchestrator orchestrator,
@@ -155,16 +155,16 @@ namespace Psycko.Core.Services
             int seat = state.ActivePlayerIndex;
             var player = state.Players[seat];
             var agent = agents[seat];
-            var view = PlayerVisibleState.From(state, player.Id);
 
             // Phase Luck, main vide : tour aveugle. ApplyBlindPlay gère lui-même
             // le ramassage si la carte retournée est injouable : résultat toujours
             // final pour ce tour.
             if (player.CurrentPhase == DefPhase.Luck && player.Hand.Count == 0)
-                return PlayBlindTurn(state, seat, agent, view, orchestrator, recorder, tracker);
+                return PlayBlindTurn(state, seat, agent, orchestrator, recorder, tracker);
 
             // Toutes les autres situations (Work, Talent, Luck avec main non vide) :
             // coup normal ou ramassage.
+            var view = PlayerVisibleState.From(state, player.Id);
             return PlayNormalTurn(state, seat, agent, view, orchestrator, recorder, tracker);
         }
 
@@ -172,40 +172,34 @@ namespace Psycko.Core.Services
             GameState state,
             int seat,
             IPlayerAgent agent,
-            PlayerVisibleState view,
             GameOrchestrator orchestrator,
             IGameLogRecorder? recorder,
             GameResultTracker tracker)
         {
             var player = state.Players[seat];
-            
+
             if (player.FaceDown.Count == 0)
-            throw new InvalidOperationException(
-                $"Phase Luck mais FaceDown vide (joueur {seat}). " +
-                $"Hand={player.Hand.Count}, FaceUp={player.FaceUp.Count}, FaceDown={player.FaceDown.Count}, " +
-                $"Pile={state.Pile.Count}, DrawPile={state.DrawPile.Count}, Actifs=" +
-                $"{state.Players.Count(p => p.CurrentPhase != DefPhase.Finished)}");
+                throw new InvalidOperationException(
+                    $"Phase Luck mais FaceDown vide (joueur {seat}). " +
+                    $"Hand={player.Hand.Count}, FaceUp={player.FaceUp.Count}, FaceDown={player.FaceDown.Count}, " +
+                    $"Pile={state.Pile.Count}, DrawPile={state.DrawPile.Count}, Actifs=" +
+                    $"{state.Players.Count(p => p.CurrentPhase != DefPhase.Finished)}");
 
-            // L'agent propose une carte ; on retrouve son index dans FaceDown.
-            // Repli sur l'index 0 si l'agent ne propose rien ou si la carte est introuvable.
-            int faceDownIndex = 0;
-            var blind = agent.ProposeFaceDownPlay(view);
+            // L'agent ne reçoit que le nombre de cartes FaceDown : choix à l'aveugle garanti
+            // par le typage. Index null ou hors bornes = erreur de l'agent, sans repli.
+            var blindView = new FaceDownBlindView(player.FaceDown.Count);
+            int? proposedIndex = agent.ProposeFaceDownIndex(blindView);
 
-            if (blind is not null && blind.Cards.Count > 0)
-            {
-                var wanted = blind.Cards[0];
-                for (int i = 0; i < player.FaceDown.Count; i++)
-                {
-                    if (Equals(player.FaceDown[i], wanted))
-                    {
-                        faceDownIndex = i;
-                        break;
-                    }
-                }
-            }
+            if (proposedIndex is null
+                || proposedIndex.Value < 0
+                || proposedIndex.Value >= player.FaceDown.Count)
+                throw new InvalidOperationException(
+                    $"Index FaceDown invalide proposé par l'agent du siège {seat} : " +
+                    $"{(proposedIndex.HasValue ? proposedIndex.Value.ToString() : "null")} " +
+                    $"(FaceDown={player.FaceDown.Count}).");
 
             var resolution = orchestrator.ApplyBlindPlay(
-                state, seat, faceDownIndex, recorder, tracker);
+                state, seat, proposedIndex.Value, recorder, tracker);
 
             return Require(resolution.Result, "ApplyBlindPlay");
         }
