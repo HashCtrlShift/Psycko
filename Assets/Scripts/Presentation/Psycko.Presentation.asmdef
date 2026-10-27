@@ -1,0 +1,17 @@
+{
+    "name": "Psycko.Presentation",
+    "rootNamespace": "Psycko.Presentation",
+    "references": [
+        "Psycko.Core",
+        "Psycko.Bots"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -23,11 +23,14 @@ Psycko/
 ├── ARCHITECTURE.md
 ├── TICKETS Phase 2.md
 ├── TICKETS Phase 3.md
+├── TICKETS Phase 4.md
 ├── .editorconfig
 ├── .gitignore
 ├── Psycko.slnx
 │
 ├── Assets/
+│   ├── Scenes/
+│   │ 
 │   ├── Scripts/
 │   │   ├── Bots/                          C# pur, dépend Core — noEngineReferences: true
 │   │   │   ├── DiscardBot.cs              Agent qui sélectionne la plus petite carte à jouer et applique une stratégie
@@ -152,6 +155,7 @@ Psycko/
 │   │   │       └── PlayResult.cs                 Définit un appel à GameOrchestrator
 │   │   │
 │   │   └── Presentation/                  (Unity 2D, dépend Core + Bots, zéro logique de jeu)
+│   │       ├── Psycko.Presentation.asmdef
 │   │       ├── UI/
 │   │       │   ├── CardView.cs
 │   │       │   ├── ZoneView.cs
