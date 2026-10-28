@@ -1,0 +1,14 @@
+{
+  "name": "Psycko.Presentation.Tests",
+  "rootNamespace": "Psycko.Presentation.Tests",
+  "references": ["Psycko.Core", "Psycko.Bots", "Psycko.Presentation"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": true,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

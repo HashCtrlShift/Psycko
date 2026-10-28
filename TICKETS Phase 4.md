@@ -2,36 +2,105 @@ TICKETS Phase 4 — Présentation locale (GameplayLocal)
 Phase 4 : interface Unity 2D, jouable en local (1 humain + 3 bots), paysage uniquement. Zéro logique de jeu dans la Présentation. Toute décision passe par GameRunner / GameOrchestrator et les contrats existants.
 Hors périmètre Phase 4 : Photon Fusion, PlayFab, Unity IAP, sauvegarde/reprise de partie, mode spectateur depuis GameLog, options d'accessibilité daltonisme et taille de carte (reportées Phase 5).
 
-T50 — Bootstrap scène, asmdef, paysage verrouillé
+## T50 — Bootstrap scène, asmdef, paysage verrouillé ✅
 
-Statut : À FAIRE
-Contexte : poser le socle Unity (scène, assemblies, orientation) avant toute logique.
-Fichiers : Assets/Scenes/GameplayLocal.unity, Assets/Scripts/Presentation/Psycko.Presentation.asmdef (références : Psycko.Core, Psycko.Bots).
-Règles CLAUDE.md : Presentation dépend Core + Bots, zéro logique de jeu.
-Travail :
-Player Settings : Default Orientation = Landscape Left, Auto Rotation limitée à Landscape Left / Landscape Right, Portrait désactivé.
-Canvas Scale With Screen Size, Reference Resolution 1920×1080, Match = 0.5.
-Caméra URP 2D, fond uni #100d1f.
+- **Statut :** FAIT (en attente de merge)
+- **Contexte :** poser le socle Unity (scène, assemblies, orientation) avant toute logique de jeu.
+- **Fichiers :**
+  - `Assets/Scenes/GameplayLocal.unity`
+  - `Assets/Scripts/Presentation/Psycko.Presentation.asmdef` (références : `Psycko.Core`, `Psycko.Bots`)
+- **Règles CLAUDE.md :** Presentation dépend de Core + Bots ; zéro logique de jeu ; aucune référence à un assembly de test en production.
 
+### Travail réalisé
 
-Dépendances : aucune.
-Critères : la scène s'ouvre sans erreur ; la rotation portrait est impossible ; compilation verte.
-Tests : contrôle manuel en Game View 16:9 et 19.5:9 ; aucun test NUnit (structure).
+1. **Player Settings**
+   - Default Orientation = **Landscape Left**
+   - Auto Rotation : uniquement **Landscape Left** et **Landscape Right** ; Portrait et Portrait Upside Down désactivés.
+2. **Scène `GameplayLocal`**
+   - Template : 2D URP (Lit 2D), ajoutée en index 0 dans Build Profiles > Scene List.
+   - Hierarchy : Main Camera, Global Light 2D, MainCanvas, EventSystem.
+3. **Caméra**
+   - Projection **Orthographic**
+   - Renderer : **Default Renderer** (Renderer 2D)
+   - Background Type = **Solid Color**, couleur **#100d1f**
+4. **MainCanvas**
+   - Render Mode = **Screen Space - Camera** (Render Camera = Main Camera, Plane Distance 100)
+   - Canvas Scaler : **Scale With Screen Size**, Reference Resolution **1920 × 1080**, Screen Match Mode **Match Width Or Height**, Match **0.5**, Reference Pixels Per Unit 100
 
-T51 — Adaptateur de partie (GameplayController, UnityHumanAgent)
+### Décision de conception
 
-Statut : À FAIRE
-Contexte : lancer une partie via GameRunner (3 RandomBot + 1 humain) et recevoir les événements.
-Fichiers : Controllers/GameplayController.cs, Controllers/UnityHumanAgent.cs (implémente IPlayerAgent, attend l'intention humaine).
-Règles CLAUDE.md : l'humain ne propose qu'une intention brute ; la validation reste dans GameOrchestrator.
-Travail :
-Abonnement à IGameObserver pour les notifications.
-UnityHumanAgent expose une intention asynchrone, complétée par l'UI.
+- **Render Mode = Screen Space - Camera** (et non Overlay) : permet de gérer le tri (Sorting Layer / Order in Layer) entre l'UI et les sprites de cartes pour les animations (T5x), et reste compatible avec le post-traitement URP.
 
+### Dépendances
 
-Dépendances : T50.
-Critères : une partie complète se termine sans exception, humain inclus (actions pilotées par code de test).
-Tests NUnit EditMode : UnityHumanAgent renvoie l'intention reçue ; comportement défini tant qu'aucune intention n'est fournie.
+Aucune.
+
+### Hors périmètre
+
+Toute logique de jeu, tout script de contrôleur, toute UI de table (T51 et suivants).
+
+### Critères d'acceptation
+
+- [x] La scène `GameplayLocal` s'ouvre sans erreur.
+- [x] La rotation portrait est impossible (vérifiée dans le Device Simulator).
+- [x] Compilation verte dans Unity (Console vide) et dans VS Code (Problems vide), sans nouvel avertissement.
+- [x] Le fond de caméra est `#100d1f`.
+- [x] `Psycko.Presentation.asmdef` référence `Psycko.Core` et `Psycko.Bots`, sans assembly de test.
+
+### Tests
+
+Contrôle manuel en Game View 16:9 et 19.5:9 ; aucun test NUnit (ticket de structure).
+
+## T51 — Adaptateur de partie (GameplayController, UnityHumanAgent)
+
+- **Statut :** TERMINÉ (tests EditMode 8/8 verts — couverture à confirmer)
+- **Contexte :** lancer une partie via GameRunner (1 humain + 3 RandomBot) et recevoir les événements, sans aucune logique de jeu côté Présentation.
+- **Fichiers :**
+  - `Assets/Scripts/Presentation/Controllers/GameplayController.cs`
+  - `Assets/Scripts/Presentation/Controllers/UnityHumanAgent.cs` (implémente `IPlayerAgent`)
+  - Tests : `Assets/Tests/EditMode/Presentation/UnityHumanAgentTests.cs` (assembly de test EditMode référençant `Psycko.Presentation`, `Psycko.Core`, `Psycko.Bots`)
+- **Règles CLAUDE.md :** l'humain ne propose qu'une intention brute ; la validation reste dans `GameOrchestrator` ; nullable désactivé, pas de `?` sur les types référence.
+
+### Travail
+
+1. `UnityHumanAgent : IPlayerAgent`
+   - Expose l'intention humaine de façon non bloquante pour le thread principal.
+   - Méthode de soumission appelée par l'UI (`Submit(intention)`) qui complète l'intention en attente.
+   - Sans intention soumise : l'agent reste en attente, sans exception, sans intention par défaut inventée.
+   - Double soumission : la seconde est ignorée (règle documentée dans le code).
+   - Soumission hors tour (aucune demande en attente) : rejetée explicitement (règle documentée dans le code).
+2. `GameplayController`
+   - Construit la partie via `GameRunner` : 1 `UnityHumanAgent` + 3 `RandomBot`.
+   - S'abonne à `IGameObserver` pour recevoir les notifications et les relayer (événement C#) vers la future UI.
+   - Se désabonne proprement à la destruction (`OnDestroy`).
+   - Aucune règle de jeu, aucune validation de coup.
+
+### Dépendances
+
+T50.
+
+### Critères d'acceptation
+
+- [x] Une partie complète se termine sans exception, humain inclus, avec actions pilotées par code de test.
+- [x] `UnityHumanAgent` renvoie exactement l'intention reçue.
+- [x] Comportement sans intention défini et testé.
+- [x] Désabonnement vérifié (aucune fuite d'observateur).
+- [x] Compilation verte Unity, sans nouvel avertissement.
+- [x] Tests NUnit EditMode verts (8/8).
+- [ ] Couverture ≥ 90 % sur les fichiers du ticket (à mesurer).
+
+### Tests (NUnit EditMode, obligatoires avant merge)
+
+- `UnityHumanAgent` renvoie l'intention soumise.
+- `UnityHumanAgent` sans intention : reste en attente, ne lève pas d'exception.
+- Double soumission : seconde ignorée (conforme à la règle documentée).
+- Soumission hors tour : rejetée (conforme à la règle documentée).
+- Partie complète 1 agent de test scripté + 3 `RandomBot` (graine fixe) : se termine, aucun état illégal.
+- `GameplayController` : abonnement et désabonnement à `IGameObserver`.
+
+### Hors périmètre
+
+Toute UI de table, toute animation, tout rendu de carte (T52 et suivants).
 
 T52 — Vue de table (sièges, zones) en paysage
 
@@ -142,4 +211,4 @@ Critères : mesure Profiler consignée.
 
 
 Ordre d'exécution
-T50 → T51 → T52 → T53 → T54 → T55 → T56 → T57 → T58 → T59 → T60
+✅T50 → T51 → T52 → T53 → T54 → T55 → T56 → T57 → T58 → T59 → T60
