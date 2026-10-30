@@ -1,6 +1,7 @@
-﻿<Solution>
+<Solution>
   <Project Path="Psycko.Core.csproj" />
   <Project Path="Psycko.Presentation.csproj" />
+  <Project Path="Assembly-CSharp.csproj" />
   <Project Path="Psycko.Bots.csproj" />
   <Project Path="Psycko.Presentation.Tests.csproj" />
   <Project Path="Tools/PsyckoConsole/PsyckoConsole.csproj" />

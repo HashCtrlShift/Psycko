@@ -15,9 +15,6 @@
 
 ---
 
-## Structure du Code
-
-```
 Psycko/
 ├── CLAUDE.md
 ├── ARCHITECTURE.md
@@ -34,6 +31,11 @@ Psycko/
 ├── Assets/
 │   ├── csc.rsp                            -nullable:disable (nullable reference types désactivé)
 │   ├── Scenes/
+│   │
+│   ├── Presentation/                      Assets Unity de présentation (hors code)
+│   │   └── Skins/
+│   │       ├── SkinSet_Classique.asset    (T53) SkinSet de base : couleurs et sprites « Classique »
+│   │       └── SkinSet_Sombre.asset       (T53) SkinSet de base : couleurs distinctes, skin « Sombre »
 │   │
 │   ├── Scripts/
 │   │   ├── Bots/                          C# pur, dépend Core — noEngineReferences: true
@@ -160,16 +162,20 @@ Psycko/
 │   │   │
 │   │   └── Presentation/                  (Unity 2D, dépend Core + Bots, zéro logique de jeu)
 │   │       ├── Psycko.Presentation.asmdef       Références : Psycko.Core, Psycko.Bots
+│   │       ├── Interfaces/
+│   │       │   └── ICardSkin.cs                 (T53) Contrat visuel : Id, DisplayName, GetCardSprite(Card), GetCardBackSprite(), TableColor, SeatColor, Font. Aucune logique
+│   │       │
 │   │       ├── UI/
-│   │       │   ├── CardView.cs                       (à venir)
+│   │       │   ├── CardView.cs                       (T54, à venir) Rendu d'une carte via ICardSkin : états normal / jouable / sélectionnée / dos
 │   │       │   ├── GameTableView.cs                  (T52) Vue de table en paysage : disposition en croix, humain en bas
 │   │       │   ├── PlayerSeatView.cs                 (T52) Siège d'un joueur : compteurs main / FaceUp / FaceDown
 │   │       │   ├── TableProjection.cs                (T52) Projection pure IPlayerVisibleState → compteurs, sans MonoBehaviour, testable
+│   │       │   ├── TableViewModels.cs                (T52) Modèles d'affichage de la table
 │   │       │   └── ZoneView.cs                       (T52) Zones pioche et pile
 │   │       │
 │   │       ├── Controllers/
 │   │       │   ├── AnimationController.cs            (à venir)
-│   │       │   ├── GameplayController.cs             Lance une partie via LocalGameSession
+│   │       │   ├── GameplayController.cs             (T53) Lance une partie via LocalGameSession. Réponse d'échange pré-partie par défaut « aucun échange » (OnHumanRequest), _autoAnswerExchanges retiré
 │   │       │   ├── HandSorter.cs                     Tri d'une main pour l'affichage, sans logique de jeu
 │   │       │   ├── InputHandler.cs                   (à venir)
 │   │       │   ├── LocalGameSession.cs               Session de partie locale : 1 humain + 3 bots via GameRunner
@@ -177,14 +183,19 @@ Psycko/
 │   │       │   └── UnityHumanAgent.cs                IPlayerAgent humain
 │   │       │
 │   │       ├── Models/
-│   │       │   ├── CardSkinDefinition.cs             (à venir)
-│   │       │   └── HumanSelectionState.cs            (à venir)
+│   │       │   ├── CardSkinDefinition.cs             (T53) Définition d'un skin : Id, DisplayName, référence au SkinSet
+│   │       │   ├── HumanSelectionState.cs            (à venir)
+│   │       │   └── SkinSet.cs                        (T53) ScriptableObject « Create > Psycko > Skin Set » : sprites, dos, couleurs de table et de siège, police
+│   │       │
+│   │       ├── Skins/
+│   │       │   ├── DefaultCardSkin.cs                (T53) Implémentation de ICardSkin lisant un SkinSet, valeurs de repli si SkinSet nul
+│   │       │   └── SkinRegistry.cs                   (T53) MonoBehaviour : liste de CardSkinDefinition, Select(id) (inconnu → skin par défaut), Current, All
 │   │       │
 │   │       └── Scenes/
 │   │           └── GameplayLocal.unity
-│   │ 
+│   │
 │   └── Tests/
-│       └── EditMode/                      NUnit EditMode, miroir de la structure Core
+│       └── EditMode/                      NUnit EditMode, miroir de la structure Core (tests reportés en Phase 5 pour T51/T52/T53)
 │           ├── Psycko.Tests.EditMode.asmdef     Assembly de test EditMode
 │           └── Presentation/
 │               ├── GameplayControllerTests.cs       Tests de GameplayController
@@ -200,7 +211,7 @@ Psycko/
         ├── BotFactory.cs                  Crée les agents selon SeatKind (Human, Random)
         ├── ConsoleGameLocal.cs            IMenu interactif : ne construit que des arguments, rejoués dans ArgumentParser
         ├── ConsoleHumanAgent.cs           Agent "Humain" en console ('q' = abandon), cartes formatées via CardFormatter
-        ├── ConsoleLogPrinter.cs           Affichage en direct d'une partie 
+        ├── ConsoleLogPrinter.cs           Affichage en direct d'une partie
         ├── GameSession.cs                 Moteur d'exécution unique
         ├── Program.cs                     Point d'entrée minimal
         ├── RunConfiguration.cs            Configuration d'exécution unique et immuable
@@ -208,7 +219,7 @@ Psycko/
         ├── .gitignore                     Ignore bin/, obj/ et Logs/
         ├── bin/                           (ignoré) Debug/net8.0, Release/net8.0
         └── Logs/                          (ignoré) CSV générés
-```
+---
 
 ## Notes 
 - **Notion** : Source d'un grand nombre d'informations sur le projet 

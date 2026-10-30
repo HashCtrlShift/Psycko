@@ -102,35 +102,100 @@ T50.
 
 Toute UI de table, toute animation, tout rendu de carte (T52 et suivants).
 
-T52 — Vue de table (sièges, zones) en paysage
+# T52 — Vue de table (sièges, zones) en paysage
 
-Statut : À FAIRE
-Contexte : afficher les 4 sièges et les zones pioche/pile à partir de IPlayerVisibleState uniquement.
-Fichiers : UI/GameTableView.cs, UI/PlayerSeatView.cs, UI/ZoneView.cs.
-Travail :
-Disposition en croix : humain en bas (main pleine largeur), bots à gauche / en haut / à droite, pile au centre.
-Compteurs visibles pour les adversaires (main, FaceUp, FaceDown : quantités seulement).
+**Statut : FAIT** *(merge bloqué par la dépendance T51)*
 
+**Contexte :** afficher les 4 sièges et les zones pioche/pile à partir de `IPlayerVisibleState` uniquement.
 
-Dépendances : T51.
-Critères : aucun contenu caché d'un adversaire n'est rendu ; rendu conforme en paysage.
-Tests : unitaires sur le mapping état → compteurs (projection pure, extraite en classe testable).
+**Fichiers :**
+- `UI/GameTableView.cs`
+- `UI/PlayerSeatView.cs`
+- `UI/ZoneView.cs`
+- `UI/TableProjection.cs` (projection pure, sans `UnityEngine`)
+- `UI/TableViewModels.cs` (`OpponentSeatViewModel`, `SelfSeatViewModel`, `ZoneViewModel`, `TableViewModel`, `SeatPosition`)
 
-T53 — Contrat de skin et skins de base interchangeables
+**Travail réalisé :**
+- Disposition en croix en paysage (validée en 2340×1080) : humain en bas (main pleine largeur), bots à gauche / en haut / à droite, pile au centre.
+- Compteurs visibles pour les adversaires (main, FaceUp, FaceDown) : quantités seulement, jamais de cartes.
+- Projection état → modèle de vue extraite en classe pure (`TableProjection`).
+- Pioche et pile affichées en compteurs (26 = pioche, 1 = pile au départ).
 
-Statut : À FAIRE
-Contexte : plusieurs skins de base sélectionnables ; un skin ne change que l'apparence.
-Fichiers : Interfaces/ICardSkin.cs, Skins/DefaultCardSkin.cs, Models/SkinSet.cs (ScriptableObject : sprites, dos de carte, couleurs de table, polices), Models/CardSkinDefinition.cs, Skins/SkinRegistry.cs.
-Règles : un skin ne modifie ni tailles de zone ni hitboxes d'input.
-Travail :
-ICardSkin : visuel d'une Card et du dos de carte, sans logique.
-Au moins 2 SkinSet de base (ex. « Classique », « Sombre »).
-SkinRegistry : liste de skins, sélection par identifiant.
+**Dépendances :** T51.
 
+**Critères :**
+- Aucun contenu caché d'un adversaire n'est rendu. ✅ `OpponentSeatViewModel` ne contient aucune propriété de type `Card`.
+- Rendu conforme en paysage. ✅
 
-Dépendances : T52.
-Critères : changer de skin ne modifie aucune position ni taille d'élément interactif ; un nouveau SkinSet s'ajoute sans toucher au code.
-Tests : identifiant de skin inconnu → skin par défaut (pas d'exception).
+**Notes :**
+- Le siège adverse affiche le nom du bot. `DiscardBot` est placé aléatoirement sur l'un des trois sièges, son nom peut donc apparaître à gauche, en haut ou à droite.
+- Les compteurs de pioche et de pile sont **provisoires** : ils seront remplacés par le rendu des vraies cartes.
+- Les compteurs de siège ne sont pas encore étiquetés (main / FaceUp / FaceDown). À traiter avec le rendu des cartes.
+
+**Tests :** unitaires sur le mapping état → compteurs (projection pure, extraite en classe testable). **Reportés en Phase 5** (rattrapage de couverture de l'ensemble du code).
+
+**Merge :** bloqué tant que T51 n'est pas repris et mergé.
+
+---
+
+# T53 — Contrat de skin et skins de base interchangeables
+
+**Statut : FAIT — code, assets et validation éditeur OK. MERGE BLOQUÉ par T51**
+
+**Contexte :** plusieurs skins de base sélectionnables ; un skin ne change que l'apparence.
+
+**Dépendances :** T52 (fait, merge bloqué). T51 en pause (couverture Core ≈ 1 %, critère ≥ 90 % non atteint, reprise en Phase 5). Le merge de T52 et T53 reste donc bloqué tant que T51 n'est pas repris et mergé.
+
+## Fichiers (tous sous `Assets/Scripts/Presentation/`)
+
+| Fichier | Chemin | Rôle |
+|---|---|---|
+| `ICardSkin.cs` | `Interfaces/ICardSkin.cs` | Contrat : `Id`, `DisplayName`, `GetCardSprite(Card)`, `GetCardBackSprite()`, `TableColor`, `SeatColor`, `Font`. Aucune logique. |
+| `SkinSet.cs` | `Models/SkinSet.cs` | ScriptableObject (`Create > Psycko > Skin Set`) : `_faces`, `_cardBack`, `_tableColor`, `_seatColor`, `_font`. |
+| `CardSkinDefinition.cs` | `Models/CardSkinDefinition.cs` | Classe `[Serializable]` : `_id`, `_displayName`, `_skinSet`. |
+| `DefaultCardSkin.cs` | `Skins/DefaultCardSkin.cs` | Implémentation de `ICardSkin` qui lit un `SkinSet`. Valeurs de repli si `SkinSet` nul. |
+| `SkinRegistry.cs` | `Skins/SkinRegistry.cs` | MonoBehaviour : liste de `CardSkinDefinition`, `Select(id)`, `Current`, `All`. |
+| `GameplayController.cs` | `Controllers/GameplayController.cs` | Modifié : retrait de `_autoAnswerExchanges` et de `OnAutoRequest`, remplacés par `OnHumanRequest` (réponse par défaut explicite « aucun échange »). |
+
+## Assets créés
+
+- `Assets/Presentation/Skins/SkinSet_Classique.asset`
+- `Assets/Presentation/Skins/SkinSet_Sombre.asset` (couleurs distinctes de Classique)
+
+## Critères d'acceptation
+
+- [x] Changer de skin ne modifie aucune position ni taille d'élément interactif (structurel : aucun `RectTransform` touché).
+- [x] Un nouveau `SkinSet` s'ajoute sans toucher au code (création d'un asset + une entrée dans `Definitions`).
+- [x] `_autoAnswerExchanges` n'existe plus dans le code (recherche globale : 0 résultat, `.unity` inclus).
+- [x] Partie locale démarre sans blocage : échange pré-partie répondu par défaut, `NormalPlay` atteint, aucune erreur rouge en Play.
+- [x] `SkinSet_Sombre` a des couleurs distinctes de `SkinSet_Classique` (validé dans l'Inspector).
+- [ ] Identifiant inconnu → skin par défaut : implémenté (`Select` retombe sur le repli). **Vérification reportée en Phase 5** avec les tests.
+
+## Hors périmètre / reporté
+
+- **Tests : reportés en Phase 5** (décision d'Ekinox, rattrapage de couverture globale). Le cas « identifiant inconnu → skin par défaut, pas d'exception » y sera couvert.
+- Rendu des vraies cartes sur la table : ticket suivant. `GetCardSprite` renvoie `null` pour l'instant.
+- Application de `TableColor` / `SeatColor` à `GameTableView` et `PlayerSeatView` : non branchée dans T53 (à trancher, voir ci-dessous).
+- Animations, logique de jeu, validation de coups.
+
+## Points ouverts
+
+1. **TextMeshPro :** `SkinSet` utilise `UnityEngine.Font`. Si l'UI utilise TextMeshPro, remplacer par `TMP_FontAsset`.
+2. **Branchement visuel :** décider si `TableColor` et `SeatColor` sont appliqués dans T53 ou dans le ticket de rendu des cartes. Nécessite de relire `GameTableView.cs`.
+3. **Sélection d'un skin à l'exécution :** aucune UI n'appelle `SkinRegistry.Select` pour l'instant.
+4. **Réponse d'échange par défaut :** « aucun échange » est un comportement provisoire, à remplacer par l'UI d'échange (ticket dédié).
+
+## Notes
+
+- DiscardBot est placé aléatoirement sur un siège adverse : son nom peut apparaître à gauche, en haut ou à droite. Comportement normal.
+- La table affiche toujours des compteurs provisoires (pioche, pile).
+- Les logs `[Gameplay] ...` viennent de `_verboseDiagnostics = true` (désactivable dans l'Inspector).
+
+## Étapes suivantes
+
+1. **Commit** sur la branche `T53-skins` avec le message : `T53: contrat de skin, SkinSet, SkinRegistry, retrait _autoAnswerExchanges`. **Ne pas merger** (bloqué par T51).
+2. **Notion** en priorité après merge : statut T53, décision sur la réponse d'échange par défaut, assets de skin.
+3. **Phase 5** : reprise de T51, puis merge de T52 et T53, puis tests de l'identifiant inconnu.
 
 T54 — CardView utilisant le skin
 

@@ -14,9 +14,6 @@ namespace Psycko.Presentation.Controllers
     {
         [SerializeField] private bool _verboseDiagnostics = true;
 
-        /// <summary>TEMPORAIRE (T52): valide l'échange pré-partie sans UI. À retirer avec l'UI d'échange.</summary>
-        [SerializeField] private bool _autoAnswerExchanges = true;
-
         private UnityHumanAgent _human;
         private LocalGameSession _session;
         private CardPlayabilityChecker _checker;
@@ -58,9 +55,9 @@ namespace Psycko.Presentation.Controllers
 
         internal void Tick() { Pump(); }
 
-        private void OnEnable() { HumanRequestPending += OnAutoRequest; }
+        private void OnEnable() { HumanRequestPending += OnHumanRequest; }
 
-        private void OnDisable() { HumanRequestPending -= OnAutoRequest; }
+        private void OnDisable() { HumanRequestPending -= OnHumanRequest; }
 
         private void Start() { Begin(); }
 
@@ -112,14 +109,16 @@ namespace Psycko.Presentation.Controllers
             if (StateChanged != null) StateChanged(state);
         }
 
-        /// <summary>TEMPORAIRE (T52): répond « Prêt » (aucun échange) à la demande d'échange pré-partie.</summary>
-        private void OnAutoRequest(HumanRequestKind kind)
+        /// <summary>
+        /// Réponse par défaut à la demande d'échange pré-partie : aucun échange (Prêt).
+        /// Comportement volontaire tant que l'UI d'échange n'existe pas.
+        /// </summary>
+        private void OnHumanRequest(HumanRequestKind kind)
         {
-            if (!_autoAnswerExchanges) return;
             if (kind != HumanRequestKind.Exchanges) return;
             if (_human == null) return;
 
-            Log("Échange auto: aucun échange (Prêt)");
+            Log("Échange pré-partie : aucun échange (réponse par défaut, UI d'échange à venir)");
             _human.SubmitExchanges(new List<ExchangeChoice>().AsReadOnly());
         }
 
