@@ -53,7 +53,7 @@ Contrôle manuel en Game View 16:9 et 19.5:9 ; aucun test NUnit (ticket de struc
 
 ## T51 — Adaptateur de partie (GameplayController, UnityHumanAgent)
 
-- **Statut :** TERMINÉ (tests EditMode 8/8 verts — couverture à confirmer)
+- **Statut :** EN PAUSE — non mergé. Tests EditMode 8/8 verts, mais couverture Psycko.Core ≈ 1 % (rapport Summary.xml). Critère de couverture ≥ 90 % non atteint. Reprise prévue en Phase 5 (Rattrapage de couverture Core), puis merge.
 - **Contexte :** lancer une partie via GameRunner (1 humain + 3 RandomBot) et recevoir les événements, sans aucune logique de jeu côté Présentation.
 - **Fichiers :**
   - `Assets/Scripts/Presentation/Controllers/GameplayController.cs`
@@ -87,7 +87,7 @@ T50.
 - [x] Désabonnement vérifié (aucune fuite d'observateur).
 - [x] Compilation verte Unity, sans nouvel avertissement.
 - [x] Tests NUnit EditMode verts (8/8).
-- [ ] Couverture ≥ 90 % sur les fichiers du ticket (à mesurer).
+- [ ] Couverture ≥ 90 % sur les fichiers du ticket et sur Psycko.Core (non atteint : Core ≈ 1 %, UnityHumanAgent ≈ 27 %, GameplayController ≈ 63 %). Reprise en Phase 5.
 
 ### Tests (NUnit EditMode, obligatoires avant merge)
 

@@ -116,3 +116,8 @@ InitTestScene*.unity*
 # --- dotnet build artifacts (any subfolder) ---
 [Bb]in/
 [Oo]bj/
+
+# --- Unity Code Coverage package ---
+/[Cc]ode[Cc]overage/
+
+/ProjectSettings/Packages/

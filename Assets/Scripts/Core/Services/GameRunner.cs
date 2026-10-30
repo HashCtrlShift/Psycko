@@ -92,6 +92,7 @@ namespace Psycko.Core.Services
                     "Smallest card in hand"));
 
                 tracker.ObserveState(state);
+                observer?.OnStateChanged(state);
 
                 // 4. Boucle de tours : un appel = une intention acceptée
                 while (!GameResultCalculator.IsGameOver(state))

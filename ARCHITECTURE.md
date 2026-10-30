@@ -28,9 +28,13 @@ Psycko/
 ├── .gitignore
 ├── Psycko.slnx
 │
+├── CodeCoverage/                          (ignoré) Rapports de couverture NUnit/Unity, régénérés à chaque run
+│   └── .gitignore                         Ignore tout le contenu sauf lui-même
+│
 ├── Assets/
+│   ├── csc.rsp                            -nullable:disable (nullable reference types désactivé)
 │   ├── Scenes/
-│   │ 
+│   │
 │   ├── Scripts/
 │   │   ├── Bots/                          C# pur, dépend Core — noEngineReferences: true
 │   │   │   ├── DiscardBot.cs              Agent qui sélectionne la plus petite carte à jouer et applique une stratégie
@@ -80,7 +84,7 @@ Psycko/
 │   │   │   │   ├── ICardPlayabilityChecker.cs    Contrat de jouabilité des cartes d'un joueur
 │   │   │   │   ├── IFaceDownBlindView.cs         Vue minimale pour le choix aveugle FaceDown : expose uniquement FaceDownCount (aucun contenu de carte)
 │   │   │   │   ├── IGameLogRecorder.cs           Contrat d'enregistrement des actions d'une partie
-│   │   │   │   ├── IGameObserver.cs              Contrat d'observation en direct d'une partie (Console, puis Présentation)
+│   │   │   │   ├── IGameObserver.cs              Contrat d'observation en direct d'une partie (Console, Présentation)
 │   │   │   │   ├── IGameState.cs                 Interface composite
 │   │   │   │   ├── IGameStateCommand.cs          Contrat de transition
 │   │   │   │   ├── IGameStateQuery.cs            Lecture seule de l'état d'une partie
@@ -147,46 +151,59 @@ Psycko/
 │   │   │       │
 │   │   │       ├── BlindPlayResolutions.cs       Carte Révélée en Luck
 │   │   │       ├── CardDealer.cs                 Distribue un paquet mélangé
-│   │   │       ├── FaceDownBlindView.cs           Implémentation immuable de IFaceDownBlindView, construite par GameRunner pour chaque tour aveugle
+│   │   │       ├── FaceDownBlindView.cs          Implémentation immuable de IFaceDownBlindView, construite par GameRunner pour chaque tour aveugle
 │   │   │       ├── GameOrchestrator.cs           Définit le déroulement d'une partie
 │   │   │       ├── GameResultCalculator.cs       Définit la Fin d'une partie
-│   │   │       ├── GameRunner.cs                 Joue une partie complète (seed → distribution → échange → tours → GameResult), notifie un IGameObserver optionnel. Contient GameRunOutcome (Result + Log optionnel + Error) Une boucle unique pour Console, Unity et réseau. En cas d'erreur, GameResult.Error reçoit TotalMoves/TotalPlays du tracker
+│   │   │       ├── GameRunner.cs                 Joue une partie complète (seed → distribution → échange → tours → GameResult), notifie un IGameObserver optionnel. Contient GameRunOutcome (Result + Log optionnel + Error). Une boucle unique pour Console, Unity et réseau. En cas d'erreur, GameResult.Error reçoit TotalMoves/TotalPlays du tracker
 │   │   │       ├── GameSeed.cs                   Génération + stockage de la seed RNG d'une partie
 │   │   │       └── PlayResult.cs                 Définit un appel à GameOrchestrator
 │   │   │
 │   │   └── Presentation/                  (Unity 2D, dépend Core + Bots, zéro logique de jeu)
-│   │       ├── Psycko.Presentation.asmdef
+│   │       ├── Psycko.Presentation.asmdef       Références : Psycko.Core, Psycko.Bots
 │   │       ├── UI/
-│   │       │   ├── CardView.cs
-│   │       │   ├── ZoneView.cs
-│   │       │   ├── PlayerSeatView.cs
-│   │       │   └── GameTableView.cs
+│   │       │   ├── CardView.cs                       (à venir)
+│   │       │   ├── GameTableView.cs                  (T52) Vue de table en paysage : disposition en croix, humain en bas
+│   │       │   ├── PlayerSeatView.cs                 (T52) Siège d'un joueur : compteurs main / FaceUp / FaceDown
+│   │       │   ├── TableProjection.cs                (T52) Projection pure IPlayerVisibleState → compteurs, sans MonoBehaviour, testable
+│   │       │   └── ZoneView.cs                       (T52) Zones pioche et pile
 │   │       │
 │   │       ├── Controllers/
-│   │       │   ├── GameplayController.cs
-│   │       │   ├── InputHandler.cs
-│   │       │   └── AnimationController.cs
+│   │       │   ├── AnimationController.cs            (à venir)
+│   │       │   ├── GameplayController.cs             Lance une partie via LocalGameSession
+│   │       │   ├── HandSorter.cs                     Tri d'une main pour l'affichage, sans logique de jeu
+│   │       │   ├── InputHandler.cs                   (à venir)
+│   │       │   ├── LocalGameSession.cs               Session de partie locale : 1 humain + 3 bots via GameRunner
+│   │       │   ├── SeatLayout.cs                     Disposition des sièges autour de la table (humain en bas)
+│   │       │   └── UnityHumanAgent.cs                IPlayerAgent humain
 │   │       │
 │   │       ├── Models/
-│   │       │   ├── CardSkinDefinition.cs
-│   │       │   └── HumanSelectionState.cs
+│   │       │   ├── CardSkinDefinition.cs             (à venir)
+│   │       │   └── HumanSelectionState.cs            (à venir)
 │   │       │
 │   │       └── Scenes/
 │   │           └── GameplayLocal.unity
-│   │
+│   │ 
 │   └── Tests/
-│       └── EditMode/                      NUnit EditMode, miroir de la structure Core, 1 fichier de test par fichier de règle
+│       └── EditMode/                      NUnit EditMode, miroir de la structure Core
+│           ├── Psycko.Tests.EditMode.asmdef     Assembly de test EditMode
+│           └── Presentation/
+│               ├── GameplayControllerTests.cs       Tests de GameplayController
+│               ├── HandSorterTests.cs               Tests de HandSorter
+│               ├── LocalGameSessionTests.cs         Tests de LocalGameSession
+│               ├── SeatLayoutTests.cs               Tests de SeatLayout
+│               ├── UnityHumanAgentExtraTests.cs     Tests complémentaires de UnityHumanAgent
+│               └── UnityHumanAgentTests.cs          Tests de UnityHumanAgent
 │
 └── Tools/
     └── PsyckoConsole/                     App console dotnet : simulation de parties + parties Humain contre Bots
-        ├── ArgumentParser.cs              Parsing CLI : TryParse/TryParseLogMode/TryParseInt, messages lisibles, usage, code retour 2 si erreur
+        ├── ArgumentParser.cs              Parsing CLI
         ├── BotFactory.cs                  Crée les agents selon SeatKind (Human, Random)
-        ├── ConsoleGameLocal.cs            IMenu interactif : ne construit que des arguments, rejoués dans ArgumentParser (aucune construction de partie dupliquée)
+        ├── ConsoleGameLocal.cs            IMenu interactif : ne construit que des arguments, rejoués dans ArgumentParser
         ├── ConsoleHumanAgent.cs           Agent "Humain" en console ('q' = abandon), cartes formatées via CardFormatter
-        ├── ConsoleLogPrinter.cs           Affichage en direct d'une partie (IGameObserver), mains des bots masquées sauf --reveal
-        ├── GameSession.cs                 Moteur d'exécution unique : Simulate (stats, logs, extrêmes) et Play (partie observée)
-        ├── Program.cs                     Point d'entrée minimal : parse les arguments (ou lance le menu) puis exécute la configurationexceptional [--reveal]
-        ├── RunConfiguration.cs            Configuration d'exécution unique et immuable (mode, parties, seed, LogMode, reveal, dry-run, critères, lot, plafond, sièges, noms), partagée par CLI et menu
+        ├── ConsoleLogPrinter.cs           Affichage en direct d'une partie 
+        ├── GameSession.cs                 Moteur d'exécution unique
+        ├── Program.cs                     Point d'entrée minimal
+        ├── RunConfiguration.cs            Configuration d'exécution unique et immuable
         ├── PsyckoConsole.csproj           Compile Include relatif vers Assets/Scripts/Core et Assets/Scripts/Bots
         ├── .gitignore                     Ignore bin/, obj/ et Logs/
         ├── bin/                           (ignoré) Debug/net8.0, Release/net8.0
