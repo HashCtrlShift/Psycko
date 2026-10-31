@@ -13,5 +13,6 @@ namespace Psycko.Presentation.Interfaces
         Color TableColor { get; }
         Color SeatColor { get; }
         Font Font { get; }
+        int FontSize { get; }   // 0 = AutoSize (Best Fit)
     }
 }

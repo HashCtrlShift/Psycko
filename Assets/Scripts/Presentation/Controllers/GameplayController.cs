@@ -90,7 +90,6 @@ namespace Psycko.Presentation.Controllers
 
                     case SessionEventKind.Finished:
                         if (item.Outcome != null && item.Outcome.Error != null)
-                            Debug.LogError("[Gameplay] Partie plantée : " + item.Outcome.Error);
                         if (GameFinished != null) GameFinished(item.Outcome);
                         break;
                 }

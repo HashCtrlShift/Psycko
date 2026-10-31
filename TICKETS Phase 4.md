@@ -197,14 +197,64 @@ Toute UI de table, toute animation, tout rendu de carte (T52 et suivants).
 2. **Notion** en priorité après merge : statut T53, décision sur la réponse d'échange par défaut, assets de skin.
 3. **Phase 5** : reprise de T51, puis merge de T52 et T53, puis tests de l'identifiant inconnu.
 
-T54 — CardView utilisant le skin
+# T54 — CardView utilisant le skin
 
-Statut : À FAIRE
-Fichiers : UI/CardView.cs.
-Travail : rendu d'une carte à partir de Card + ICardSkin ; états visuels (normal, surbrillance jouable, relevée/sélectionnée, dos).
-Dépendances : T53.
-Critères : les 63 cartes s'affichent sans sprite manquant (placeholder explicite si absent).
-Tests : mapping Card → clé de sprite, unicité et couverture des 63 cartes (test paramétré).
+**Statut : EN COURS DE VALIDATION** (code et prefab en place ; états visuels et commit restants)
+
+Fichiers : Assets/Scripts/Presentation/UI/CardView.cs, Assets/Scripts/Presentation/UI/CardSpriteKey.cs
+
+Dépendances : T53 (merge bloqué par T51)
+
+## Travail
+- Rendu d’une carte à partir de `Card` + `ICardSkin`.
+- Mapping `Card` → clé de sprite via la fonction pure `CardSpriteKey` : format `{Suit}_{Rank}` et `Joker_{JokerType}` ; dos via `GetBack()`.
+- États visuels : Normal / Playable (surbrillance) / Selected (relevée, décalage visuel sur enfant, hitbox inchangée) / FaceDown.
+- Si sprite absent : placeholder explicite (fond uni + libellé) et un seul warning par clé.
+- Prefab CardView : 240x336 (ratio 5:7).
+- Remplir les 63 entrées `SkinSet._faces` (liste `{Key, Sprite}`) ; `SkinSet` inchangé.
+
+## Décisions
+- Clé : format ci-dessus.
+- `SkinSet` : liste inchangée.
+- `TableColor` / `SeatColor` → T54b.
+- Pas de TextMeshPro : `UnityEngine.UI.Text`.
+
+## Règles
+- Le skin ne modifie ni tailles de zone ni hitboxes.
+- Aucune logique de jeu dans `CardView`.
+- Aucun changement de `RectTransform` imposé par le skin.
+- Éventail, rotations et chevauchements des mains = `ZoneView` / `PlayerSeatView`, pas `CardView`.
+
+## Critères
+- 63 cartes sans sprite manquant (placeholder explicite si absent).
+- États distincts et réversibles.
+
+## Avancement (31/10/2026)
+- [x] Skins nettoyés et renommés (étape 1).
+- [x] Prefab CardView 240x336 en place (étape 2).
+- [x] Sprites affichés en scène : faces réelles visibles dans la main humaine.
+- [x] `SkinSet._faces` : sprites assignés pour tous les rangs standards et les Jokers Noir et Couleur.
+- [ ] Sprites absents, donc **placeholder volontaire** : Cavalier (4), Prêtre (4), Joker de Verre (1) = 9 cartes. Illustrations à créer (hors périmètre du ticket).
+- [ ] Vérification des 4 états visuels (Normal / Playable / Selected / FaceDown) et de leur réversibilité.
+- [ ] Vérification de la hitbox inchangée en Selected.
+- [ ] Vérification du placeholder (un seul warning par clé).
+- [ ] Commit sur `T54-card-view`.
+
+## Reporté (décision d'Ekinox)
+- Hauteur de `SeatSelf` et Spacing de `HandContainer` : réglés en détail quand une partie complète sera jouable (valeurs actuelles provisoires).
+- Éventail et chevauchements définitifs : `PlayerSeatView`.
+
+## Tests (Phase 5, pas maintenant)
+- Mapping `Card` → clé, unicité et couverture des 63 cartes.
+- Test paramétré NUnit EditMode.
+
+## Hors périmètre
+- `TableColor` / `SeatColor` (T54b), TextMeshPro, tweens / animations, éventail des mains, logique de jeu, écriture des tests, choix des illustrations.
+
+## Livraison
+- Branche `T54-card-view` ; ne pas merger (bloqué par T51).
+- Ekinox valide localement ; Notion en priorité après merge.
+
 
 T55 — Input humain, surbrillance, relevé, phase d'échange pré-partie
 
@@ -276,4 +326,4 @@ Critères : mesure Profiler consignée.
 
 
 Ordre d'exécution
-✅T50 → T51 → T52 → T53 → T54 → T55 → T56 → T57 → T58 → T59 → T60
+✅T50 →✅ T51 → ✅T52 → ✅T53 → T54 → T55 → T56 → T57 → T58 → T59 → T60

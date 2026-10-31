@@ -1,0 +1,128 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5ad906c8c80b304e8ddd6a506a84ac0, type: 3}
+  m_Name: SkinSet_New
+  m_EditorClassIdentifier: Psycko.Presentation::Psycko.Presentation.Models.SkinSet
+  _faces:
+  - Key: Clubs_Ace
+    Sprite: {fileID: 21300000, guid: c1bf99e71ce28554abbea08a6e201c77, type: 3}
+  - Key: Clubs_Two
+    Sprite: {fileID: 21300000, guid: 1b7ffb67506dffd4d8289ced2028e948, type: 3}
+  - Key: Clubs_Three
+    Sprite: {fileID: 21300000, guid: e4126ef728199bd4cbc3d1da8c340ed9, type: 3}
+  - Key: Clubs_Four
+    Sprite: {fileID: 21300000, guid: 5aaf3839500af1940aeb3fbc91dc472e, type: 3}
+  - Key: Clubs_Five
+    Sprite: {fileID: 21300000, guid: 8741be8360e88a94b9df90c37d166d4f, type: 3}
+  - Key: Clubs_Six
+    Sprite: {fileID: 21300000, guid: eea6eb8a74919b0469aebc086b1860a2, type: 3}
+  - Key: Clubs_Seven
+    Sprite: {fileID: 21300000, guid: 6fb16291a4918d8479c75951d0c968e8, type: 3}
+  - Key: Clubs_Eight
+    Sprite: {fileID: 21300000, guid: 85f89580a11681549b9ffb376949db65, type: 3}
+  - Key: Clubs_Nine
+    Sprite: {fileID: 21300000, guid: 80f95e5f44390524bb8deb5601c652f7, type: 3}
+  - Key: Clubs_Ten
+    Sprite: {fileID: 21300000, guid: 1e04620bcec64fd40a30f64c71896f0f, type: 3}
+  - Key: Clubs_Jack
+    Sprite: {fileID: 21300000, guid: 930a7214da1c59f4c9a89367700d61b8, type: 3}
+  - Key: Clubs_Queen
+    Sprite: {fileID: 21300000, guid: fe36b7396814a354f9cc8c4ade097f02, type: 3}
+  - Key: Clubs_King
+    Sprite: {fileID: 21300000, guid: d091e4889956b31489e97b1f34bf71eb, type: 3}
+  - Key: Diamonds_Ace
+    Sprite: {fileID: 21300000, guid: 3017dbb00da1675449aa5251a50b01af, type: 3}
+  - Key: Diamonds_Two
+    Sprite: {fileID: 21300000, guid: 1a175931cf2bae640a6cff9678739317, type: 3}
+  - Key: Diamonds_Three
+    Sprite: {fileID: 21300000, guid: 7d4e9e7f21e854e498fc3e5ae7a59397, type: 3}
+  - Key: Diamonds_Four
+    Sprite: {fileID: 21300000, guid: 93c83907011d2454883d95ef5ba3f4e2, type: 3}
+  - Key: Diamonds_Five
+    Sprite: {fileID: 21300000, guid: 680979fdf504e24488da4fc36592620b, type: 3}
+  - Key: Diamonds_Six
+    Sprite: {fileID: 21300000, guid: 6d597dd38589be441b7e615cb06d25c2, type: 3}
+  - Key: Diamonds_Seven
+    Sprite: {fileID: 21300000, guid: bf2d313bba3383345bece5f2bf52a970, type: 3}
+  - Key: Diamonds_Eight
+    Sprite: {fileID: 21300000, guid: 22391c32cfc93e0479e39b03c6af52e2, type: 3}
+  - Key: Diamonds_Nine
+    Sprite: {fileID: 21300000, guid: f7e822dc9eabda040be7325093a907cc, type: 3}
+  - Key: Diamonds_Ten
+    Sprite: {fileID: 21300000, guid: d28afb55685ff414289c20f09bd6d53c, type: 3}
+  - Key: Diamonds_Jack
+    Sprite: {fileID: 21300000, guid: e3de2fa1b12dd8b48b4e594d54d5204d, type: 3}
+  - Key: Diamonds_Queen
+    Sprite: {fileID: 21300000, guid: 81566b6328bc70e47b28386d3b82e2cd, type: 3}
+  - Key: Diamonds_King
+    Sprite: {fileID: 21300000, guid: 11d4fee3abbf3eb48a65b0f1953d7902, type: 3}
+  - Key: Hearts_Ace
+    Sprite: {fileID: 21300000, guid: 2cf0d054481d4fa458e780def37b4a08, type: 3}
+  - Key: Hearts_Two
+    Sprite: {fileID: 21300000, guid: c41e6503f9c1ecf498922fa283d34ff1, type: 3}
+  - Key: Hearts_Three
+    Sprite: {fileID: 21300000, guid: 8a29e1387632c6f4b9712ff95d1c1bc5, type: 3}
+  - Key: Hearts_Four
+    Sprite: {fileID: 21300000, guid: 97c0cfd41c0f941468f9007c102ae8bd, type: 3}
+  - Key: Hearts_Five
+    Sprite: {fileID: 21300000, guid: dacefc257e9383b49b849d4c98889e02, type: 3}
+  - Key: Hearts_Six
+    Sprite: {fileID: 21300000, guid: a7f28ea7e59c73a49a203db58b6e2b42, type: 3}
+  - Key: Hearts_Seven
+    Sprite: {fileID: 21300000, guid: 3221dbb72c6320646a7c2e33e5559d3b, type: 3}
+  - Key: Hearts_Eight
+    Sprite: {fileID: 21300000, guid: 29e90346f20e6a44b926062a81b62b06, type: 3}
+  - Key: Hearts_Nine
+    Sprite: {fileID: 21300000, guid: b2007f810f990cb44acccf2b8003a211, type: 3}
+  - Key: Hearts_Ten
+    Sprite: {fileID: 21300000, guid: e7778e45d9e3c084ab6e9a2b73c03c43, type: 3}
+  - Key: Hearts_Jack
+    Sprite: {fileID: 21300000, guid: a48d18e69518e3f469021413b0abc3f9, type: 3}
+  - Key: Hearts_Queen
+    Sprite: {fileID: 21300000, guid: 617fbda0a81f93b45ac04d7ed6abd497, type: 3}
+  - Key: Hearts_King
+    Sprite: {fileID: 21300000, guid: 371c0824a8b836f4ca40e2ea25f3f2c8, type: 3}
+  - Key: Joker_Black
+    Sprite: {fileID: 21300000, guid: d6e360497d2edc3438392bbde4878efe, type: 3}
+  - Key: Joker_Color
+    Sprite: {fileID: 21300000, guid: 62670b5f06cf8d44ea338639b396df62, type: 3}
+  - Key: Spades_Ace
+    Sprite: {fileID: -8954350850170838379, guid: e292689738bba0345b9b74e1c69867b6, type: 3}
+  - Key: Spades_Two
+    Sprite: {fileID: 21300000, guid: dd2452df8348fa84087da70e3a332569, type: 3}
+  - Key: Spades_Three
+    Sprite: {fileID: 21300000, guid: 928733e8869cf034e84e6224fbca100d, type: 3}
+  - Key: Spades_Four
+    Sprite: {fileID: 21300000, guid: b3ff5884e760b5f4f833005c09e693c3, type: 3}
+  - Key: Spades_Five
+    Sprite: {fileID: 21300000, guid: 1a72fe7db91631d41b17158a02307ddd, type: 3}
+  - Key: Spades_Six
+    Sprite: {fileID: 21300000, guid: 635fa0cf34915694daccf71df078c674, type: 3}
+  - Key: Spades_Seven
+    Sprite: {fileID: 21300000, guid: 268d4b288df1a9a49832f0e0782fe971, type: 3}
+  - Key: Spades_Eight
+    Sprite: {fileID: 21300000, guid: c08e7ee8f23cf22459ed71e49e9246b6, type: 3}
+  - Key: Spades_Nine
+    Sprite: {fileID: 21300000, guid: a8cae9ed68af1ab4fb682aa95cad72ed, type: 3}
+  - Key: Spades_Ten
+    Sprite: {fileID: 21300000, guid: acf1ab4565b54694ca7b941c9ab649b9, type: 3}
+  - Key: Spades_Jack
+    Sprite: {fileID: 21300000, guid: 0a152288191f3d841b2b9f6684e04998, type: 3}
+  - Key: Spades_Queen
+    Sprite: {fileID: 21300000, guid: fbbcb7e76f8eabb4daf58e4151c4fafd, type: 3}
+  - Key: Spades_King
+    Sprite: {fileID: 21300000, guid: f4ec362508da2fb40b977b7433fc70fc, type: 3}
+  _cardBack: {fileID: 5000927251509650613, guid: cd2321a5cdce19c4d8f11ad692173807, type: 3}
+  _tableColor: {r: 0.07, g: 0.35, b: 0.2, a: 1}
+  _seatColor: {r: 0, g: 0, b: 0, a: 0.35}
+  _font: {fileID: 0}
+  _fontSize: 0

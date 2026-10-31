@@ -26,7 +26,7 @@ namespace Psycko.Presentation.Skins
         public Font Font { get { return HasSet ? _definition.SkinSet.Font : null; } }
 
         private bool HasSet { get { return _definition != null && _definition.SkinSet != null; } }
-
+        public int FontSize { get { return HasSet ? _definition.SkinSet.FontSize : 0; } }
         public Sprite GetBack() { return HasSet ? _definition.SkinSet.CardBack : null; }
 
         public Sprite GetFace(Card card)

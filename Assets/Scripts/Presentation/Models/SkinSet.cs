@@ -19,11 +19,13 @@ namespace Psycko.Presentation.Models
         [SerializeField] private Color _tableColor = new Color(0.07f, 0.35f, 0.2f, 1f);
         [SerializeField] private Color _seatColor = new Color(0f, 0f, 0f, 0.35f);
         [SerializeField] private Font _font;
+        [SerializeField, Min(0)] private int _fontSize = 0;   // 0 = AutoSize
+        public int FontSize { get { return _fontSize; } }
 
-        public IReadOnlyList<FaceEntry> Faces { get { return _faces; } }
         public Sprite CardBack { get { return _cardBack; } }
         public Color TableColor { get { return _tableColor; } }
         public Color SeatColor { get { return _seatColor; } }
         public Font Font { get { return _font; } }
+        public IReadOnlyList<FaceEntry> Faces { get { return _faces; } }
     }
 }

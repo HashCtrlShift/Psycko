@@ -18,6 +18,7 @@ namespace Psycko.Presentation.UI
         [SerializeField] private PlayerSeatView _rightSeat;
         [SerializeField] private ZoneView _zone;
         [SerializeField] private string _selfDisplayName = "Vous";
+        [SerializeField] private Psycko.Presentation.Skins.SkinRegistry _skinRegistry;
 
         private void OnEnable()
         {
@@ -40,7 +41,7 @@ namespace Psycko.Presentation.UI
         {
             if (model == null) return;
 
-            if (_selfSeat != null) _selfSeat.RenderSelf(model.Self, _selfDisplayName);
+            if (_selfSeat != null) _selfSeat.RenderSelf(model.Self, _selfDisplayName, _skinRegistry.Current);
             if (_zone != null) _zone.Render(model.Zone);
 
             // Masque d'abord, puis affiche les sièges réellement occupés.
