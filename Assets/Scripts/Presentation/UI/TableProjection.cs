@@ -41,11 +41,13 @@ namespace Psycko.Presentation.UI
                     o.HandCount,
                     o.FaceUp == null ? 0 : o.FaceUp.Count,
                     o.FaceDownCount,
-                    o.PlayerId == activeId));
+                    o.PlayerId == activeId,
+                    o.FaceUp));
             }
 
             int pileCount = state.Pile == null ? 0 : state.Pile.Count;
-            var zone = new ZoneViewModel(state.DrawPileCount, pileCount);
+            var top = state.Pile == null ? null : state.Pile.TopCard;
+            var zone = new ZoneViewModel(state.DrawPileCount, pileCount, top);
 
             return new TableViewModel(self, opponents.AsReadOnly(), zone);
         }

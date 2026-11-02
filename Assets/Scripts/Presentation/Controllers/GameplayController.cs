@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Psycko.Core.Domain;
 using Psycko.Core.Domain.Exchange;
+using Psycko.Core.Interfaces;
 using Psycko.Core.Domain.Log;
 using Psycko.Core.Rules.Validation;
 using Psycko.Core.Services;
@@ -9,7 +10,7 @@ using UnityEngine;
 
 namespace Psycko.Presentation.Controllers
 {
-    /// <summary>Adaptateur Unity fin: transfère les événements de session à l'interface.</summary>
+    /// <summary>Adaptateur Unity fin : transfère les événements de session à l'interface.</summary>
     public sealed class GameplayController : MonoBehaviour
     {
         [SerializeField] private bool _verboseDiagnostics = true;
@@ -26,13 +27,15 @@ namespace Psycko.Presentation.Controllers
         public event Action<GameRunOutcome> GameFinished;
 
         public UnityHumanAgent Human { get { return _human; } }
+        public ICardPlayabilityChecker PlayabilityChecker { get { return _checker; } }
+        public IPlayerVisibleState VisibleState { get { return _human == null ? null : _human.PendingState; } }
 
         /// <summary>Dernier état reçu (permet à une vue qui s'abonne tard de se synchroniser).</summary>
         public GameState LastState { get { return _lastState; } }
 
         public List<Card> HumanHandSorted { get { return HandSorter.Sort(_humanHand); } }
 
-        public static List<Card> GetSortedHand(Psycko.Core.Interfaces.IPlayerVisibleState state)
+        public static List<Card> GetSortedHand(IPlayerVisibleState state)
         {
             return HandSorter.Sort(state == null ? null : state.SelfHand);
         }
@@ -54,10 +57,6 @@ namespace Psycko.Presentation.Controllers
         }
 
         internal void Tick() { Pump(); }
-
-        private void OnEnable() { HumanRequestPending += OnHumanRequest; }
-
-        private void OnDisable() { HumanRequestPending -= OnHumanRequest; }
 
         private void Start() { Begin(); }
 
@@ -83,13 +82,13 @@ namespace Psycko.Presentation.Controllers
                         break;
 
                     case SessionEventKind.HumanRequest:
-                        Log("HumanRequest kind = " + item.RequestKind
-                            + ", abonnés = " + (HumanRequestPending != null));
+                        Log("HumanRequest kind = " + item.RequestKind + ", abonnés = " + (HumanRequestPending != null));
                         if (HumanRequestPending != null) HumanRequestPending(item.RequestKind);
                         break;
 
                     case SessionEventKind.Finished:
                         if (item.Outcome != null && item.Outcome.Error != null)
+                            Debug.LogError("[Gameplay] Partie terminée sur erreur : " + item.Outcome.Error);
                         if (GameFinished != null) GameFinished(item.Outcome);
                         break;
                 }
@@ -99,26 +98,9 @@ namespace Psycko.Presentation.Controllers
         private void HandleStateChanged(GameState state)
         {
             _lastState = state;
-
             if (state != null && state.Players.Count > 0)
-            {
                 _humanHand = PlayerVisibleState.From(state, state.Players[0].Id).SelfHand;
-            }
-
             if (StateChanged != null) StateChanged(state);
-        }
-
-        /// <summary>
-        /// Réponse par défaut à la demande d'échange pré-partie : aucun échange (Prêt).
-        /// Comportement volontaire tant que l'UI d'échange n'existe pas.
-        /// </summary>
-        private void OnHumanRequest(HumanRequestKind kind)
-        {
-            if (kind != HumanRequestKind.Exchanges) return;
-            if (_human == null) return;
-
-            Log("Échange pré-partie : aucun échange (réponse par défaut, UI d'échange à venir)");
-            _human.SubmitExchanges(new List<ExchangeChoice>().AsReadOnly());
         }
 
         private void Log(string message)

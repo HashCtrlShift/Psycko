@@ -25,7 +25,7 @@ Psycko/
 ├── .gitignore
 ├── Psycko.slnx
 │
-├── CodeCoverage/                          (ignoré) Rapports de couverture NUnit/Unity, régénérés à chaque run
+├── CodeCoverage/                          Rapports de couverture NUnit/Unity, régénérés à chaque run
 │   └── .gitignore                         Ignore tout le contenu sauf lui-même
 │
 ├── Assets/
@@ -34,8 +34,8 @@ Psycko/
 │   │
 │   ├── Presentation/                      Assets Unity de présentation (hors code)
 │   │   └── Skins/
-│   │       ├── SkinSet_Classique.asset    (T53) SkinSet de base : couleurs et sprites « Classique »
-│   │       └── SkinSet_Sombre.asset       (T53) SkinSet de base : couleurs distinctes, skin « Sombre »
+│   │       ├── SkinSet_Classique.asset    SkinSet de base : couleurs et sprites « Classique »
+│   │       └── SkinSet_Sombre.asset       SkinSet de base : couleurs distinctes, skin « Sombre »
 │   │
 │   ├── Scripts/
 │   │   ├── Bots/                          C# pur, dépend Core — noEngineReferences: true
@@ -153,49 +153,49 @@ Psycko/
 │   │   │       │
 │   │   │       ├── BlindPlayResolutions.cs       Carte Révélée en Luck
 │   │   │       ├── CardDealer.cs                 Distribue un paquet mélangé
-│   │   │       ├── FaceDownBlindView.cs          Implémentation immuable de IFaceDownBlindView, construite par GameRunner pour chaque tour aveugle
+│   │   │       ├── FaceDownBlindView.cs          Implémentation immuable de IFaceDownBlindView
 │   │   │       ├── GameOrchestrator.cs           Définit le déroulement d'une partie
 │   │   │       ├── GameResultCalculator.cs       Définit la Fin d'une partie
-│   │   │       ├── GameRunner.cs                 Joue une partie complète (seed → distribution → échange → tours → GameResult), notifie un IGameObserver optionnel. Contient GameRunOutcome (Result + Log optionnel + Error). Une boucle unique pour Console, Unity et réseau. En cas d'erreur, GameResult.Error reçoit TotalMoves/TotalPlays du tracker
+│   │   │       ├── GameRunner.cs                 Joue une partie complète
 │   │   │       ├── GameSeed.cs                   Génération + stockage de la seed RNG d'une partie
 │   │   │       └── PlayResult.cs                 Définit un appel à GameOrchestrator
 │   │   │
 │   │   └── Presentation/                  (Unity 2D, dépend Core + Bots, zéro logique de jeu)
 │   │       ├── Psycko.Presentation.asmdef       Références : Psycko.Core, Psycko.Bots
 │   │       ├── Interfaces/
-│   │       │   └── ICardSkin.cs                 (T53) Contrat visuel : Id, DisplayName, GetCardSprite(Card), GetCardBackSprite(), TableColor, SeatColor, Font. Aucune logique
+│   │       │   └── ICardSkin.cs                 Contrat visuel
 │   │       │
 │   │       ├── UI/
-│   │       │   ├── CardView.cs                       (T54, à venir) Rendu d'une carte via ICardSkin : états normal / jouable / sélectionnée / dos
-│   │       │   ├── GameTableView.cs                  (T52) Vue de table en paysage : disposition en croix, humain en bas
-│   │       │   ├── PlayerSeatView.cs                 (T52) Siège d'un joueur : compteurs main / FaceUp / FaceDown
-│   │       │   ├── TableProjection.cs                (T52) Projection pure IPlayerVisibleState → compteurs, sans MonoBehaviour, testable
-│   │       │   ├── TableViewModels.cs                (T52) Modèles d'affichage de la table
-│   │       │   └── ZoneView.cs                       (T52) Zones pioche et pile
+│   │       │   ├── CardView.cs                       Rendu d'une carte via ICardSkin 
+│   │       │   ├── GameTableView.cs                  Vue de table en paysage : disposition en croix, humain en bas
+│   │       │   ├── PlayerSeatView.cs                 Siège d'un joueur : compteurs main / FaceUp / FaceDown
+│   │       │   ├── TableProjection.cs                Projection pure IPlayerVisibleStat
+│   │       │   ├── TableViewModels.cs                Modèles d'affichage de la table
+│   │       │   └── ZoneView.cs                       Zones pioche et pile
 │   │       │
 │   │       ├── Controllers/
 │   │       │   ├── AnimationController.cs            (à venir)
-│   │       │   ├── GameplayController.cs             (T53) Lance une partie via LocalGameSession. Réponse d'échange pré-partie par défaut « aucun échange » (OnHumanRequest), _autoAnswerExchanges retiré
+│   │       │   ├── GameplayController.cs             Lance une partie via LocalGameSession. 
 │   │       │   ├── HandSorter.cs                     Tri d'une main pour l'affichage, sans logique de jeu
-│   │       │   ├── InputHandler.cs                   (à venir)
+│   │       │   ├── InputHandler.cs                   
 │   │       │   ├── LocalGameSession.cs               Session de partie locale : 1 humain + 3 bots via GameRunner
 │   │       │   ├── SeatLayout.cs                     Disposition des sièges autour de la table (humain en bas)
 │   │       │   └── UnityHumanAgent.cs                IPlayerAgent humain
 │   │       │
 │   │       ├── Models/
-│   │       │   ├── CardSkinDefinition.cs             (T53) Définition d'un skin : Id, DisplayName, référence au SkinSet
-│   │       │   ├── HumanSelectionState.cs            (à venir)
-│   │       │   └── SkinSet.cs                        (T53) ScriptableObject « Create > Psycko > Skin Set » : sprites, dos, couleurs de table et de siège, police
+│   │       │   ├── CardSkinDefinition.cs             Définition d'un skin : Id, DisplayName, référence au SkinSet
+│   │       │   ├── HumanSelectionState.cs            
+│   │       │   └── SkinSet.cs                        ScriptableObject : sprites, dos, couleurs de table et de siège, police
 │   │       │
 │   │       ├── Skins/
-│   │       │   ├── DefaultCardSkin.cs                (T53) Implémentation de ICardSkin lisant un SkinSet, valeurs de repli si SkinSet nul
-│   │       │   └── SkinRegistry.cs                   (T53) MonoBehaviour : liste de CardSkinDefinition, Select(id) (inconnu → skin par défaut), Current, All
+│   │       │   ├── DefaultCardSkin.cs                Implémentation de ICardSkin lisant un SkinSet
+│   │       │   └── SkinRegistry.cs                   MonoBehaviour : liste de CardSkinDefinition
 │   │       │
 │   │       └── Scenes/
 │   │           └── GameplayLocal.unity
 │   │
 │   └── Tests/
-│       └── EditMode/                      NUnit EditMode, miroir de la structure Core (tests reportés en Phase 5 pour T51/T52/T53)
+│       └── EditMode/                      NUnit EditMode, miroir de la structure Core (tests reportés en Phase 5)
 │           ├── Psycko.Tests.EditMode.asmdef     Assembly de test EditMode
 │           └── Presentation/
 │               ├── GameplayControllerTests.cs       Tests de GameplayController

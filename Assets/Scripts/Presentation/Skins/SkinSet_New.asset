@@ -121,7 +121,7 @@ MonoBehaviour:
     Sprite: {fileID: 21300000, guid: fbbcb7e76f8eabb4daf58e4151c4fafd, type: 3}
   - Key: Spades_King
     Sprite: {fileID: 21300000, guid: f4ec362508da2fb40b977b7433fc70fc, type: 3}
-  _cardBack: {fileID: 5000927251509650613, guid: cd2321a5cdce19c4d8f11ad692173807, type: 3}
+  _cardBack: {fileID: 21300000, guid: cd2321a5cdce19c4d8f11ad692173807, type: 3}
   _tableColor: {r: 0.07, g: 0.35, b: 0.2, a: 1}
   _seatColor: {r: 0, g: 0, b: 0, a: 0.35}
   _font: {fileID: 0}

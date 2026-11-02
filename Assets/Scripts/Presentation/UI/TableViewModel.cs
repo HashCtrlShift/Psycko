@@ -6,7 +6,7 @@ namespace Psycko.Presentation.UI
 {
     public enum SeatPosition { Bottom, Left, Top, Right }
 
-    /// <summary>Siège adverse : QUANTITÉS uniquement, aucune carte.</summary>
+    /// <summary>Siège adverse : quantités + FaceUp (public).</summary>
     public sealed class OpponentSeatViewModel
     {
         public int PlayerId { get; }
@@ -16,9 +16,11 @@ namespace Psycko.Presentation.UI
         public int FaceUpCount { get; }
         public int FaceDownCount { get; }
         public bool IsActive { get; }
+        public IReadOnlyList<Card> FaceUp { get; }
 
         public OpponentSeatViewModel(int playerId, string name, SeatPosition position,
-            int handCount, int faceUpCount, int faceDownCount, bool isActive)
+            int handCount, int faceUpCount, int faceDownCount, bool isActive,
+            IReadOnlyList<Card> faceUp = null)
         {
             PlayerId = playerId;
             Name = name ?? string.Empty;
@@ -27,6 +29,7 @@ namespace Psycko.Presentation.UI
             FaceUpCount = faceUpCount;
             FaceDownCount = faceDownCount;
             IsActive = isActive;
+            FaceUp = faceUp ?? Array.Empty<Card>();
         }
     }
 
@@ -51,18 +54,20 @@ namespace Psycko.Presentation.UI
         }
     }
 
-    /// <summary>Pioche et pile : compteurs seulement (le rendu des cartes viendra en T53).</summary>
+    /// <summary>Pioche et pile : compteurs + carte du dessus de la pile.</summary>
     public sealed class ZoneViewModel
     {
         public int DrawPileCount { get; }
         public int PileCardCount { get; }
         public bool IsPileEmpty { get; }
+        public Card TopPileCard { get; }
 
-        public ZoneViewModel(int drawPileCount, int pileCardCount)
+        public ZoneViewModel(int drawPileCount, int pileCardCount, Card topPileCard = null)
         {
             DrawPileCount = drawPileCount < 0 ? 0 : drawPileCount;
             PileCardCount = pileCardCount < 0 ? 0 : pileCardCount;
             IsPileEmpty = PileCardCount == 0;
+            TopPileCard = IsPileEmpty ? null : topPileCard;
         }
     }
 

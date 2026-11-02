@@ -165,17 +165,20 @@ namespace Psycko.Presentation.Tests
 
         // ---------- Aucun contenu caché ----------
         [Test]
-        public void OpponentViewModel_ExposesNoCardMembers()
+        public void OpponentViewModel_ExposesOnlyPublicFaceUpCards()
         {
             foreach (System.Reflection.PropertyInfo prop in typeof(OpponentSeatViewModel).GetProperties())
             {
-                Assert.IsFalse(typeof(Card).IsAssignableFrom(prop.PropertyType),
-                    "Carte exposée : " + prop.Name);
-                Assert.IsFalse(typeof(IEnumerable<Card>).IsAssignableFrom(prop.PropertyType),
-                    "Collection de cartes exposée : " + prop.Name);
+                bool isCard = typeof(Card).IsAssignableFrom(prop.PropertyType);
+                bool isCardCollection = typeof(IEnumerable<Card>).IsAssignableFrom(prop.PropertyType);
+
+                Assert.IsFalse(isCard, "Carte exposée : " + prop.Name);
+
+                if (isCardCollection)
+                    Assert.AreEqual("FaceUp", prop.Name,
+                        "Seule la collection publique FaceUp peut contenir des cartes : " + prop.Name);
             }
         }
-
         [Test]
         public void TableViewModel_OpponentsDoNotLeakAnyCard_ForEveryProjectedSeat()
         {
