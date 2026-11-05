@@ -313,30 +313,74 @@ UI/GameTableView.cs, Scenes/GameplayLocal.unity
 
 #### T55-1 — Conception et branche ✅ FAIT (validé 04/11/2026).
 
-#### T55-2 — HumanSelectionState (C# pur, Models/)
+#### T55-2 — HumanSelectionState (C# pur, Models/) ✅
 - Garder `Toggle / Remove / Clear / Prune` ; pas d'`Add`.
 - `Toggle` : même rang → ajoute ; autre rang → `Clear` puis ajoute ; Joker → `Clear` puis ajoute ;
   déjà sélectionnée → retire.
 - Ajouter `event Action Changed`, levé une fois par modification effective.
 - Aucun `using UnityEngine`. Aucune règle Core dupliquée au-delà de « même rang » (affichage).
 
-#### T55-3 — Surbrillance
-- `Models/HandVisualStateResolver.cs` (C# pur) :
-  `CardVisualState Resolve(HumanRequestKind request, bool submitted, bool selected, bool isGiftCard, bool isPlayable)`.
-- `InputHandler.ReapplyCardStates` boucle et appelle `CardView.SetState`.
-- Recalcul uniquement sur `GameTableView.Rendered`.
-- `CardView._highlight` : Image enfant, ancres stretch/stretch, offsets −4/−4/+4/+4,
-  Raycast Target décoché, désactivé par défaut.
+#### T55-3 — Surbrillance ✅
 
-#### T55-4 — Sélection, relevé, boutons (correctif du bug « cartes de même rang qui restent levées »)
-- Une seule méthode `InputHandler.CompleteRequest()` : `_request = None; _submitted = true;
-  _selection.Clear(); _giftCard = null; _giftRecipientId = -1; HideActions();`
-  appelée par tous les `Submit*`. `Clear` aussi au début de chaque `OnRequest`.
-- Relevé : `CardView._selectedLift = 24f`, appliqué dans `Refresh` uniquement si `Selected`
-  (le visuel suit exactement `HumanSelectionState`).
-- Vérifier `Card.Equals` (`Contains` / `Prune` en dépendent).
-- Boutons : `Jouer` interactable ssi sélection non vide et `EverySelectedCardPlayable()` ;
-  `Ramasser` toujours interactable en `NormalPlay`.
+**Objectif** : afficher l'état visuel de chaque carte de la main (normal, jouable, sélectionnée) à partir de la logique, sans règle recopiée dans la Présentation.
+
+**Implémentation**
+- `Models/CardStateProjector.cs` (C# pur) :
+  `CardProjection[] Project(IReadOnlyList<Card> cards, Func<Card,bool> isSelected, Func<Card,bool> isPlayable, bool showPlayable)`.
+  Retourne `Selected`, `Playable` ou `Normal` par carte. `Playable` n'est produit que si `showPlayable` est vrai.
+- `InputHandler.ReapplyCardStates()` : point unique de projection. Elle boucle sur la main, calcule les états via `CardStateProjector`, les convertit avec `ToVisual` (`CardProjection` → `CardVisualState`) et appelle `CardView.SetState`.
+- Surbrillance `Playable` uniquement en pose normale (`NormalPlay`), jamais en don ni en échange.
+- Jouabilité : `ICardPlayabilityChecker.IsPlayable(card, visibleState)` (Core). Aucune règle dupliquée.
+- Pendant l'échange, la carte considérée est la carte simulée affichée (par position), pas `view.Card`.
+
+**Moments de recalcul**
+`ReapplyCardStates` est appelé sur : `GameTableView.Rendered`, changement de `HumanSelectionState` (`Changed`), `GameplayController.StateChanged` et `OnRequest`. Le recalcul sur changement de sélection est volontaire : la sélection doit se refléter immédiatement.
+
+**CardView**
+- `_highlight` : Image enfant `Highlight`, ancres stretch/stretch (Min 0/0, Max 1/1), offsets Left/Top/Right/Bottom = −1/−1/−1/−1 (débord visuel d'1 px), Raycast Target décoché, Source Image vide (aplat de couleur).
+- Activation pilotée par `Image.enabled` dans `CardView.Refresh()` (actif si l'état est `Playable` ou `Selected`), et non par le GameObject.
+
+**Critères d'acceptation**
+- [x] Les cartes jouables sont surlignées en pose normale uniquement.
+- [x] La sélection est surlignée et suit exactement `HumanSelectionState`.
+- [x] Aucune règle de jeu dans la Présentation (jouabilité déléguée au Core).
+- [x] Configuration du prefab `Highlight` vérifiée dans l'Inspector.
+- [x] Test manuel dans Unity validé.
+
+**Hors périmètre**
+Pas de tests NUnit ici (prévus en Phase 5).
+
+---
+
+#### T55-4 — Sélection, relevé, boutons ✅
+(correctif du bug « cartes de même rang qui restent levées »)
+
+**Objectif** : le relevé visuel suit exactement la sélection logique, et les boutons reflètent le Core.
+
+**Implémentation**
+- Source unique de la sélection : `HumanSelectionState`. `CardView` ne décide rien, il applique l'état reçu.
+- Relevé : `CardView._selectedLift = 24f`, appliqué dans `Refresh` sur `_visualRoot.anchoredPosition.y` uniquement si l'état est `Selected`. La hitbox (racine + Button) reste immobile. `_visualRoot` doit être assigné dans le prefab.
+- Projection : `InputHandler.ReapplyCardStates()` recalcule l'état de chaque carte via `CardStateProjector` après tout changement de sélection, de requête, de rendu ou d'état. La sélection est élaguée (`Prune`) aux cartes encore en main et jouables.
+- `Card` est un `sealed record` : `Equals` / `==` comparent par valeur, donc `Contains`, `Prune` et les comparaisons de cartes sont fiables (point vérifié).
+- Boutons (`RefreshButtons`) :
+  - `Jouer` : visible en `NormalPlay`, interactable ssi sélection non vide et `EverySelectedCardPlayable()` (délégué à `ICardPlayabilityChecker`).
+  - `Ramasser` : visible et interactable en `NormalPlay` et `Pickup`.
+- Rejet par le Core : carte non jouable → message « Coup refusé », sélection conservée. `Play.Create` lève `ArgumentException` → message « Sélection invalide », sélection conservée.
+- Succès : `_selection.Clear()` puis `HideActions()`.
+- Échange prépartie : une seule carte de main levée à la fois (re-clic = baisse, autre carte = déplacement).
+
+**Critères d'acceptation**
+- [x] Les cartes sélectionnées de même rang restent levées ensemble.
+- [x] Après Jouer, plus aucune carte ne reste levée.
+- [x] Aucune règle de jeu dans `Controllers/` ou `UI/` (jouabilité via `ICardPlayabilityChecker`).
+- [x] `Card.Equals` vérifié (record, égalité par valeur).
+- [x] Test manuel dans Unity validé.
+
+**Dette technique optionnelle (non bloquante)**
+- Factoriser la fin de requête dans une méthode unique `InputHandler.CompleteRequest()` (`_request = None; _submitted = true; _selection.Clear(); _giftCard = null; _pendingExchangeHand = null; HideActions();`), appelée par tous les chemins de soumission, avec un `Clear` commun au début de `OnRequest`. Aujourd'hui chaque chemin nettoie à sa façon. Non fait car le comportement observé est correct.
+
+**Hors périmètre**
+Pas de tests NUnit ici (prévus en Phase 5). La projection est pure (`CardStateProjector`), donc testable en EditMode à ce moment-là.
 
 #### T55-5 — FaceDown aveugle
 - `PlayerSeatView.FaceDownIndexClicked : Action<int>`, index borné par `IFaceDownBlindView.SelfFaceDownCount`.
@@ -397,7 +441,7 @@ UI/GameTableView.cs, Scenes/GameplayLocal.unity
 - Sélection toujours cohérente avec le relevé. Durées réglables : `_exchangeSeconds`, `_giftSeconds`.
 
 ### Ordre d'attaque
-T55-2 → 4 → 3 → 5 → 6 → 7a → 7 → 11 → 8 → 10 → (T61) → 9 → 12.
+T55-2✅ → 4✅ → 3✅ → 5 → 6 → 7a → 7 → 11 → 8 → 10 → (T61) → 9 → 12.
 
 ### Hors périmètre
 - Tests (Phase 5). Animations, bandeau d'effets, `TableColor` / `SeatColor`.

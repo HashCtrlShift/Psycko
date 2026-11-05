@@ -184,6 +184,7 @@ Psycko/
 │   │       │
 │   │       ├── Models/
 │   │       │   ├── CardSkinDefinition.cs             Définition d'un skin : Id, DisplayName, référence au SkinSet
+│   │       │   ├── CardStateProjector.cs
 │   │       │   ├── HumanSelectionState.cs            
 │   │       │   └── SkinSet.cs                        ScriptableObject : sprites, dos, couleurs de table et de siège, police
 │   │       │
