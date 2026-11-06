@@ -91,12 +91,12 @@ namespace Psycko.Presentation.UI
             Set(_nameLabel, displayName);
             Set(_handCountLabel, model.Hand.Count.ToString());
             Set(_faceUpCountLabel, model.FaceUp.Count.ToString());
-            Set(_faceDownCountLabel, model.FaceDown.Count.ToString());
+            Set(_faceDownCountLabel, model.FaceDownCount.ToString()); // T55-5
             if (_activeIndicator != null) _activeIndicator.SetActive(model.IsActive);
             RenderCards(_handViews, _handContainer, model.Hand, skin, OnHandClicked);
             RenderCards(_faceUpViews, _faceUpContainer, model.FaceUp, skin, OnFaceUpClicked);
             // Jamais de Card liée aux FaceDown : uniquement le nombre et l'index aveugle.
-            RenderFaceDownSlots(model.FaceDown.Count, skin);
+            RenderFaceDownSlots(model.FaceDownCount, skin); // T55-5
         }
 
         private void RenderFaceDownSlots(int count, ICardSkin skin)

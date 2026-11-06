@@ -179,6 +179,24 @@ namespace Psycko.Presentation.Tests
                         "Seule la collection publique FaceUp peut contenir des cartes : " + prop.Name);
             }
         }
+
+        // T55-5 : le FaceDown du joueur humain est aveugle, aucune collection de Card ne doit l'exposer.
+        [Test]
+        public void SelfViewModel_DoesNotExposeFaceDownCards()
+        {
+            foreach (System.Reflection.PropertyInfo prop in typeof(SelfSeatViewModel).GetProperties())
+            {
+                bool isCard = typeof(Card).IsAssignableFrom(prop.PropertyType);
+                bool isCardCollection = typeof(IEnumerable<Card>).IsAssignableFrom(prop.PropertyType);
+
+                Assert.IsFalse(isCard, "Carte exposée : " + prop.Name);
+
+                if (isCardCollection)
+                    Assert.IsTrue(prop.Name == "Hand" || prop.Name == "FaceUp",
+                        "Seules Hand et FaceUp peuvent contenir des cartes : " + prop.Name);
+            }
+        }
+
         [Test]
         public void TableViewModel_OpponentsDoNotLeakAnyCard_ForEveryProjectedSeat()
         {
@@ -207,20 +225,27 @@ namespace Psycko.Presentation.Tests
             Assert.AreEqual(SeatPosition.Bottom, vm.Self.Position);
             Assert.AreSame(s.SelfHand, vm.Self.Hand);
             Assert.AreSame(s.SelfFaceUp, vm.Self.FaceUp);
-            Assert.AreSame(s.SelfFaceDown, vm.Self.FaceDown);
             Assert.AreEqual(2, vm.Self.Hand.Count);
             Assert.AreEqual(1, vm.Self.FaceUp.Count);
-            Assert.AreEqual(3, vm.Self.FaceDown.Count);
+            Assert.AreEqual(3, vm.Self.FaceDownCount);
         }
 
         [Test]
         public void SelfViewModel_NullLayers_BecomeEmpty()
         {
-            var self = new SelfSeatViewModel(1, null, null, null, false);
+            var self = new SelfSeatViewModel(1, null, null, 0, false);
 
             Assert.AreEqual(0, self.Hand.Count);
             Assert.AreEqual(0, self.FaceUp.Count);
-            Assert.AreEqual(0, self.FaceDown.Count);
+            Assert.AreEqual(0, self.FaceDownCount);
+        }
+
+        [Test]
+        public void SelfViewModel_NegativeFaceDownCount_ClampedToZero()
+        {
+            var self = new SelfSeatViewModel(1, null, null, -5, false);
+
+            Assert.AreEqual(0, self.FaceDownCount);
         }
 
         // ---------- Joueur actif ----------

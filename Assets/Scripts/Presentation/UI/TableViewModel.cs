@@ -33,23 +33,26 @@ namespace Psycko.Presentation.UI
         }
     }
 
-    /// <summary>Siège humain : couches complètes (visibles pour soi).</summary>
+    /// <summary>
+    /// Siège humain : main et FaceUp visibles. FaceDown = compteur seul (jeu à l'aveugle),
+    /// la Présentation ne manipule jamais de Card FaceDown.
+    /// </summary>
     public sealed class SelfSeatViewModel
     {
         public int PlayerId { get; }
         public SeatPosition Position => SeatPosition.Bottom;
         public IReadOnlyList<Card> Hand { get; }
         public IReadOnlyList<Card> FaceUp { get; }
-        public IReadOnlyList<Card> FaceDown { get; }
+        public int FaceDownCount { get; }
         public bool IsActive { get; }
 
         public SelfSeatViewModel(int playerId, IReadOnlyList<Card> hand,
-            IReadOnlyList<Card> faceUp, IReadOnlyList<Card> faceDown, bool isActive)
+            IReadOnlyList<Card> faceUp, int faceDownCount, bool isActive)
         {
             PlayerId = playerId;
             Hand = hand ?? Array.Empty<Card>();
             FaceUp = faceUp ?? Array.Empty<Card>();
-            FaceDown = faceDown ?? Array.Empty<Card>();
+            FaceDownCount = faceDownCount < 0 ? 0 : faceDownCount;
             IsActive = isActive;
         }
     }

@@ -382,9 +382,43 @@ Pas de tests NUnit ici (prévus en Phase 5).
 **Hors périmètre**
 Pas de tests NUnit ici (prévus en Phase 5). La projection est pure (`CardStateProjector`), donc testable en EditMode à ce moment-là.
 
-#### T55-5 — FaceDown aveugle
-- `PlayerSeatView.FaceDownIndexClicked : Action<int>`, index borné par `IFaceDownBlindView.SelfFaceDownCount`.
-- Jamais de `Card`.
+#### T55-5 — FaceDown aveugle ✅
+
+**Objectif.** Les FaceDown du joueur humain se jouent à l'aveugle : la Présentation ne connaît, ne reçoit et n'affiche jamais la `Card` correspondante. Elle ne transmet qu'une position, le Core résout la carte.
+
+**Contrat**
+- `PlayerSeatView.FaceDownIndexClicked : event Action<int>`, émis uniquement pour un index valide dans la liste des vues FaceDown (`_faceDownViews.IndexOf(view) >= 0`).
+- `InputHandler.OnFaceDownIndex(int)` : garde-fous avant envoi, dans cet ordre :
+  - `_request == HumanRequestKind.FaceDownIndex` (le Core a demandé un FaceDown) ;
+  - `_blind != null`, `_controller.Human != null`, `!_submitted` ;
+  - `0 <= index < IFaceDownBlindView.SelfFaceDownCount`.
+  Puis `_submitted = true`, `_controller.Human.SubmitFaceDownIndex(index)`, `HideActions()`.
+- Cliquabilité : `ReapplyCardStates` n'active `SetInteractable` sur les FaceDownViews que si `_request == HumanRequestKind.FaceDownIndex`. Aucune règle de jeu (main vide, etc.) recopiée en Présentation : c'est la requête du Core qui fait foi.
+- Aucun impact sur `HumanSelectionState` : le clic FaceDown ne la modifie pas.
+
+**Aveuglement des données (modification de ce ticket)**
+- `SelfSeatViewModel` : `IReadOnlyList<Card> FaceDown` remplacé par `int FaceDownCount` (borné à ≥ 0).
+- `TableProjection.Build` : passe `state.SelfFaceDown.Count` (0 si null), jamais la liste.
+- `PlayerSeatView.RenderSelf` : lit `model.FaceDownCount`. Les slots FaceDown sont rendus par `Bind(null, skin)` + `CardVisualState.FaceDown` (dos de carte uniquement).
+- Adversaires : déjà aveugles (`OpponentSeatViewModel.FaceDownCount`, aucune `Card` FaceDown).
+
+**Fichiers modifiés**
+- `Presentation/UI/TableViewModel.cs`
+- `Presentation/UI/TableProjection.cs`
+- `Presentation/UI/PlayerSeatView.cs`
+- `Tests/EditMode/Presentation/TableProjectionTests.cs` (adaptation à la nouvelle API + 2 tests ajoutés)
+
+**Critères d'acceptation**
+- [x] `IFaceDownBlindView.SelfFaceDownCount` borne l'index (`InputHandler.OnFaceDownIndex`).
+- [x] Aucune `Card` FaceDown dans les ViewModels (verrouillé par réflexion : `SelfViewModel_DoesNotExposeFaceDownCards`, `OpponentViewModel_ExposesOnlyPublicFaceUpCards`).
+- [x] Clic FaceDown sans effet hors requête `FaceDownIndex`.
+- [x] Compilation Unity propre, **91/91 tests EditMode verts**.
+- [x] Partie testée manuellement : aucune régression visible (changement interne, rendu identique).
+
+**Hors périmètre (dette optionnelle, inchangée)**
+- Factorisation `CompleteRequest()`.
+
+**Dépendances.** T54, T55a, T55-3, T55-4. Merge toujours bloqué par T51.
 
 #### T55-6 — Don du 7
 - Clic carte → `_giftCard` ; clic siège → soumission immédiate (`SeatClicked(int playerId)`).
@@ -441,7 +475,7 @@ Pas de tests NUnit ici (prévus en Phase 5). La projection est pure (`CardStateP
 - Sélection toujours cohérente avec le relevé. Durées réglables : `_exchangeSeconds`, `_giftSeconds`.
 
 ### Ordre d'attaque
-T55-2✅ → 4✅ → 3✅ → 5 → 6 → 7a → 7 → 11 → 8 → 10 → (T61) → 9 → 12.
+T55-2✅ → 4✅ → 3✅ → 5✅ → 6 → 7a → 7 → 11 → 8 → 10 → (T61) → 9 → 12.
 
 ### Hors périmètre
 - Tests (Phase 5). Animations, bandeau d'effets, `TableColor` / `SeatColor`.

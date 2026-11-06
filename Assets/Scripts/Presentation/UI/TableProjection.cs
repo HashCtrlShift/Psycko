@@ -7,6 +7,7 @@ namespace Psycko.Presentation.UI
     /// <summary>
     /// Projection pure IPlayerVisibleState -> TableViewModel. Sans UnityEngine, testable en EditMode.
     /// Les adversaires sont placés dans l'ordre de siège : Left, Top, Right.
+    /// Les FaceDown (soi et adversaires) ne sont projetés que sous forme de compteur.
     /// </summary>
     public static class TableProjection
     {
@@ -25,7 +26,7 @@ namespace Psycko.Presentation.UI
                 state.SelfPlayerId,
                 state.SelfHand,
                 state.SelfFaceUp,
-                state.SelfFaceDown,
+                state.SelfFaceDown == null ? 0 : state.SelfFaceDown.Count,
                 state.SelfPlayerId == activeId);
 
             var opponents = new List<OpponentSeatViewModel>();
