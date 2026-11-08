@@ -9,7 +9,7 @@ namespace Psycko.Presentation.UI
     {
         [SerializeField] private Text _label;
         [SerializeField] private Image _fill;
-        [SerializeField] private string _format = "{0} s";
+        [SerializeField] private string _format = "{0}";
         [SerializeField] private Color _normalColor = Color.white;
         [SerializeField] private Color _warningColor = Color.red;
         [SerializeField] private float _warningThreshold = 5f;

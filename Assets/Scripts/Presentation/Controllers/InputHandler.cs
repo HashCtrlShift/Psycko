@@ -19,9 +19,9 @@ namespace Psycko.Presentation.Controllers
         [SerializeField] private Button _playButton;
         [SerializeField] private Button _pickupButton;
         [SerializeField] private Button _readyButton;
-        [SerializeField] private Text _timerLabel;
         [SerializeField] private Text _messageLabel;
         [SerializeField] private CountdownView _giftCountdownView;
+        [SerializeField] private CountdownView _exchangeCountdownView;
         [SerializeField] private float _giftSeconds = 30f;
         [SerializeField] private float _exchangeSeconds = 90f;
         [SerializeField] private float _messageSeconds = 2f;
@@ -30,6 +30,7 @@ namespace Psycko.Presentation.Controllers
         private readonly List<ExchangeChoice> _exchanges = new List<ExchangeChoice>();
         private readonly Dictionary<int, IOpponentVisibleInfo> _opponents = new Dictionary<int, IOpponentVisibleInfo>();
         private readonly CountdownTimer _giftTimer = new CountdownTimer();
+        private readonly CountdownTimer _exchangeTimer = new CountdownTimer();
 
         // [ÉCHANGE] Copies locales de la main / FaceUp, permutées à chaque échange (miroir de PreGameExchange.Swap).
         private readonly List<Card> _simHand = new List<Card>();
@@ -40,13 +41,13 @@ namespace Psycko.Presentation.Controllers
         private IFaceDownBlindView _blind;
         private Card _pendingExchangeHand;
         private Card _giftCard;
-        private float _exchangeRemaining;
         private float _messageRemaining;
         private bool _submitted;
 
         private void OnEnable()
         {
             _giftTimer.Expired += OnGiftTimerExpired;
+            _exchangeTimer.Expired += OnExchangeTimerExpired;
             if (_controller != null) { _controller.HumanRequestPending += OnRequest; _controller.StateChanged += OnState; }
             if (_table != null) _table.Rendered += OnTableRendered;
             if (_playButton != null) _playButton.onClick.AddListener(OnPlayClicked);
@@ -62,8 +63,9 @@ namespace Psycko.Presentation.Controllers
         private void OnDisable()
         {
             _giftTimer.Expired -= OnGiftTimerExpired;
-            _giftTimer.Stop();
-            if (_giftCountdownView != null) _giftCountdownView.Hide();
+            _exchangeTimer.Expired -= OnExchangeTimerExpired;
+            StopGiftCountdown();
+            StopExchangeCountdown();
             if (_controller != null) { _controller.HumanRequestPending -= OnRequest; _controller.StateChanged -= OnState; }
             if (_table != null) _table.Rendered -= OnTableRendered;
             if (_playButton != null) _playButton.onClick.RemoveListener(OnPlayClicked);
@@ -103,9 +105,9 @@ namespace Psycko.Presentation.Controllers
 
         private void OnRequest(HumanRequestKind kind)
         {
-            // Toute nouvelle requête arrête un éventuel minuteur de don précédent.
-            _giftTimer.Stop();
-            if (_giftCountdownView != null) _giftCountdownView.Hide();
+            // Toute nouvelle requête arrête les minuteurs de la requête précédente.
+            StopGiftCountdown();
+            StopExchangeCountdown();
 
             _request = kind; _submitted = false;
             _pending = _controller == null ? null : _controller.VisibleState;
@@ -124,9 +126,10 @@ namespace Psycko.Presentation.Controllers
             {
                 _exchanges.Clear(); _pendingExchangeHand = null; _giftCard = null; _selection.Clear();
                 ResetSimulation(); // [ÉCHANGE]
-                _exchangeRemaining = Mathf.Max(0f, _exchangeSeconds);
                 // Pendant l'échange, le Core n'émet aucun StateChanged : on dessine depuis la vue de la requête.
                 if (_table != null && _pending != null) _table.RenderVisible(_pending);
+                // Durée <= 0 : illimitée, aucun décompte ni expiration.
+                _exchangeTimer.Start(_exchangeSeconds);
             }
             RefreshVisibleState(); ReapplyCardStates(); RefreshButtons();
         }
@@ -148,27 +151,40 @@ namespace Psycko.Presentation.Controllers
             }
 
             // Minuteur du don : décompte tant qu'aucun don n'a été soumis.
-            if (_request == HumanRequestKind.Gift && !_submitted && _giftTimer.IsRunning)
+            if (_request == HumanRequestKind.Gift && !_submitted)
+                TickCountdown(_giftTimer, _giftCountdownView);
+
+            // Minuteur de l'échange : décompte tant que les échanges n'ont pas été soumis.
+            if (_request == HumanRequestKind.Exchanges && !_submitted)
+                TickCountdown(_exchangeTimer, _exchangeCountdownView);
+        }
+
+        /// <summary>Fait avancer un minuteur et met à jour sa vue ; illimité ou arrêté = vue masquée.</summary>
+        private static void TickCountdown(CountdownTimer timer, CountdownView view)
+        {
+            if (!timer.IsRunning) return;
+            if (timer.IsUnlimited)
             {
-                if (_giftTimer.IsUnlimited)
-                {
-                    if (_giftCountdownView != null) _giftCountdownView.Hide();
-                }
-                else
-                {
-                    _giftTimer.Tick(Time.deltaTime);
-                    if (_giftTimer.IsRunning)
-                    {
-                        if (_giftCountdownView != null) _giftCountdownView.Show(_giftTimer.Remaining, _giftTimer.Total);
-                    }
-                    else if (_giftCountdownView != null) _giftCountdownView.Hide();
-                }
+                if (view != null) view.Hide();
+                return;
             }
 
-            if (_request != HumanRequestKind.Exchanges || _submitted) return;
-            _exchangeRemaining = Mathf.Max(0f, _exchangeRemaining - Time.deltaTime);
-            if (_timerLabel != null) _timerLabel.text = Mathf.CeilToInt(_exchangeRemaining) + " s";
-            if (_exchangeRemaining <= 0f) SubmitExchanges();
+            timer.Tick(Time.deltaTime);
+            if (view == null) return;
+            if (timer.IsRunning) view.Show(timer.Remaining, timer.Total);
+            else view.Hide();
+        }
+
+        private void StopGiftCountdown()
+        {
+            _giftTimer.Stop();
+            if (_giftCountdownView != null) _giftCountdownView.Hide();
+        }
+
+        private void StopExchangeCountdown()
+        {
+            _exchangeTimer.Stop();
+            if (_exchangeCountdownView != null) _exchangeCountdownView.Hide();
         }
 
         private void OnHandCard(Card card, CardView view)
@@ -238,8 +254,7 @@ namespace Psycko.Presentation.Controllers
             if (playerId == _pending.SelfPlayerId || !_opponents.TryGetValue(playerId, out opponent) || opponent.CurrentPhase == DefPhase.Finished) return;
             _submitted = true;
             // Don manuel : le minuteur est arrêté, le Fallback ne se déclenchera jamais.
-            _giftTimer.Stop();
-            if (_giftCountdownView != null) _giftCountdownView.Hide();
+            StopGiftCountdown();
             _controller.Human.SubmitGift(new GiftResolutionChoice(_giftCard, playerId));
             HideActions(); SetAllSeatsClickable(false);
         }
@@ -250,9 +265,26 @@ namespace Psycko.Presentation.Controllers
             if (_request != HumanRequestKind.Gift || _submitted) return;
             _submitted = true;
             if (_controller != null && _controller.Human != null) _controller.Human.ExpirePending();
-            _giftTimer.Stop();
-            if (_giftCountdownView != null) _giftCountdownView.Hide();
+            StopGiftCountdown();
             HideActions(); SetAllSeatsClickable(false);
+        }
+
+        /// <summary>
+        /// Expiration de l'échange : les échanges non validés sont interrompus. L'agent applique son
+        /// Fallback (décision hors Présentation) ; aucun échange local n'est envoyé au Core.
+        /// </summary>
+        private void OnExchangeTimerExpired()
+        {
+            if (_request != HumanRequestKind.Exchanges || _submitted) return;
+            _submitted = true;
+            _pendingExchangeHand = null;
+            _exchanges.Clear();
+            ClearExchangePreview();
+            if (_controller != null && _controller.Human != null) _controller.Human.ExpirePending();
+            StopExchangeCountdown();
+            _selection.Clear();
+            _request = HumanRequestKind.None;
+            HideActions();
         }
 
         private void OnPlayClicked()
@@ -302,8 +334,12 @@ namespace Psycko.Presentation.Controllers
         private void SubmitExchanges()
         {
             if (_request != HumanRequestKind.Exchanges || _submitted || _controller == null || _controller.Human == null) return;
-            _submitted = true; _pendingExchangeHand = null; ClearExchangePreview();
+            _submitted = true;
+            // Soumission manuelle : le minuteur est arrêté, le Fallback ne se déclenchera jamais.
+            StopExchangeCountdown();
+            _pendingExchangeHand = null; ClearExchangePreview();
             _controller.Human.SubmitExchanges(_exchanges.ToList().AsReadOnly());
+            _selection.Clear();
             _request = HumanRequestKind.None; HideActions();
         }
 
@@ -388,8 +424,7 @@ namespace Psycko.Presentation.Controllers
             SetButton(_pickupButton, pickup, pickup);
             SetButton(_readyButton, exchanges, exchanges);
             if ((_request != HumanRequestKind.Gift || _submitted) && _giftCountdownView != null) _giftCountdownView.Hide();
-            if (_timerLabel != null) _timerLabel.gameObject.SetActive(exchanges);
-            if (!exchanges && _timerLabel != null) _timerLabel.text = string.Empty;
+            if ((_request != HumanRequestKind.Exchanges || _submitted) && _exchangeCountdownView != null) _exchangeCountdownView.Hide();
         }
 
         private static void SetButton(Button button, bool visible, bool interactable)

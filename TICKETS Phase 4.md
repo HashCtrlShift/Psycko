@@ -273,14 +273,14 @@ Dépendances : T53 (merge bloqué par T51)
 
 ## T55 — Input humain, surbrillance, relevé, phase d'échange, lisibilité de table
 
-**Statut : EN COURS** (T55-0 mergé et poussé ; T55-1 conçu et validé ; T55-2 à T55-12 à faire)
+**Statut : EN COURS** (T55-0 mergé et poussé ; T55-1 à T55-7 faits et validés ; T55-8 à T55-12 à faire)
 
 Branche : `T55-human-input` (depuis `main` à jour). Merge bloqué par T51.
 Dépendances : T54, T55a (✅ 89/89). T55-9 dépend de T62 (Core : ordre de fin).
 
-Fichiers : Controllers/InputHandler.cs, Models/HumanSelectionState.cs, Models/HandVisualStateResolver.cs,
-Models/ISwapPhaseClock.cs, Models/SwapPhaseClock.cs, UI/CardView.cs, UI/PlayerSeatView.cs, UI/ZoneView.cs,
-UI/GameTableView.cs, Scenes/GameplayLocal.unity
+Fichiers : Controllers/InputHandler.cs, Controllers/UnityHumanAgent.cs, Models/HumanSelectionState.cs,
+Models/HandVisualStateResolver.cs, Models/CountdownTimer.cs, UI/CountdownView.cs, UI/CardView.cs,
+UI/PlayerSeatView.cs, UI/ZoneView.cs, UI/GameTableView.cs, Scenes/GameplayLocal.unity
 
 ### Contexte
 - `InputHandler.cs` existe déjà sur `main` et couvre l'essentiel : T55 = audit, découpage, correction,
@@ -294,9 +294,9 @@ UI/GameTableView.cs, Scenes/GameplayLocal.unity
   Bombe+carte, Bombe+Noir, Noir+carte, Verre+Bombe, Verre+carte). Pas de `Play.CanCombine` (T55-2b abandonné).
 - Sélection : clic carte de même rang → s'ajoute et se lève. Clic autre rang → les cartes levées
   redescendent, la nouvelle se lève seule. Joker → remplace tout et reste seul.
-- Phase d'échange : 90 s (champ Inspector `_exchangeSeconds`, défaut 90, Ekinox le règle).
-  Échanges main ↔ FaceUp **infinis** : une même carte peut être échangée autant de fois qu'on veut.
-  « Prêt ! » termine immédiatement.
+- Phase d'échange : 90 s (champ Inspector `_exchangeSeconds`, défaut 90, 0 = illimité, Ekinox le règle
+  indépendamment de `_giftSeconds`). Échanges main ↔ FaceUp **infinis** (fonctionnel). « Prêt ! »
+  termine immédiatement. À l'expiration, les échanges non validés sont interrompus (abandonnés).
 - Don du 7 : sélectionner une carte, puis cliquer sur un siège = soumission immédiate (pas de bouton
   Valider, pas d'Annuler). Un siège Finished ne réagit pas au clic. Minuteur 30 s
   (champ Inspector `_giftSeconds`, défaut 30, 0 = illimité).
@@ -420,7 +420,7 @@ Pas de tests NUnit ici (prévus en Phase 5). La projection est pure (`CardStateP
 
 **Dépendances.** T54, T55a, T55-3, T55-4. Merge toujours bloqué par T51.
 
-#### T55-6 — Don du 7
+#### T55-6 — Don du 7 ✅
 
 **Statut** : terminé et validé (91/91 tests EditMode verts, partie testée).
 
@@ -456,34 +456,77 @@ Pas de tests NUnit ici (prévus en Phase 5). La projection est pure (`CardStateP
 - [x] Don manuel avant la fin : aucun Fallback.
 - [x] Minuteur arrêté à la soumission, au changement de requête, à la fin de partie.
 - [x] Re-rendu pendant le don : sélection et sièges cohérents.
-- [x] Minuteur d'échange et FaceDown aveugle inchangés.
+- [x] FaceDown aveugle inchangé.
 - [x] Aucune règle de jeu dans `Presentation/`.
 - [x] Tests EditMode : 91/91 verts (dont `UnityHumanAgentTests`).
 
 **Hors périmètre (reporté)**
-- Migration du minuteur d'échange vers `CountdownView`.
 - Bandeau d'effet de carte.
 - Factorisation `CompleteRequest()`.
 - Tests NUnit complémentaires de la couche Presentation (Phase 5).
+- (La migration du minuteur d'échange est faite à T55-7.)
 
 **Dépendances** : T54, T55a. Merge bloqué par T51.
-**Suite** : T55-7, T55-8.
+**Suite** : T55-8.
 
-#### T55-7 — Phase d'échange
-- `ISwapPhaseClock` : `Start(float) / Tick(float) / Remaining / IsExpired / Skip() / event Expired` ;
-  `SwapPhaseClock` pur.
-- `InputHandler` : `_exchangeSeconds` (défaut 90), `Tick(Time.deltaTime)` dans `Update`,
-  `Expired` ou « Prêt ! » → `SubmitExchanges`.
-- `_timerLabel` : Text 48 px, ancre top-center, RectTransform 200×60, pos (0, −40).
+#### T55-7 — Phase d'échange ✅
 
-#### T55-7a — Échanges infinis (à faire avant T55-7)
-- Lire `Core/Domain/Exchange/` (`PreGameExchange`, `PreGameExchangeState`, `ExchangeChoice`,
-  `ExchangeRejectionReason`) et `InputHandler` (gestion des échanges).
-- Déterminer pourquoi une carte ne s'échange qu'une fois : liste d'échanges cumulée côté UI,
-  carte « consommée » dans le Core, ou rejet métier.
-- Cible : l'UI maintient un aperçu local main/FaceUp ; un échange peut être annulé ou refait sur la
-  même carte ; seul l'état final est soumis à « Prêt ! » ou à l'expiration.
-- Si la limite vient du Core : ticket Core dédié (accord d'Ekinox avant modification).
+**Statut** : terminé et validé en partie jouée. Tests NUnit reportés en Phase 5.
+
+**Comportement**
+- Le minuteur d'échange réutilise `CountdownTimer` (logique pure) et `CountdownView` (affichage), comme
+  le don du 7. `ISwapPhaseClock` / `SwapPhaseClock` ne sont pas créés (abandonnés, cf. T55-6).
+- Deux minuteurs indépendants, chacun avec sa durée réglable dans l'Inspector :
+  `_giftSeconds` (30) pour le don, `_exchangeSeconds` (90) pour l'échange. 0 = illimité (aucun
+  décompte affiché, seul « Prêt ! » termine l'échange).
+- `Update` : `_exchangeTimer.Tick(Time.deltaTime)` tant que la requête est `Exchanges` et non soumise ;
+  affichage via `_exchangeCountdownView.Show(Remaining, Total)`.
+- « Prêt ! » avant la fin : minuteur arrêté et masqué, `SubmitExchanges` envoie les échanges réalisés,
+  aucun Fallback.
+- Expiration : les échanges non validés sont interrompus (abandonnés). Le Fallback est décidé dans
+  `UnityHumanAgent.ExpirePending()`, jamais dans la Présentation.
+- Minuteur arrêté et masqué à la soumission, au changement de requête et dans `OnDisable`.
+- `HumanSelectionState.Clear` en début de requête d'échange.
+- `_timerLabel` supprimé de `InputHandler` (plus de gestion manuelle du `Text` dans `RefreshButtons`
+  ni de `_exchangeRemaining`).
+- Format d'affichage : `{0}` (sans « s »), réglable dans le champ `Format` de chaque `CountdownView`.
+
+**Fichiers**
+- [x] Modifié : `Assets/Scripts/Presentation/Controllers/InputHandler.cs` (champ
+  `_exchangeCountdownView`, `_exchangeTimer`, `OnExchangeTimerExpired`, suppression de `_timerLabel`
+  et `_exchangeRemaining`).
+- [x] Modifié si nécessaire : `Assets/Scripts/Presentation/Controllers/UnityHumanAgent.cs`
+  (`ExpirePending` couvre `HumanRequestKind.Exchanges`).
+- [x] Aucun nouveau script (réutilisation de `CountdownTimer` et `CountdownView`).
+
+**Scène (GameplayLocal.unity)**
+- [x] `ExchangeCountdown` (objet vide) avec composant `CountdownView` : ancre top-center
+  (Min/Max 0.5/1), pivot (0.5, 1), RectTransform 200×60, pos (0, −40).
+- [x] `TimerText` (Text) déplacé en enfant de `ExchangeCountdown` : ancres stretch, offsets 0,
+  Font Size 48, alignement centre/milieu, couleur blanche, overflow Overflow.
+- [x] `CountdownView` : `_label` = `TimerText`, `_fill` = None, `_format` = `{0}`, couleurs
+  blanc/rouge, `_warningThreshold` = 5.
+- [x] `InputHandler` : `_exchangeCountdownView` = `ExchangeCountdown`, `_exchangeSeconds` = 90.
+- [x] `GiftCountdown` : `_format` = `{0}`.
+
+**Critères d'acceptation**
+- [x] Décompte de 90 s affiché en haut au centre pendant l'échange, rouge à 5 s.
+- [x] « Prêt ! » avant la fin : décompte masqué, échanges envoyés, aucun Fallback.
+- [x] Expiration : décompte masqué, échanges non validés interrompus, partie lancée.
+- [x] `_exchangeSeconds` = 0 : illimité, aucun décompte affiché.
+- [x] `_giftSeconds` et `_exchangeSeconds` réglables indépendamment.
+- [x] Minuteur arrêté à la soumission, au changement de requête et dans `OnDisable`.
+- [x] Non-régression : don du 7, FaceDown aveugle, sélection, surbrillance.
+- [x] Aucune règle de jeu dans `Presentation/`.
+- [x] Partie testée manuellement.
+
+**Hors périmètre**
+- Tests NUnit de `CountdownTimer` et du comportement d'échange (Phase 5). `CountdownTimer` est pur
+  et testable en EditMode à ce moment-là.
+- Factorisation `CompleteRequest()`.
+
+**Dépendances** : T54, T55a, T55-6 (`CountdownTimer`, `CountdownView`). Merge bloqué par T51.
+**Suite** : T55-8.
 
 #### T55-8 — Dos des cartes adverses
 - `PlayerSeatView.RenderOpponent` : `HandCount` dos en éventail, `FaceDownCount` dos sous les FaceUp ;
