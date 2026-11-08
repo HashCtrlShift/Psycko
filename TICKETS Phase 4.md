@@ -421,11 +421,53 @@ Pas de tests NUnit ici (prévus en Phase 5). La projection est pure (`CardStateP
 **Dépendances.** T54, T55a, T55-3, T55-4. Merge toujours bloqué par T51.
 
 #### T55-6 — Don du 7
-- Clic carte → `_giftCard` ; clic siège → soumission immédiate (`SeatClicked(int playerId)`).
+
+**Statut** : terminé et validé (91/91 tests EditMode verts, partie testée).
+
+**Comportement**
+- Clic carte → `_giftCard` (re-clic = désélection) ; clic siège → soumission immédiate
+  (`SeatClicked(int playerId)`), uniquement si une carte est choisie.
 - Siège Finished : bouton `interactable = false` d'après `IOpponentVisibleInfo.CurrentPhase`
-  (lecture d'état, pas de règle). Clic sans effet.
-- Minuteur `_giftSeconds` (Inspector, défaut 30, 0 = illimité) via `ISwapPhaseClock` ;
-  expiration → `UnityHumanAgent.Fallback`.
+  (lecture d'état, pas de règle). Clic sans effet (garde aussi dans `ChooseGiftRecipient`).
+- Minuteur `_giftSeconds` (Inspector, défaut 30, 0 = illimité) porté par `CountdownTimer`
+  (logique pure) et affiché par `CountdownView` (police, format, couleurs, jauge réglables
+  dans l'Inspector). Pas d'`ISwapPhaseClock` : abandonné, remplacé par `CountdownTimer`.
+- Le don automatique ne se déclenche QUE si le joueur n'a rien soumis dans les N secondes.
+  Don manuel avant la fin : minuteur arrêté, aucun Fallback.
+- Expiration → `UnityHumanAgent.ExpirePending()` → Fallback Gift (décidé dans l'agent,
+  jamais dans la Présentation) : carte non-Joker la plus faible (clé rang x 4 + couleur,
+  comme `FirstPlayerResolver`), donnée à un adversaire non Finished tiré au hasard.
+  Joker tiré au hasard uniquement s'il n'y a aucune autre carte.
+- Minuteur arrêté à la soumission, au changement de requête et dans `OnDisable`.
+
+**Fichiers**
+- [x] Nouveau : `Assets/Scripts/Presentation/Models/CountdownTimer.cs`
+- [x] Nouveau : `Assets/Scripts/Presentation/UI/CountdownView.cs`
+- [x] Modifié : `Assets/Scripts/Presentation/Controllers/UnityHumanAgent.cs`
+- [x] Modifié : `Assets/Scripts/Presentation/Controllers/InputHandler.cs`
+- [x] Inspector : `_giftCountdownView` assigné ; `_giftSeconds` = 30.
+
+**Critères d'acceptation**
+- [x] Clic carte en don : Selected, re-clic désélectionne, pas de Playable.
+- [x] Clic siège avec carte : soumission immédiate ; sans carte : aucun effet.
+- [x] Siège Finished non cliquable, clic sans effet.
+- [x] Compte à rebours affiché, `_giftSeconds` = 0 : illimité, rien d'affiché.
+- [x] Expiration : carte la plus faible vers un adversaire non Finished aléatoire.
+- [x] Don manuel avant la fin : aucun Fallback.
+- [x] Minuteur arrêté à la soumission, au changement de requête, à la fin de partie.
+- [x] Re-rendu pendant le don : sélection et sièges cohérents.
+- [x] Minuteur d'échange et FaceDown aveugle inchangés.
+- [x] Aucune règle de jeu dans `Presentation/`.
+- [x] Tests EditMode : 91/91 verts (dont `UnityHumanAgentTests`).
+
+**Hors périmètre (reporté)**
+- Migration du minuteur d'échange vers `CountdownView`.
+- Bandeau d'effet de carte.
+- Factorisation `CompleteRequest()`.
+- Tests NUnit complémentaires de la couche Presentation (Phase 5).
+
+**Dépendances** : T54, T55a. Merge bloqué par T51.
+**Suite** : T55-7, T55-8.
 
 #### T55-7 — Phase d'échange
 - `ISwapPhaseClock` : `Start(float) / Tick(float) / Remaining / IsExpired / Skip() / event Expired` ;

@@ -166,7 +166,9 @@ Psycko/
 │   │       │   └── ICardSkin.cs                 Contrat visuel
 │   │       │
 │   │       ├── UI/
+│   │       │   ├── CardSpriteView.cs
 │   │       │   ├── CardView.cs                       Rendu d'une carte via ICardSkin 
+│   │       │   ├── CountdownView.cs                  Affichage du compte à rebours (texte, couleurs, jauge)
 │   │       │   ├── GameTableView.cs                  Vue de table en paysage : disposition en croix, humain en bas
 │   │       │   ├── PlayerSeatView.cs                 Siège d'un joueur : compteurs main / FaceUp / FaceDown
 │   │       │   ├── TableProjection.cs                Projection pure IPlayerVisibleStat
@@ -177,15 +179,16 @@ Psycko/
 │   │       │   ├── AnimationController.cs            (à venir)
 │   │       │   ├── GameplayController.cs             Lance une partie via LocalGameSession. 
 │   │       │   ├── HandSorter.cs                     Tri d'une main pour l'affichage, sans logique de jeu
-│   │       │   ├── InputHandler.cs                   
+│   │       │   ├── InputHandler.cs                   Traduit clics et sélections en réponses à la requête humaine
 │   │       │   ├── LocalGameSession.cs               Session de partie locale : 1 humain + 3 bots via GameRunner
 │   │       │   ├── SeatLayout.cs                     Disposition des sièges autour de la table (humain en bas)
 │   │       │   └── UnityHumanAgent.cs                IPlayerAgent humain
 │   │       │
 │   │       ├── Models/
 │   │       │   ├── CardSkinDefinition.cs             Définition d'un skin : Id, DisplayName, référence au SkinSet
-│   │       │   ├── CardStateProjector.cs
-│   │       │   ├── HumanSelectionState.cs            
+│   │       │   ├── CardStateProjector.cs             Projette l'état d'une carte (Selected, Playable…) pour l'affichage
+│   │       │   ├── CountdownTimer.cs                 Minuteur pur (sans Unity) : durée, restant, expiration, arrêt
+│   │       │   ├── HumanSelectionState.cs            Sélection courante du joueur humain (cartes choisies, don)
 │   │       │   └── SkinSet.cs                        ScriptableObject : sprites, dos, couleurs de table et de siège, police
 │   │       │
 │   │       ├── Skins/

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -15,19 +16,29 @@ namespace Psycko.Presentation.Tests
     public sealed class UnityHumanAgentTests
     {
         private sealed class Blind : IFaceDownBlindView { public int SelfFaceDownCount { get { return 2; } } }
+
         private static PlayerVisibleState View()
         {
             var deck = Deck.CreateFull(); deck.Shuffle(new Random(2));
             var state = CardDealer.Deal(deck, new List<(int Id, string Name)> { (0,"H"),(1,"A"),(2,"B"),(3,"C") });
             return PlayerVisibleState.FromExchange(state, 0);
         }
-        [Test] public void EtatInitialEtRequetePubliee()
+
+        private static bool EstUnAdversaire(PlayerVisibleState state, int playerId)
+        {
+            return state.Opponents.Any(o => o.PlayerId == playerId);
+        }
+
+        [Test]
+        public void EtatInitialEtRequetePubliee()
         {
             var a = new UnityHumanAgent(TimeSpan.FromSeconds(3)); Assert.AreEqual(HumanRequestKind.None, a.PendingRequest);
             var state = View(); var done = new ManualResetEventSlim(); a.RequestPending += k => { Assert.AreEqual(HumanRequestKind.NormalPlay,k); Assert.AreSame(state,a.PendingState); };
             var t = new Thread(() => { a.ProposeNormalPlay(state); done.Set(); }); t.Start(); Assert.IsTrue(SpinWait.SpinUntil(() => a.PendingRequest == HumanRequestKind.NormalPlay, 1000)); a.SubmitNoPlay(); Assert.IsTrue(done.Wait(3000)); t.Join();
         }
-        [Test] public void ReponsesEtTypesErrones()
+
+        [Test]
+        public void ReponsesEtTypesErrones()
         {
             var a = new UnityHumanAgent(TimeSpan.FromSeconds(4)); var state = View(); var card = Card.CreateStandard(DefSuit.Clubs, DefRank.Three); var play = Play.CreateSingle(0, card);
             Assert.Throws<InvalidOperationException>(() => a.SubmitPickup(true));
@@ -38,55 +49,74 @@ namespace Psycko.Presentation.Tests
             GiftResolutionChoice gift = default(GiftResolutionChoice); t = new Thread(() => gift = a.ResolveGift(state)); t.Start(); Assert.IsTrue(SpinWait.SpinUntil(() => a.PendingRequest == HumanRequestKind.Gift,1000)); var recipient = state.Opponents[0].PlayerId; var g = new GiftResolutionChoice(card,recipient); a.SubmitGift(g); t.Join(3000); Assert.AreEqual(recipient,gift.RecipientPlayerId);
             IReadOnlyList<ExchangeChoice> exchanges = null; t = new Thread(() => exchanges = a.ProposeExchanges(state)); t.Start(); Assert.IsTrue(SpinWait.SpinUntil(() => a.PendingRequest == HumanRequestKind.Exchanges,1000)); var choices = new List<ExchangeChoice>(); a.SubmitExchanges(choices); t.Join(3000); Assert.AreSame(choices,exchanges);
         }
-        [Test] public void AnnulationDebloqueEtUtiliseReplis()
+
+        [Test]
+        public void AnnulationDebloqueEtUtiliseReplis()
         {
             var a = new UnityHumanAgent(TimeSpan.FromSeconds(3)); var state = View(); Play result = null;
             var t = new Thread(() => result = a.ProposeNormalPlay(state)); t.Start(); Assert.IsTrue(SpinWait.SpinUntil(() => a.PendingRequest == HumanRequestKind.NormalPlay,1000)); a.Cancel(); Assert.IsTrue(t.Join(2000)); Assert.IsNull(result);
-            Assert.IsTrue(a.DecidePickup(state,true)); Assert.AreEqual(0,a.ProposeFaceDownIndex(new Blind()));
-            var gift = a.ResolveGift(state); Assert.AreEqual(state.SelfHand[0],gift.CardToGive); Assert.AreEqual(state.Opponents[0].PlayerId,gift.RecipientPlayerId); Assert.AreEqual(0,a.ProposeExchanges(state).Count);
+            Assert.IsTrue(a.DecidePickup(state,true));
+            Assert.AreEqual(0,a.ProposeFaceDownIndex(new Blind()));
+            var gift = a.ResolveGift(state);
+            Assert.AreEqual(state.SelfHand[0], gift.CardToGive);
+            Assert.IsTrue(EstUnAdversaire(state, gift.RecipientPlayerId));
+            Assert.AreEqual(0,a.ProposeExchanges(state).Count);
         }
+
         private static UnityHumanAgent Short() { return new UnityHumanAgent(TimeSpan.FromMilliseconds(20)); }
 
-        [Test] public void TimeoutGiftSansMainRenvoieDefault()
+        [Test]
+        public void TimeoutGiftSansMainRenvoieDefault()
         {
             var a = Short();
-            var r = a.ResolveGift(View());
+            var s = View();
+            var r = a.ResolveGift(s);
             Assert.IsNotNull(r);
+            Assert.IsTrue(EstUnAdversaire(s, r.RecipientPlayerId));
         }
 
-        [Test] public void TimeoutFaceDownRenvoieZero()
+        [Test]
+        public void TimeoutFaceDownRenvoieZero()
         {
             Assert.AreEqual(0, Short().ProposeFaceDownIndex(new Blind()));
         }
 
-        [Test] public void TimeoutExchangesRenvoieListeVide()
+        [Test]
+        public void TimeoutExchangesRenvoieListeVide()
         {
             Assert.AreEqual(0, Short().ProposeExchanges(View()).Count);
         }
 
-        [Test] public void TimeoutPickupForceRenvoieTrue()
+        [Test]
+        public void TimeoutPickupForceRenvoieTrue()
         {
             Assert.IsTrue(Short().DecidePickup(View(), true));
         }
 
-        [Test] public void CancelPuisToutesRequetesUtiliseRepli()
+        [Test]
+        public void CancelPuisToutesRequetesUtiliseRepli()
         {
             var a = new UnityHumanAgent(); a.Cancel();
             var s = View();
             Assert.IsNull(a.ProposeNormalPlay(s));
             Assert.AreEqual(0, a.ProposeFaceDownIndex(new Blind()));
             Assert.AreEqual(0, a.ProposeExchanges(s).Count);
-            Assert.IsNotNull(a.ResolveGift(s));
+            var gift = a.ResolveGift(s);
+            Assert.IsNotNull(gift);
+            Assert.IsTrue(EstUnAdversaire(s, gift.RecipientPlayerId));
         }
 
-        [Test] public void RequestPendingEstDeclenche()
+        [Test]
+        public void RequestPendingEstDeclenche()
         {
             var a = Short(); HumanRequestKind got = HumanRequestKind.None;
             a.RequestPending += k => got = k;
             a.ProposeNormalPlay(View());
             Assert.AreEqual(HumanRequestKind.NormalPlay, got);
         }
-        [Test] public void SubmitDansLeHandlerEstCouvert()
+
+        [Test]
+        public void SubmitDansLeHandlerEstCouvert()
         {
             var a = new UnityHumanAgent(TimeSpan.FromSeconds(2));
             a.RequestPending += k => a.SubmitNoPlay();
@@ -104,7 +134,9 @@ namespace Psycko.Presentation.Tests
             d.RequestPending += k => d.SubmitExchanges(new List<ExchangeChoice>());
             Assert.AreEqual(0, d.ProposeExchanges(View()).Count);
         }
-        [Test] public void SubmitGiftDansLeHandler()
+
+        [Test]
+        public void SubmitGiftDansLeHandler()
         {
             var s = View(); var a = new UnityHumanAgent(TimeSpan.FromSeconds(2));
             var g = new GiftResolutionChoice(s.SelfHand[0], s.Opponents[0].PlayerId);
@@ -112,7 +144,8 @@ namespace Psycko.Presentation.Tests
             Assert.AreEqual(g.RecipientPlayerId, a.ResolveGift(s).RecipientPlayerId);
         }
 
-        [Test] public void SubmitPlayDansLeHandler()
+        [Test]
+        public void SubmitPlayDansLeHandler()
         {
             var s = View(); var a = new UnityHumanAgent(TimeSpan.FromSeconds(2));
             var p = Play.CreateSingle(0, s.SelfHand[0]);
@@ -120,18 +153,21 @@ namespace Psycko.Presentation.Tests
             Assert.AreSame(p, a.ProposeNormalPlay(s));
         }
 
-        [Test] public void ReplisParTimeoutNormalPlayEtPickupNonForce()
+        [Test]
+        public void ReplisParTimeoutNormalPlayEtPickupNonForce()
         {
             var a = Short(); var s = View();
             Assert.IsNull(a.ProposeNormalPlay(s));
             Assert.IsFalse(a.DecidePickup(s, false));
         }
 
-        [Test] public void ReplisGiftSansMainOuSansAdversaire()
+        [Test]
+        public void ReplisGiftSansMainOuSansAdversaire()
         {
             var a = new UnityHumanAgent(); a.Cancel();
             Assert.AreEqual(default(GiftResolutionChoice).RecipientPlayerId, a.ResolveGift(null).RecipientPlayerId);
         }
+
         private static T RunAsync<T>(UnityHumanAgent a, Func<T> call, HumanRequestKind kind, Action submit)
         {
             var seen = new ManualResetEventSlim(false);
@@ -148,7 +184,6 @@ namespace Psycko.Presentation.Tests
         {
             var a = new UnityHumanAgent();
             var st = View();
-            var card = st.SelfHand[0];
             var play = Play.CreateSingle(0, st.SelfHand[0]);
             var r = RunAsync(a, () => a.ProposeNormalPlay(st), HumanRequestKind.NormalPlay, () => a.SubmitPlay(play));
             Assert.AreSame(play, r);
@@ -247,6 +282,7 @@ namespace Psycko.Presentation.Tests
             Assert.AreEqual(0, a.ProposeFaceDownIndex(new Blind()));
             Assert.AreEqual(0, a.ProposeExchanges(st).Count);
             var gift = a.ResolveGift(st);
+            Assert.IsTrue(EstUnAdversaire(st, gift.RecipientPlayerId));
         }
 
         [Test]
