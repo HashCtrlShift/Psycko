@@ -528,11 +528,67 @@ Pas de tests NUnit ici (prévus en Phase 5). La projection est pure (`CardStateP
 **Dépendances** : T54, T55a, T55-6 (`CountdownTimer`, `CountdownView`). Merge bloqué par T51.
 **Suite** : T55-8.
 
-#### T55-8 — Dos des cartes adverses
-- `PlayerSeatView.RenderOpponent` : `HandCount` dos en éventail, `FaceDownCount` dos sous les FaceUp ;
-  spacing = `Min(_defaultSpacing, (_zoneWidth − _cardWidth) / (n − 1))`, plancher 12 px ;
-  jamais de plafond de nombre de dos.
-- Source : `IOpponentVisibleInfo.HandCount / FaceDownCount`. Aucune `Card` cachée lue.
+#### T55-8 — Dos des cartes adverses ✅
+
+**Statut** : terminé et validé en partie jouée à 4 joueurs. De petits ajustements visuels restent possibles plus tard. Tests NUnit de `HandSpacing` reportés en Phase 5 (calcul pur, testable en EditMode).
+
+**Objectif** : afficher les dos des cartes adverses (main et FaceDown) à partir des compteurs uniquement, sans jamais sortir de la zone du siège.
+
+**Comportement**
+- `PlayerSeatView.RenderOpponent` affiche `HandCount` dos pour la main. Il affiche aussi `FaceDownCount` dos sous les FaceUp : la FaceUp i recouvre le dos i.
+- Les dos sont alignés droit sur une ligne, sans éventail et sans rotation locale. Sur les sièges latéraux, c'est le conteneur qui est tourné de ±90° : la ligne apparaît donc verticale à l'écran.
+- Les dos de main adverse sont à l'échelle `_handBackScale` (**0,75** par défaut). Les FaceUp et FaceDown adverses gardent leur taille.
+- La disposition est calculée par `HandSpacing.Compute` (C# pur, avec un argument `maxVisible`) :
+  - spacing = `Min(_defaultSpacing, (_zoneWidth − _cardWidth) / (n − 1))`, plancher 12 px ;
+  - les rangées sont centrées sur le milieu du conteneur.
+- **Capacité** : on n'affiche que `VisibleCount` dos au maximum, plafonné par `maxVisible`, et jamais hors de la zone. Le label du nombre réel (`HandCount`) n'apparaît que si la main dépasse le nombre de dos affichés.
+- **Cas limites** :
+  - n = 0 : rien n'est affiché ;
+  - n = 1 : pas de calcul de spacing (pas de division par zéro) ;
+  - `_zoneWidth <= _cardWidth` : un seul dos.
+- Les FaceUp adverses sont placées par le code (`RenderFaceRow`), alignées sur les FaceDown qu'elles recouvrent.
+- **Source** : `IOpponentVisibleInfo.HandCount` et `FaceDownCount` uniquement. Aucune `Card` cachée n'est lue ni stockée.
+- **Dos** : `CardView.Bind(null, skin)` + `CardVisualState.FaceDown`, non cliquables.
+- **Layout Groups supprimés** sur tous les conteneurs adverses (main, FaceUp, FaceDown) des 3 sièges : les positions sont entièrement pilotées par le script.
+
+**Fichiers**
+- [x] Nouveau : `Assets/Scripts/Presentation/Models/HandSpacing.cs`
+- [x] Modifié : `Assets/Scripts/Presentation/UI/PlayerSeatView.cs`
+- [x] Scène : conteneurs adverses des 3 sièges sans Layout Group. Champs assignés : `_defaultSpacing`, `_zoneWidth`, `_cardWidth`, `_handBackScale`, `_tableRotationZ`, et le nombre maximal de dos visibles.
+
+**Réglages Inspector de référence (SeatLeft)**
+
+| Objet | Pos X | Pos Y | Width | Height | Rot Z |
+|---|---|---|---|---|---|
+| `HandContainerL` | 70 | 0 | 400 | 140 | -90 |
+| `FaceUpContainerL` | 260 | 40 | 400 | 140 | -90 |
+| `FaceDownContainerL` | 280 | 60 | 400 | 140 | -90 |
+
+- `PlayerSeatView` : Opponent Backs Vertical décoché, Table Rotation Z 0.
+- Main : Hand Back Scale 0,75, spacing par défaut 50, zone 400, 7 dos visibles au maximum.
+- FaceDown : spacing par défaut 150, zone 400.
+- SeatRight est réglé en miroir. Les valeurs finales des 3 sièges sont à reporter dans Notion.
+
+**Critères d'acceptation**
+- [x] Main adverse : autant de dos que `HandCount`, jusqu'à la capacité de la zone.
+- [x] Au-delà de la capacité : nombre maximal de dos affiché, et label du nombre réel visible.
+- [x] Aucun dos hors de la zone du siège, y compris avec une main de 15 cartes ou plus.
+- [x] FaceDown adverses affichés sous les FaceUp, à leur taille actuelle.
+- [x] Dos droits, sans rotation locale ; rangées verticales sur les sièges latéraux.
+- [x] n = 0, n = 1 et `_zoneWidth <= _cardWidth` sans erreur.
+- [x] Aucune `Card` cachée lue ni stockée.
+- [x] Pas de régression sur le don du 7, l'échange, les FaceDown aveugles, la sélection et la surbrillance.
+- [x] Aucune règle de jeu dans `Presentation/`.
+- [x] Compilation propre, 91/91 tests EditMode verts, partie testée à 4 joueurs avec de grandes et de petites mains.
+
+**Hors périmètre (reporté)**
+- Tests NUnit de `HandSpacing` (Phase 5).
+- Spacing adaptatif de la main humaine (T55-11, qui pourra réutiliser `HandSpacing`).
+- Décalage en diagonale des FaceUp pour laisser voir les FaceDown (offset `Vector2` dans `PlaceInRow`).
+- Factorisation de `CompleteRequest()`.
+
+**Dépendances** : T54, T55a, T55-5. Merge bloqué par T51.
+**Suite** : T55-9.
 
 #### T55-9 — Bannière de classement #1 / #2 (dépend de T62)
 - `PlayerSeatView._rankBanner` (Text 28 px, ancre top-right, 56×32), « #1 » / « #2 »
@@ -692,6 +748,69 @@ Tracer l'absence des sprites Prêtre et Cavalier (54 sur 63 dans Faces, Joker de
 Vérifié sur `main` : `GameState` n'enregistre pas l'ordre dans lequel les joueurs passent en
 `DefPhase.Finished` (`AdvancePlayerPhase`, `EliminatePlayer`). `OpponentVisibleInfo` ne porte que
 `CurrentPhase`. Aucune source pour afficher « #1 » / « #2 ».
+
+#### T62 — Fix : 2 terminal par phase (`LastCardValidator`)
+
+**Statut** : à faire. Ticket Core : **les tests NUnit EditMode sont obligatoires avant le merge**.
+
+**Contexte (bug constaté)**
+CLAUDE.md (lignes 394 à 396) interdit de terminer une phase sur un 2, dans les trois phases. Si le 2 est la dernière carte, le joueur le pose, **ramasse toute la pile (2 compris)** et passe son tour, sans destruction de la pile ni rejeu.
+
+Aujourd'hui, `LastCardValidator` ne considère un 2 comme terminal que si **les trois couches sont vides** (`handAfter <= 0 && faceUpAfter <= 0 && faceDownAfter <= 0`). Résultat : un 2 qui termine la phase Work ou Talent détruit la pile et déclenche la transition de phase.
+
+Le bug a été reproduit en console : il restait 3 FaceDown, le dernier 2♠ de la main a été joué, et on a obtenu `Detruite2, PhaseTransition (Luck)`. Le même bug existe dans Unity, puisque la console et Unity partagent le Core.
+
+**Objectif** : vérifier si le coup termine la **phase en cours**, et non l'ensemble des cartes du joueur.
+
+**Comportement**
+- `LastCardValidator` évalue le coup selon `player.CurrentPhase`, sur l'état **avant** le coup. C'est important parce que `TurnManager.ApplyPlay` déclenche la transition de phase avant que l'orchestrateur appelle le validateur.
+  - **Work** : le coup est terminal si `handAfter <= 0 && state.DrawPile.Count == 0`.
+  - **Talent** : le coup est terminal si `handAfter <= 0 && faceUpAfter <= 0`. Cette condition marche que les FaceUp passent dans la main ou soient jouées depuis la table. La console montre qu'elles passent dans la main ; c'est à confirmer et à écrire dans le GDD.
+  - **Luck** : le coup est terminal si `handAfter <= 0 && faceUpAfter <= 0 && faceDownAfter <= 0`. C'est le comportement actuel, qui doit rester inchangé.
+- Si le coup est terminal **et** que les cartes jouées contiennent un 2 :
+  - le 2 est posé ;
+  - le joueur ramasse toute la pile, 2 compris ;
+  - le tour passe au joueur suivant ;
+  - il n'y a **ni** `Detruite2`, **ni** rejeu, **ni** `PhaseTransition`.
+- La transition de phase normale reprend au prochain tour du joueur, avec sa nouvelle main.
+- `GameOrchestrator` (lignes 104 à 129) applique ce verdict avant tout effet de destruction ou de transition.
+
+**Fichiers**
+- [ ] Modifié : `Psycko.Core/Rules/Validation/LastCardValidator.cs`
+- [ ] Modifié si nécessaire : `Psycko.Core/Services/GameOrchestrator.cs` (ordre validation → effets)
+- [ ] Nouveau : `Tests/EditMode/Rules/Validation/LastCardValidatorTests.cs`
+- [ ] Nouveau ou modifié : test d'intégration dans `GameOrchestratorTests`
+
+**Tests NUnit EditMode**
+
+Cas où la règle doit s'appliquer :
+- [ ] Work : la main contient un seul 2, la pioche est vide, il reste des FaceUp et des FaceDown. Le joueur ramasse, 2 compris, sans destruction ni rejeu.
+- [ ] Work : la main contient seulement une paire de 2, la pioche est vide. Le joueur ramasse.
+- [ ] Talent : la dernière carte de la phase est un 2 et il reste des FaceDown. Le joueur ramasse.
+- [ ] Luck : le dernier FaceDown retourné est un 2. Le joueur ramasse (non-régression).
+
+Cas où la règle ne doit **pas** s'appliquer :
+- [ ] Il reste une autre carte dans la phase : le 2 détruit la pile normalement.
+- [ ] Work avec une pioche non vide : le 2 détruit la pile normalement.
+- [ ] La dernière carte n'est pas un 2 : transition de phase normale.
+
+Intégration :
+- [ ] `GameOrchestrator.ApplyPlay` : le ramassage forcé a bien lieu, et aucun effet `Detruite2` ni `PhaseTransition` n'est émis.
+
+**Critères d'acceptation**
+- [ ] Le scénario console reproduit (dernier 2 de la main, pioche vide, 3 FaceDown) provoque un ramassage forcé.
+- [ ] Tous les nouveaux tests passent, et les tests existants restent verts.
+- [ ] La simulation PsyckoConsole sur 1M parties se termine sans exception ni blocage.
+- [ ] La règle est vérifiée en partie Unity : le joueur humain ramasse automatiquement, et les bots aussi.
+- [ ] La couverture de `LastCardValidator` est d'au moins 90 %.
+- [ ] Aucun changement dans `Presentation/`.
+
+**Hors périmètre**
+- Signalement visuel du ramassage forcé (bandeau d'effet de carte, reporté).
+- Une stratégie des bots pour éviter de finir sur un 2 (Phase 4, StrategicBot).
+
+**Dépendances** : `LastCardValidator`, `TurnManager`, `GameOrchestrator`. Indépendant de T55-x.
+**Après le merge** : mettre à jour le GDD Notion, section « 2 en dernière carte », avec la condition de fin de chaque phase.
 
 ### Travail
 1. Vérifier d'abord `GameResultCalculator` et le journal (`Core/Services/Log`) : si l'ordre y est déjà

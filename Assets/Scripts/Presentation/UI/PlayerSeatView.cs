@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Psycko.Core.Domain;
 using Psycko.Presentation.Interfaces;
+using Psycko.Presentation.Models;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -20,6 +21,19 @@ namespace Psycko.Presentation.UI
         [SerializeField] private RectTransform _faceUpContainer;
         [SerializeField] private RectTransform _faceDownContainer;
         [SerializeField] private Button _seatButton;
+
+        [Header("Dos adverses (T55-8)")]
+        [SerializeField] private bool _opponentBacksVertical;      // true : cartes alignées sur l'axe Y local du conteneur
+        [SerializeField] private float _cardWidth = 140f;          // taille du prefab CardView
+        [SerializeField] private float _cardHeight = 196f;
+        [SerializeField] private float _handBackScale = 0.75f;     // échelle des dos de MAIN uniquement
+        [SerializeField] private float _handDefaultSpacing = 40f;
+        [SerializeField] private float _faceDownDefaultSpacing = 150f; // pas des FaceDown ET des FaceUp adverses
+        [SerializeField] private float _handZoneLength = 480f;     // longueur utile de la ligne de main
+        [SerializeField] private int _handMaxVisibleBacks = 8;     // plafond de dos de MAIN affichés
+        [SerializeField] private float _faceDownZoneLength = 480f; // longueur utile de la ligne FaceDown / FaceUp
+        [SerializeField] private float _minSpacing = HandSpacing.DefaultMinSpacing;
+        [SerializeField] private float _tableRotationZ = 0f;       // 90 (ou -90) sur SeatLeft/SeatRight : FaceUp/FaceDown couchées
 
         private readonly List<CardView> _handViews = new List<CardView>();
         private readonly List<CardView> _faceUpViews = new List<CardView>();
@@ -58,7 +72,12 @@ namespace Psycko.Presentation.UI
             else if (clickable) Debug.LogWarning("[PlayerSeatView] Assigner un Button au siège pour activer les clics.");
         }
 
-        /// <summary>Masque le siège (null) ou affiche un adversaire. Seules les cartes FaceUp publiques sont rendues.</summary>
+        /// <summary>
+        /// Masque le siège (null) ou affiche un adversaire. Cartes FaceUp publiques rendues ;
+        /// main et FaceDown : dos uniquement, à partir des compteurs (T55-8).
+        /// FaceUp et FaceDown partagent les mêmes emplacements : la FaceUp i recouvre le dos i.
+        /// Le label de main n'apparaît que si la main dépasse le nombre de dos affichables.
+        /// </summary>
         public void RenderOpponent(OpponentSeatViewModel model, ICardSkin skin)
         {
             if (model == null)
@@ -76,11 +95,24 @@ namespace Psycko.Presentation.UI
             Set(_faceDownCountLabel, model.FaceDownCount.ToString());
             if (_activeIndicator != null) _activeIndicator.SetActive(model.IsActive);
 
+            // Par défaut (skin absent), pas de dos affichés : le label ne doit pas s'afficher seul.
+            int visibleHandBacks = 0;
+
             if (skin != null)
             {
-                RenderCards(_faceUpViews, _faceUpContainer, model.FaceUp, skin, OnFaceUpClicked);
-                for (int i = 0; i < _faceUpViews.Count; i++) _faceUpViews[i].SetInteractable(false);
+                // Même nombre d'emplacements pour FaceUp et FaceDown : centrage identique.
+                int tableSlots = Math.Max(model.FaceUpCount, model.FaceDownCount);
+
+                // T55-8 : uniquement des compteurs, jamais de Card cachée.
+                visibleHandBacks = RenderBackRow(_handViews, _handContainer, model.HandCount, skin, OnHandClicked,
+                    _handBackScale, _handDefaultSpacing, _handZoneLength, _handMaxVisibleBacks, 0f, model.HandCount);
+                RenderBackRow(_faceDownViews, _faceDownContainer, model.FaceDownCount, skin, OnFaceDownClicked,
+                    1f, _faceDownDefaultSpacing, _faceDownZoneLength, int.MaxValue, _tableRotationZ, tableSlots);
+                RenderFaceRow(_faceUpViews, _faceUpContainer, model.FaceUp, skin, OnFaceUpClicked,
+                    _faceDownDefaultSpacing, _faceDownZoneLength, _tableRotationZ, tableSlots);
             }
+
+            UpdateHandCountLabel(model.HandCount, visibleHandBacks);
         }
 
         public void RenderSelf(SelfSeatViewModel model, string displayName, ICardSkin skin)
@@ -93,10 +125,22 @@ namespace Psycko.Presentation.UI
             Set(_faceUpCountLabel, model.FaceUp.Count.ToString());
             Set(_faceDownCountLabel, model.FaceDownCount.ToString()); // T55-5
             if (_activeIndicator != null) _activeIndicator.SetActive(model.IsActive);
+            // Soi-même : toutes les cartes sont visibles, le label reste affiché comme avant.
+            if (_handCountLabel != null) _handCountLabel.gameObject.SetActive(true);
             RenderCards(_handViews, _handContainer, model.Hand, skin, OnHandClicked);
             RenderCards(_faceUpViews, _faceUpContainer, model.FaceUp, skin, OnFaceUpClicked);
             // Jamais de Card liée aux FaceDown : uniquement le nombre et l'index aveugle.
             RenderFaceDownSlots(model.FaceDownCount, skin); // T55-5
+        }
+
+        /// <summary>
+        /// Affiche le label de main uniquement quand il reste des cartes non représentées
+        /// (compte réel supérieur au nombre de dos visibles).
+        /// </summary>
+        private void UpdateHandCountLabel(int realCount, int visibleBacks)
+        {
+            if (_handCountLabel == null) return;
+            _handCountLabel.gameObject.SetActive(realCount > visibleBacks);
         }
 
         private void RenderFaceDownSlots(int count, ICardSkin skin)
@@ -107,6 +151,94 @@ namespace Psycko.Presentation.UI
                 _faceDownViews[i].Bind(null, skin);
                 _faceDownViews[i].SetState(CardVisualState.FaceDown);
             }
+        }
+
+        /// <summary>
+        /// T55-8 : rangée de dos centrés et positionnés par code (aucun LayoutGroup sur ce conteneur).
+        /// slotCount = nombre d'emplacements servant au centrage (aligne FaceUp et FaceDown).
+        /// Retourne le nombre de dos réellement affichés.
+        /// </summary>
+        private int RenderBackRow(List<CardView> views, RectTransform container, int count, ICardSkin skin,
+            Action<CardView> handler, float scale, float defaultSpacing, float zoneLength, int maxVisible,
+            float rotationZ, int slotCount)
+        {
+            if (_cardViewPrefab == null || container == null) return 0;
+
+            float cardW = _cardWidth * scale;
+            float cardH = _cardHeight * scale;
+
+            HandLayoutResult layout = HandSpacing.Compute(
+                Math.Max(count, slotCount), defaultSpacing, zoneLength,
+                RowLength(cardW, cardH, rotationZ), _minSpacing, maxVisible);
+            int visible = Math.Min(count, layout.VisibleCount);
+            EnsureCount(views, container, visible, handler);
+
+            for (int i = 0; i < views.Count; i++)
+            {
+                CardView view = views[i];
+                view.Bind(null, skin);
+                view.SetState(CardVisualState.FaceDown);
+                view.SetInteractable(false);
+                PlaceInRow((RectTransform)view.transform, i, layout.Spacing, layout.VisibleCount,
+                    cardW, cardH, rotationZ);
+            }
+
+            return visible;
+        }
+
+        /// <summary>
+        /// FaceUp adverses placées par code sur les mêmes emplacements que les FaceDown
+        /// (la carte i recouvre exactement le dos i).
+        /// </summary>
+        private void RenderFaceRow(List<CardView> views, RectTransform container, IReadOnlyList<Card> cards,
+            ICardSkin skin, Action<CardView> handler, float defaultSpacing, float zoneLength,
+            float rotationZ, int slotCount)
+        {
+            int count = cards == null ? 0 : cards.Count;
+            if (_cardViewPrefab == null || container == null)
+            {
+                if (count > 0) Debug.LogWarning("[PlayerSeatView] Prefab ou conteneur de cartes non assigné.");
+                return;
+            }
+
+            HandLayoutResult layout = HandSpacing.Compute(
+                Math.Max(count, slotCount), defaultSpacing, zoneLength,
+                RowLength(_cardWidth, _cardHeight, rotationZ), _minSpacing, int.MaxValue);
+            int visible = Math.Min(count, layout.VisibleCount);
+            EnsureCount(views, container, visible, handler);
+
+            for (int i = 0; i < views.Count; i++)
+            {
+                CardView view = views[i];
+                view.Bind(cards[i], skin);
+                view.SetState(CardVisualState.Normal);
+                view.SetInteractable(false);
+                PlaceInRow((RectTransform)view.transform, i, layout.Spacing, layout.VisibleCount,
+                    _cardWidth, _cardHeight, rotationZ);
+            }
+        }
+
+        /// <summary>Extension d'une carte le long de l'axe de la rangée, rotation prise en compte.</summary>
+        private float RowLength(float cardW, float cardH, float rotationZ)
+        {
+            bool swapped = Mathf.Abs(Mathf.Repeat(rotationZ, 180f) - 90f) < 1f;
+            float alongX = swapped ? cardH : cardW;
+            float alongY = swapped ? cardW : cardH;
+            return _opponentBacksVertical ? alongY : alongX;
+        }
+
+        private void PlaceInRow(RectTransform rt, int index, float step, int slotCount,
+            float cardW, float cardH, float rotationZ)
+        {
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(cardW, cardH);
+            rt.localScale = Vector3.one;
+            rt.localRotation = Quaternion.Euler(0f, 0f, rotationZ);
+
+            float total = slotCount <= 1 ? 0f : step * (slotCount - 1);
+            float offset = -total * 0.5f + step * index;
+            rt.anchoredPosition = _opponentBacksVertical ? new Vector2(0f, -offset) : new Vector2(offset, 0f);
         }
 
         private void RenderCards(List<CardView> views, RectTransform container,
