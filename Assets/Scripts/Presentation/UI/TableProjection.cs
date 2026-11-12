@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Psycko.Core.Domain;
 using Psycko.Core.Interfaces;
 
 namespace Psycko.Presentation.UI
@@ -11,6 +12,8 @@ namespace Psycko.Presentation.UI
     /// </summary>
     public static class TableProjection
     {
+        public const int MaxVisiblePileCards = 12;
+
         private static readonly SeatPosition[] OpponentSlots =
         {
             SeatPosition.Left, SeatPosition.Top, SeatPosition.Right
@@ -36,23 +39,43 @@ namespace Psycko.Presentation.UI
             for (int i = 0; i < count; i++)
             {
                 IOpponentVisibleInfo o = source[i];
-                    opponents.Add(new OpponentSeatViewModel(
-                        o.PlayerId,
-                        o.Name,
-                        OpponentSlots[i],
-                        o.HandCount,
-                        o.FaceUp == null ? 0 : o.FaceUp.Count,
-                        o.FaceDownCount,
-                        o.PlayerId == activeId,
-                        o.FaceUp,
-                        o.FinishRank));
+                opponents.Add(new OpponentSeatViewModel(
+                    o.PlayerId,
+                    o.Name,
+                    OpponentSlots[i],
+                    o.HandCount,
+                    o.FaceUp == null ? 0 : o.FaceUp.Count,
+                    o.FaceDownCount,
+                    o.PlayerId == activeId,
+                    o.FaceUp,
+                    o.FinishRank));
             }
 
             int pileCount = state.Pile == null ? 0 : state.Pile.Count;
-            var top = state.Pile == null ? null : state.Pile.TopCard;
-            var zone = new ZoneViewModel(state.DrawPileCount, pileCount, top);
+            Card top = state.Pile == null ? null : state.Pile.TopCard;
+            int startIndex;
+            IReadOnlyList<Card> tail = ReadPileTail(state.Pile, MaxVisiblePileCards, out startIndex);
+            var zone = new ZoneViewModel(state.DrawPileCount, pileCount, top, tail, startIndex);
 
             return new TableViewModel(self, opponents.AsReadOnly(), zone);
+        }
+
+        /// <summary>
+        /// Les dernières cartes publiques de la pile, dans l'ordre de pose
+        /// (dernier index = dessus). startIndex = index absolu de la première retournée.
+        /// </summary>
+        private static IReadOnlyList<Card> ReadPileTail(Pile pile, int max, out int startIndex)
+        {
+            startIndex = 0;
+            if (pile == null) return Array.Empty<Card>();
+            IReadOnlyList<Card> cards = pile.Cards;
+            if (cards == null || cards.Count == 0) return Array.Empty<Card>();
+
+            int take = Math.Min(cards.Count, max);
+            startIndex = cards.Count - take;
+            var tail = new Card[take];
+            for (int i = 0; i < take; i++) tail[i] = cards[startIndex + i];
+            return tail;
         }
     }
 }

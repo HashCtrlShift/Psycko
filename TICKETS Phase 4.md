@@ -6,9 +6,9 @@ Interface Unity 2D jouable en local (1 humain + 3 bots), en paysage uniquement. 
 
 **Hors périmètre Phase 4 :** Photon Fusion, PlayFab, Unity IAP, sauvegarde/reprise, mode spectateur depuis GameLog, options daltonisme et taille de carte (Phase 5).
 
-**Ordre :** T50 ✅ → T51 (EN PAUSE) → T52 ✅ → T53 ✅ → T54 (en validation) → T55 → T60 → T56 → T57 → T58 → T59. Tests reportés en Phase 5 (décision Ekinox), sauf demande explicite. Le merge de T52–T55 est bloqué tant que T51 n'est pas repris.
+**Ordre :** T50✅ → T51✅ → T52✅ → T53✅ → T54✅ → T55 → T60 → T56 → T57 → T58 → T59. Tests reportés en Phase 5 (décision Ekinox), sauf demande explicite. Le merge de T52–T55 est bloqué tant que T51 n'est pas repris.
 
-## T50 — Bootstrap scène, asmdef, paysage verrouillé
+## T50 — Bootstrap scène, asmdef, paysage verrouillé✅
 
 - **Statut :** FAIT (en attente de merge)
 - **Contexte :** poser le socle Unity (scène, assemblies, orientation) avant toute logique de jeu.
@@ -65,7 +65,7 @@ Contrôle manuel en Game View 16:9 et 19.5:9 ; aucun test NUnit (ticket de struc
 
 ---
 
-## T51 — Adaptateur de partie (GameplayController, UnityHumanAgent)
+## T51 — Adaptateur de partie (GameplayController, UnityHumanAgent)✅
 
 - **Statut :** EN PAUSE — non mergé. Tests EditMode 8/8 verts, mais couverture Psycko.Core ≈ 1 % (rapport Summary.xml). Critère de couverture ≥ 90 % non atteint. Reprise prévue en Phase 5 (Rattrapage de couverture Core), puis merge.
 - **Contexte :** lancer une partie via GameRunner (1 humain + 3 RandomBot) et recevoir les événements, sans aucune logique de jeu côté Présentation.
@@ -118,7 +118,7 @@ Toute UI de table, toute animation, tout rendu de carte (T52 et suivants).
 
 ---
 
-# T52 — Vue de table (sièges, zones) en paysage
+# T52 — Vue de table (sièges, zones) en paysage✅
 
 **Statut : FAIT** *(merge bloqué par la dépendance T51)*
 
@@ -154,7 +154,7 @@ Toute UI de table, toute animation, tout rendu de carte (T52 et suivants).
 
 ---
 
-# T53 — Contrat de skin et skins de base interchangeables
+# T53 — Contrat de skin et skins de base interchangeables✅
 
 **Statut : FAIT — code, assets et validation éditeur OK. MERGE BLOQUÉ par T51**
 
@@ -215,7 +215,7 @@ Toute UI de table, toute animation, tout rendu de carte (T52 et suivants).
 
 ---
 
-# T54 — CardView utilisant le skin
+# T54 — CardView utilisant le skin✅
 
 **Statut : EN COURS DE VALIDATION** (code et prefab en place ; états visuels et commit restants)
 
@@ -645,12 +645,19 @@ Pas de tests NUnit ici (prévus en Phase 5). La projection est pure (`CardStateP
 
 ---
 
-#### T55-10 — Pile désalignée + carte sous le Joker de Verre
-- `ZoneView.RenderPile` : décalage déterministe par index (hash de l'index, pas de `Random`) :
-  position ±8 px, rotation ±6°.
-- Si le dessus est le Joker de Verre : rendre aussi la carte juste dessous (`Pile.Cards`).
+#### T55-10 — Pile désalignée + carte visible sous la pile
+- `ZoneView.Render` : décalage déterministe par index de carte dans la pile (hash de l'index,
+  pas de `Random`) : position ±8 px (X, Y), rotation Z ±15° pour la carte du dessus et ±180°
+  pour la carte du dessous. Rendu identique à chaque rafraîchissement.
+- `ZoneViewModel.CardBelowTop` : carte juste sous le dessus, projetée par `TableProjection`
+  depuis `Pile.Cards` (données publiques uniquement).
+- La carte du dessous est rendue systématiquement (`_pileBelowCardView`, sibling index inférieur).
+  Aucune détection du Joker de Verre dans `Presentation/` : sa transparence est portée par le
+  sprite lui-même. Pile d'une seule carte : rien dessous, aucune erreur.
 - Sprite Joker de Verre : importeur `Sprite Mode = Single`, `Mesh Type = Full Rect`,
   `Alpha Is Transparency` coché (le mode Multiple/slicing auto ne détecte que les pixels opaques).
+
+  ---
 
 #### T55-11 — Main triée et contenue
 - `HandSorter.Sort` appliqué à la main humaine (rang puis couleur).

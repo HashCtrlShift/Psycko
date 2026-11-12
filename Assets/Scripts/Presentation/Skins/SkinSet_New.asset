@@ -138,7 +138,7 @@ MonoBehaviour:
   - Key: Clubs_Priest
     Sprite: {fileID: -4206769460278848833, guid: 96db1eb9a266f634e8a30c63f4e10b8e, type: 3}
   - Key: Joker_Glass
-    Sprite: {fileID: 1620236684585799244, guid: 68d3daec37e8c9b4ba26d52448ca2225, type: 3}
+    Sprite: {fileID: 21300000, guid: 68d3daec37e8c9b4ba26d52448ca2225, type: 3}
   _cardBack: {fileID: 21300000, guid: cd2321a5cdce19c4d8f11ad692173807, type: 3}
   _tableColor: {r: 0.07, g: 0.35, b: 0.2, a: 1}
   _seatColor: {r: 0, g: 0, b: 0, a: 0.35}

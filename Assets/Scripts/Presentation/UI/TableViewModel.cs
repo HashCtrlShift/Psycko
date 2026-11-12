@@ -62,20 +62,30 @@ namespace Psycko.Presentation.UI
         }
     }
 
-    /// <summary>Pioche et pile : compteurs + carte du dessus de la pile.</summary>
+    /// <summary>
+    /// Pioche et pile : compteurs + dernières cartes publiques de la pile.
+    /// PileCards est dans l'ordre de pose (dernier = dessus).
+    /// PileStartIndex = index absolu (dans la pile complète) de PileCards[0].
+    /// </summary>
     public sealed class ZoneViewModel
     {
         public int DrawPileCount { get; }
         public int PileCardCount { get; }
         public bool IsPileEmpty { get; }
         public Card TopPileCard { get; }
+        public IReadOnlyList<Card> PileCards { get; }
+        public int PileStartIndex { get; }
 
-        public ZoneViewModel(int drawPileCount, int pileCardCount, Card topPileCard = null)
+        public ZoneViewModel(int drawPileCount, int pileCardCount,
+            Card topPileCard = null, IReadOnlyList<Card> pileCards = null,
+            int pileStartIndex = 0)
         {
             DrawPileCount = drawPileCount < 0 ? 0 : drawPileCount;
             PileCardCount = pileCardCount < 0 ? 0 : pileCardCount;
             IsPileEmpty = PileCardCount == 0;
             TopPileCard = IsPileEmpty ? null : topPileCard;
+            PileCards = IsPileEmpty ? Array.Empty<Card>() : (pileCards ?? Array.Empty<Card>());
+            PileStartIndex = pileStartIndex < 0 ? 0 : pileStartIndex;
         }
     }
 
