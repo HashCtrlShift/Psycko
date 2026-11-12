@@ -9,7 +9,8 @@ namespace Psycko.Core.Domain
 {
     /// <summary>
     /// Vue immuable et filtrée d'un adversaire : FaceUp public, seulement les COMPTES
-    /// pour la Main et les FaceDown. Aucune référence vers les cartes cachées.
+    /// pour la Main et les FaceDown, plus le rang d'arrivée (donnée publique).
+    /// Aucune référence vers les cartes cachées.
     /// </summary>
     public sealed class OpponentVisibleInfo : IOpponentVisibleInfo
     {
@@ -20,17 +21,23 @@ namespace Psycko.Core.Domain
         public int FaceDownCount { get; }
         public DefPhase CurrentPhase { get; }
 
+        /// <summary>Rang d'arrivée (1 = premier à finir), ou null s'il n'a pas fini.</summary>
+        public int? FinishRank { get; }
+
         public OpponentVisibleInfo(
             int playerId,
             string name,
             IEnumerable<Card> faceUp,
             int handCount,
             int faceDownCount,
-            DefPhase currentPhase)
+            DefPhase currentPhase,
+            int? finishRank = null)
         {
             if (faceUp is null) throw new ArgumentNullException(nameof(faceUp));
             if (handCount < 0) throw new ArgumentOutOfRangeException(nameof(handCount));
             if (faceDownCount < 0) throw new ArgumentOutOfRangeException(nameof(faceDownCount));
+            if (finishRank.HasValue && finishRank.Value < 1)
+                throw new ArgumentOutOfRangeException(nameof(finishRank));
 
             PlayerId = playerId;
             Name = name ?? string.Empty;
@@ -38,10 +45,11 @@ namespace Psycko.Core.Domain
             HandCount = handCount;
             FaceDownCount = faceDownCount;
             CurrentPhase = currentPhase;
+            FinishRank = finishRank;
         }
 
         /// <summary>Construit la vue filtrée d'un joueur adverse.</summary>
-        public static OpponentVisibleInfo From(Player opponent)
+        public static OpponentVisibleInfo From(Player opponent, int? finishRank)
         {
             if (opponent is null) throw new ArgumentNullException(nameof(opponent));
 
@@ -51,7 +59,8 @@ namespace Psycko.Core.Domain
                 opponent.FaceUp,
                 opponent.Hand.Count,
                 opponent.FaceDown.Count,
-                opponent.CurrentPhase);
+                opponent.CurrentPhase,
+                finishRank);
         }
     }
 }

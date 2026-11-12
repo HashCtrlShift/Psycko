@@ -6,7 +6,7 @@ namespace Psycko.Presentation.UI
 {
     public enum SeatPosition { Bottom, Left, Top, Right }
 
-    /// <summary>Siège adverse : quantités + FaceUp (public).</summary>
+    /// <summary>Siège adverse : quantités + FaceUp (public) + rang d'arrivée (public).</summary>
     public sealed class OpponentSeatViewModel
     {
         public int PlayerId { get; }
@@ -17,10 +17,11 @@ namespace Psycko.Presentation.UI
         public int FaceDownCount { get; }
         public bool IsActive { get; }
         public IReadOnlyList<Card> FaceUp { get; }
+        public int? FinishRank { get; }
 
         public OpponentSeatViewModel(int playerId, string name, SeatPosition position,
             int handCount, int faceUpCount, int faceDownCount, bool isActive,
-            IReadOnlyList<Card> faceUp = null)
+            IReadOnlyList<Card> faceUp = null, int? finishRank = null)
         {
             PlayerId = playerId;
             Name = name ?? string.Empty;
@@ -30,6 +31,7 @@ namespace Psycko.Presentation.UI
             FaceDownCount = faceDownCount;
             IsActive = isActive;
             FaceUp = faceUp ?? Array.Empty<Card>();
+            FinishRank = finishRank;
         }
     }
 
@@ -45,15 +47,18 @@ namespace Psycko.Presentation.UI
         public IReadOnlyList<Card> FaceUp { get; }
         public int FaceDownCount { get; }
         public bool IsActive { get; }
+        public int? FinishRank { get; }
 
         public SelfSeatViewModel(int playerId, IReadOnlyList<Card> hand,
-            IReadOnlyList<Card> faceUp, int faceDownCount, bool isActive)
+            IReadOnlyList<Card> faceUp, int faceDownCount, bool isActive,
+            int? finishRank = null)
         {
             PlayerId = playerId;
             Hand = hand ?? Array.Empty<Card>();
             FaceUp = faceUp ?? Array.Empty<Card>();
             FaceDownCount = faceDownCount < 0 ? 0 : faceDownCount;
             IsActive = isActive;
+            FinishRank = finishRank;
         }
     }
 

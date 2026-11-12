@@ -49,5 +49,14 @@ namespace Psycko.Core.Interfaces
         /// (anomalie d'état, jamais un cas métier normal à ce stade de la chaîne).
         /// </summary>
         int GetSeatIndex(int playerId);
+
+        /// <summary>
+        /// Rang d'arrivée du joueur (1 = premier à finir), ou null s'il n'a pas fini.
+        /// Le dernier joueur (le Psycko) ne « finit » jamais : dès que tous les autres ont
+        /// un rang, il reçoit le dernier rang (Players.Count, soit 4 à quatre joueurs).
+        /// Lecture pure, valeur dérivée de l'ordre de fin.
+        /// Lève ArgumentException si aucun joueur ne porte cet Id.
+        /// </summary>
+        int? GetFinishRank(int playerId);
     }
 }

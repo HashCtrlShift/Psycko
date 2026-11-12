@@ -276,7 +276,7 @@ Dépendances : T53 (merge bloqué par T51)
 **Statut : EN COURS** (T55-0 mergé et poussé ; T55-1 à T55-7 faits et validés ; T55-8 à T55-12 à faire)
 
 Branche : `T55-human-input` (depuis `main` à jour). Merge bloqué par T51.
-Dépendances : T54, T55a (✅ 89/89). T55-9 dépend de T62 (Core : ordre de fin).
+Dépendances : T54, T55a (✅ 89/89). T55-9 dépend de T61 (Core : ordre de fin).
 
 Fichiers : Controllers/InputHandler.cs, Controllers/UnityHumanAgent.cs, Models/HumanSelectionState.cs,
 Models/HandVisualStateResolver.cs, Models/CountdownTimer.cs, UI/CountdownView.cs, UI/CardView.cs,
@@ -590,9 +590,60 @@ Pas de tests NUnit ici (prévus en Phase 5). La projection est pure (`CardStateP
 **Dépendances** : T54, T55a, T55-5. Merge bloqué par T51.
 **Suite** : T55-9.
 
-#### T55-9 — Bannière de classement #1 / #2 (dépend de T62)
-- `PlayerSeatView._rankBanner` (Text 28 px, ancre top-right, 56×32), « #1 » / « #2 »
-  selon l'ordre de fin exposé par T62 ; vide pour les autres sièges.
+#### T55-9 — Bannière de classement #1 / #2 / #3 / Psycko ✅
+
+**Statut** : terminé et validé en partie jouée à 4 joueurs. Habillage graphique et animation reportés en Phase 5 (UI finale). Tests NUnit de la projection du rang et de `FormatRank` reportés en Phase 6.
+
+**Objectif** : afficher le rang d'arrivée sur le siège de chaque joueur (« #1 », « #2 », « #3 », « Psycko » pour le dernier), à partir du rang exposé par le Core (T61), sans aucun calcul de rang côté Présentation.
+
+**Comportement**
+- `PlayerSeatView._rankBanner` affiche « #1 », « #2 », « #3 » ou « Psycko » (rang 4). Il est masqué quand le rang est absent (`null`).
+- La bannière apparaît dès que le joueur termine, sans attendre la fin de partie. Elle vaut aussi pour le siège humain. Le rang « Psycko » apparaît dès que le 3e joueur sort.
+- **Source** : `IOpponentVisibleInfo.FinishRank` (adversaires) et `IPlayerVisibleState.SelfFinishRank` (soi), tous deux `int?`, exposés par T61. Phase d'échange : rang `null`, donc aucune bannière.
+- Le rang du Psycko est **calculé par le Core** (T61, valeur dérivée dans `GetFinishRank`). La Présentation ne fait que le recopier.
+- `OpponentSeatViewModel` et `SelfSeatViewModel` reçoivent une propriété `FinishRank` (`int?`), en paramètre optionnel de fin de constructeur (rétrocompatible).
+- `TableProjection.Build` recopie `SelfFinishRank` et `o.FinishRank` dans les ViewModels.
+- `PlayerSeatView.RenderSelf` et `RenderOpponent` appellent `UpdateRankBanner(model.FinishRank)`, qui renseigne le texte et active/désactive l'objet.
+- `FormatRank(int?)` : mapping d'affichage pur (`1→"#1"`, `2→"#2"`, `3→"#3"`, `4→"Psycko"`, sinon chaîne vide). `internal static` pour être testable en EditMode (nécessite `InternalsVisibleTo` vers l'assembly de tests, sinon passer en `public static`).
+- La bannière a **Raycast Target décoché** : elle ne bloque pas le clic du siège.
+
+**Fichiers**
+- [x] Modifié : `Assets/Scripts/Presentation/UI/TableViewModels.cs`
+- [x] Modifié : `Assets/Scripts/Presentation/UI/TableProjection.cs`
+- [x] Modifié : `Assets/Scripts/Presentation/UI/PlayerSeatView.cs`
+- [x] Scène : enfant `RankBanner` sur les 4 sièges, champ `_rankBanner` assigné, largeur élargie à 120
+
+`GameTableView.cs` : inchangé. Core : aucune modification dans ce ticket (le rang du Psycko relève de T61).
+
+**Réglages Inspector de référence (RankBanner, 4 sièges)**
+
+| Objet | Anchor | Pivot | Pos X | Pos Y | Width | Height |
+|---|---|---|---|---|---|---|
+| `RankBanner` | top-right (1, 1) | (1, 1) | 0 | 0 | 120 | 32 |
+
+- `Text` : Font Size 48, alignement centre/centre, Horizontal et Vertical Overflow = Overflow, Raycast Target décoché.
+- Sièges Left/Right : bannière lisible et non couverte par les cartes.
+- La largeur passe de 56 à 120 pour contenir « Psycko ». Overflow conservé en secours.
+
+**Critères d'acceptation**
+- [x] Le 1er à finir affiche « #1 », le 2e « #2 », le 3e « #3 », le dernier « Psycko ».
+- [x] Même comportement sur le siège humain (`SelfFinishRank`).
+- [x] Aucune bannière en phase d'échange ni en début de partie.
+- [x] Bannière visible dès la sortie du joueur, en cours de partie.
+- [x] Le clic sur un siège fonctionne toujours.
+- [x] Aucune `Card` cachée lue ni stockée.
+- [x] Aucune règle de jeu dans `Presentation/` (le rang du Psycko vient du Core).
+- [x] Compilation propre, tests EditMode existants verts, partie testée à 4 joueurs.
+
+**Hors périmètre (reporté)**
+- Habillage graphique et animation de la bannière (Phase 5, UI finale).
+- Tests NUnit de la projection du rang et de `FormatRank` (Phase 6).
+- Affichage adapté aux parties à moins de 4 joueurs : `FormatRank` ne gère que les rangs 1 à 4. À 3 joueurs, le dernier afficherait « #3 ». Sans objet tant que le jeu reste à 4 joueurs.
+- Gestion de l'écran de fin de partie recouvrant la table (visibilité de « Psycko » à cet instant) : à traiter en Phase 5.
+
+**Dépendances** : T61 (dont rang du Psycko), T55-8.
+
+---
 
 #### T55-10 — Pile désalignée + carte sous le Joker de Verre
 - `ZoneView.RenderPile` : décalage déterministe par index (hash de l'index, pas de `Random`) :
@@ -616,7 +667,7 @@ Pas de tests NUnit ici (prévus en Phase 5). La projection est pure (`CardStateP
 - Sélection toujours cohérente avec le relevé. Durées réglables : `_exchangeSeconds`, `_giftSeconds`.
 
 ### Ordre d'attaque
-T55-2✅ → 4✅ → 3✅ → 5✅ → 6 → 7a → 7 → 11 → 8 → 10 → (T61) → 9 → 12.
+T55-2✅ → 4✅ → 3✅ → 5✅ → 6✅ → 7✅ → 11 → 8✅ → 10 → T61✅ → 9✅ → 12.
 
 ### Hors périmètre
 - Tests (Phase 5). Animations, bandeau d'effets, `TableColor` / `SeatColor`.
@@ -740,14 +791,51 @@ Tracer l'absence des sprites Prêtre et Cavalier (54 sur 63 dans Faces, Joker de
 
 ---
 
-## T61 — Core : exposer l'ordre de fin des joueurs
+## T61 — Ordre de fin des joueurs et rang du Psycko dans le Core ✅
 
-**Statut : À FAIRE** — Prérequis de T55-9. Branche : `T62-finish-order` (depuis `main`).
+**Statut** : terminé et validé en partie jouée à 4 joueurs. Tests NUnit reportés en Phase 6.
 
-### Contexte
-Vérifié sur `main` : `GameState` n'enregistre pas l'ordre dans lequel les joueurs passent en
-`DefPhase.Finished` (`AdvancePlayerPhase`, `EliminatePlayer`). `OpponentVisibleInfo` ne porte que
-`CurrentPhase`. Aucune source pour afficher « #1 » / « #2 ».
+### Objectif
+Enregistrer dans le Core l'ordre dans lequel les joueurs terminent la partie et exposer leur rang, y compris celui du dernier joueur (le Psycko), sans révéler d'informations privées sur leurs cartes. Prérequis de l'affichage des rangs côté Présentation (T55-9).
+
+### Périmètre
+- Ajouter `Domain/FinishOrder.cs`, une valeur immuable qui conserve l'ordre des identifiants de joueurs terminés. `Add` sur un Id déjà présent retourne l'instance inchangée.
+- Faire porter à `GameState` un `FinishOrder` et le préserver dans toutes les transitions d'état (`With*`, `PlayCards`, `PickUpPile`, `DrawCards`, `TransferCard`, `PickUpFaceUp`, etc.).
+- Ajouter `IGameStateQuery.GetFinishRank(int playerId)` : rang à partir de 1, ou `null` si le joueur n'a pas terminé.
+- Attribuer le rang une seule fois lors du passage à `DefPhase.Finished`, dans `AdvancePlayerPhase` et `EliminatePlayer`. Un joueur éliminé reçoit un rang au moment de l'appel.
+- Un appel sur un joueur déjà `Finished` ne modifie pas l'ordre et n'attribue pas de rang supplémentaire.
+- En cas de fins multiples, l'ordre est celui des transitions effectuées : la première transition vers `Finished` obtient le rang le plus bas. Règle documentée dans le code.
+- **Rang du Psycko** : le dernier joueur ne passe jamais en `Finished`. `GameState.GetFinishRank` le dérive : si `FinishOrder.Count == Players.Count - 1` et que le joueur demandé n'est pas dans l'ordre, il reçoit `Players.Count` (4 à 4 joueurs). Cette valeur est **dérivée, jamais stockée** : `FinishOrder` n'est pas modifié. Tant que moins de `Players.Count - 1` joueurs ont fini, les joueurs restants renvoient `null`.
+- `GetFinishRank` lève `ArgumentException` si l'Id est inconnu (via `GetSeatIndex`).
+- Ajouter `FinishRank` (`int?`) à `IOpponentVisibleInfo` et `OpponentVisibleInfo` (paramètre optionnel de fin de constructeur, validé ≥ 1), alimenté depuis `PlayerVisibleState.From` et `PlayerVisibleState.FromExchange` (`null` en échange).
+- Ajouter `SelfFinishRank` (`int?`) à `IPlayerVisibleState` et `PlayerVisibleState`, pour le siège du joueur lui-même.
+- Mettre à jour la doc de `IGameStateQuery.GetFinishRank` (rang du dernier joueur déduit).
+- Aucune carte cachée exposée par ces vues : le rang est une donnée publique.
+
+### Fichiers
+- [x] Ajouté : `Psycko.Core/Domain/FinishOrder.cs`
+- [x] Modifié : `Psycko.Core/Domain/GameState.cs`
+- [x] Modifié : `Psycko.Core/Interfaces/IGameStateQuery.cs`
+- [x] Modifié : `Psycko.Core/Interfaces/IPlayerVisibleState.cs` (+ `IOpponentVisibleInfo`)
+- [x] Modifié : `Psycko.Core/Domain/PlayerVisibleState.cs`
+- [x] Modifié : `Psycko.Core/Domain/OpponentVisibleInfo.cs`
+
+### Hors périmètre
+- Pas de modification de `GameResultTracker` ni de `GameResultCalculator` (ticket séparé).
+- Pas de modification de `Presentation/` (voir T55-9).
+- Pas de mélange avec le correctif T62 (le 2).
+- **Tests NUnit EditMode reportés en Phase 6** (inversion Phase 5 UI finale / Phase 6 Tests NUnit). À écrire alors : `FinishOrder` (Add, doublon, GetRank, immuabilité), `GetFinishRank` (ordre, joueur non fini, éliminé, appel sur joueur déjà `Finished`, rang du Psycko = `Players.Count` dès que tous les autres ont fini, `null` avant), vues filtrées (`FinishRank`, `SelfFinishRank`, `null` en échange). Couverture cible ≥ 90 % sur les fichiers ajoutés ou modifiés.
+
+### Validation
+- [x] Compilation propre du Core.
+- [x] Partie jouée à 4 joueurs : rangs 1, 2, 3 attribués dans l'ordre de sortie, puis rang 4 au dernier joueur.
+- [ ] Simulation `Tools/PsyckoConsole/` (1M parties, ou 10 000 si le 1M est reporté) : aucune exception, rangs de 1 à N sans doublon, inchangés après attribution. **À exécuter** (à cocher une fois lancée).
+- [ ] Tests NUnit EditMode : Phase 6.
+
+### Dépendances et suite
+Dépendance : aucune. Suite : T55-9 (affichage des rangs dans `Presentation/`).
+
+---
 
 #### T62 — Fix : 2 terminal par phase (`LastCardValidator`)
 
@@ -814,7 +902,7 @@ Intégration :
 
 ### Travail
 1. Vérifier d'abord `GameResultCalculator` et le journal (`Core/Services/Log`) : si l'ordre y est déjà
-   calculable de façon fiable, T62 devient une simple exposition en lecture.
+   calculable de façon fiable, T61 devient une simple exposition en lecture.
 2. Sinon, ajouter à `GameState` une liste immuable `FinishOrder` (ids de joueurs, par ordre de fin),
    alimentée par `AdvancePlayerPhase` / `EliminatePlayer` quand le joueur passe à `Finished`
    (jamais deux fois le même id). Mettre à jour tous les `With*` pour la propager.
@@ -827,8 +915,8 @@ Intégration :
 ### Critères
 - Core pur, immuabilité conservée, aucun comportement de jeu modifié.
 - Simulation console (Tools/PsyckoConsole) inchangée : mêmes résultats à seed égal.
-- Tests existants verts (89/89). Commit `Phase 4 T62`. Merge après T51.
+- Tests existants verts (89/89).
 
 ## Ordre d'exécution
 
-T50 ✅ → T51 ⏸ → T52 ✅ → T53 ✅ → T54 🔄 → T55 [+ T61] 🔄 → T60 → T56 → T57 → T58 → T59
+T50 ✅ → T51 ⏸ → T52 ✅ → T53 ✅ → T54 ✅ → T55 [+ T61] 🔄 → T60 → T56 → T57 → T58 → T59

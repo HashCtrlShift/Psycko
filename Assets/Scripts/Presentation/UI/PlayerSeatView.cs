@@ -15,6 +15,7 @@ namespace Psycko.Presentation.UI
         [SerializeField] private Text _handCountLabel;
         [SerializeField] private Text _faceUpCountLabel;
         [SerializeField] private Text _faceDownCountLabel;
+        [SerializeField] private Text _rankBanner;                 // T55-9
         [SerializeField] private GameObject _activeIndicator;
         [SerializeField] private CardView _cardViewPrefab;
         [SerializeField] private RectTransform _handContainer;
@@ -94,6 +95,7 @@ namespace Psycko.Presentation.UI
             Set(_faceUpCountLabel, model.FaceUpCount.ToString());
             Set(_faceDownCountLabel, model.FaceDownCount.ToString());
             if (_activeIndicator != null) _activeIndicator.SetActive(model.IsActive);
+            UpdateRankBanner(model.FinishRank); // T55-9
 
             // Par défaut (skin absent), pas de dos affichés : le label ne doit pas s'afficher seul.
             int visibleHandBacks = 0;
@@ -125,12 +127,39 @@ namespace Psycko.Presentation.UI
             Set(_faceUpCountLabel, model.FaceUp.Count.ToString());
             Set(_faceDownCountLabel, model.FaceDownCount.ToString()); // T55-5
             if (_activeIndicator != null) _activeIndicator.SetActive(model.IsActive);
+            UpdateRankBanner(model.FinishRank); // T55-9
             // Soi-même : toutes les cartes sont visibles, le label reste affiché comme avant.
             if (_handCountLabel != null) _handCountLabel.gameObject.SetActive(true);
             RenderCards(_handViews, _handContainer, model.Hand, skin, OnHandClicked);
             RenderCards(_faceUpViews, _faceUpContainer, model.FaceUp, skin, OnFaceUpClicked);
             // Jamais de Card liée aux FaceDown : uniquement le nombre et l'index aveugle.
             RenderFaceDownSlots(model.FaceDownCount, skin); // T55-5
+        }
+
+        /// <summary>
+        /// T55-9 : « #1 », « #2 », « #3 », « Psycko » (rang 4). Rang absent : bannière masquée.
+        /// Affichage pur : le rang (y compris celui du Psycko) est calculé par le Core.
+        /// </summary>
+        private void UpdateRankBanner(int? finishRank)
+        {
+            if (_rankBanner == null) return;
+
+            string text = FormatRank(finishRank);
+            _rankBanner.text = text;
+            _rankBanner.gameObject.SetActive(text.Length > 0);
+        }
+
+        /// <summary>Mapping d'affichage pur rang -> texte (aucun calcul de règle).</summary>
+        internal static string FormatRank(int? finishRank)
+        {
+            switch (finishRank)
+            {
+                case 1: return "#1";
+                case 2: return "#2";
+                case 3: return "#3";
+                case 4: return "Psycko";
+                default: return string.Empty;
+            }
         }
 
         /// <summary>

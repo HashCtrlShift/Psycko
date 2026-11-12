@@ -21,6 +21,7 @@ namespace Psycko.Presentation.Tests
             public int HandCount { get; set; }
             public int FaceDownCount { get; set; }
             public DefPhase CurrentPhase { get; set; } = DefPhase.Work;
+            public int? FinishRank { get; set; }
         }
 
         private sealed class StateStub : IPlayerVisibleState
@@ -38,6 +39,7 @@ namespace Psycko.Presentation.Tests
             public PlayDirection Direction { get; set; } = PlayDirection.Clockwise;
             public HeightConstraint Constraint { get; set; } = HeightConstraint.Normal;
             public DefRank RefRank { get; set; } = DefRank.Three;
+            public int? SelfFinishRank { get; set; }
         }
 
         // ---------- Fabriques ----------
@@ -376,6 +378,25 @@ namespace Psycko.Presentation.Tests
             Assert.AreEqual(2, o.FaceUpCount);
             Assert.AreEqual(3, o.FaceDownCount);
             Assert.IsTrue(o.IsActive);
+        }
+
+        // ---------- T62 : rang d'arrivée (stubs uniquement) ----------
+        // La projection vers les ViewModels sera testée avec T55-9.
+        [Test]
+        public void Stubs_FinishRank_DefaultsToNull()
+        {
+            Assert.IsNull(new OpponentStub().FinishRank);
+            Assert.IsNull(new StateStub().SelfFinishRank);
+        }
+
+        [Test]
+        public void Stubs_FinishRank_CanCarryRank()
+        {
+            var o = new OpponentStub { FinishRank = 2 };
+            var s = new StateStub { SelfFinishRank = 1 };
+
+            Assert.AreEqual(2, o.FinishRank);
+            Assert.AreEqual(1, s.SelfFinishRank);
         }
     }
 }

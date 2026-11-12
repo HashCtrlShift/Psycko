@@ -48,8 +48,37 @@ namespace Psycko.Core.Domain
         /// </summary>
         public DefRank RefRank { get; }
 
+        /// <summary>
+        /// Ordre d'arrivée des joueurs (Ids), du 1er au dernier à finir.
+        /// Écrit une seule fois par joueur, au passage en DefPhase.Finished.
+        /// Le Psycko (dernier joueur) n'y figure jamais : son rang est DÉDUIT par GetFinishRank.
+        /// </summary>
+        public FinishOrder FinishOrder { get; }
+
         /// <summary>Le joueur dont c'est le tour.</summary>
         public Player GetActivePlayer() => _players[ActivePlayerIndex];
+
+        /// <summary>
+        /// Rang d'arrivée (à partir de 1) du joueur, ou null s'il n'a pas fini.
+        /// Rang du Psycko : quand tous les autres joueurs ont un rang, le seul joueur restant
+        /// reçoit le dernier rang (Players.Count). Valeur dérivée, jamais stockée dans
+        /// FinishOrder (qui reste inchangé et immuable).
+        /// Lève ArgumentException si l'Id est inconnu.
+        /// </summary>
+        public int? GetFinishRank(int playerId)
+        {
+            // Valide l'Id (anomalie d'état si inconnu) avant tout calcul.
+            FindPlayerIndexById(playerId);
+
+            int? rank = FinishOrder.GetRank(playerId);
+            if (rank.HasValue) return rank;
+
+            // Tous les autres joueurs ont fini : le joueur restant est le Psycko.
+            if (FinishOrder.Count == _players.Count - 1)
+                return _players.Count;
+
+            return null;
+        }
 
         private GameState(
             List<Player> players,
@@ -58,7 +87,8 @@ namespace Psycko.Core.Domain
             int activePlayerIndex,
             PlayDirection direction,
             HeightConstraint constraint,
-            DefRank refRank)
+            DefRank refRank,
+            FinishOrder finishOrder)
         {
             _players = players;
             _drawPile = drawPile;
@@ -67,6 +97,7 @@ namespace Psycko.Core.Domain
             Direction = direction;
             Constraint = constraint;
             RefRank = refRank;
+            FinishOrder = finishOrder;
         }
 
         /// <summary>
@@ -74,6 +105,7 @@ namespace Psycko.Core.Domain
         /// pioche restante après distribution, pile vide, sens horaire, contrainte normale.
         /// Le premier joueur est DÉSIGNÉ par FirstPlayerResolver (plus petite carte en main) ;
         /// il n'est plus fourni par l'appelant.
+        /// L'ordre de fin démarre vide (nouvelle partie / partie rejouée = état neuf).
         /// </summary>
         public static GameState CreateInitial(
             IEnumerable<Player> players,
@@ -95,12 +127,13 @@ namespace Psycko.Core.Domain
                 firstPlayerIndex,
                 PlayDirection.Clockwise,
                 HeightConstraint.Normal,
-                DefRank.Three);
+                DefRank.Three,
+                FinishOrder.Empty);
         }
 
         /// <summary>Retourne une copie de l'état avec la liste des joueurs remplacée.</summary>
         public GameState WithPlayers(IEnumerable<Player> players)
-            => new GameState(players.ToList(), _drawPile, Pile, ActivePlayerIndex, Direction, Constraint, RefRank);
+            => new GameState(players.ToList(), _drawPile, Pile, ActivePlayerIndex, Direction, Constraint, RefRank, FinishOrder);
 
         /// <summary>Retourne une copie de l'état avec un seul joueur remplacé (par son index de siège).</summary>
         public GameState WithPlayer(int index, Player player)
@@ -110,16 +143,16 @@ namespace Psycko.Core.Domain
 
             var updated = new List<Player>(_players);
             updated[index] = player;
-            return new GameState(updated, _drawPile, Pile, ActivePlayerIndex, Direction, Constraint, RefRank);
+            return new GameState(updated, _drawPile, Pile, ActivePlayerIndex, Direction, Constraint, RefRank, FinishOrder);
         }
 
         /// <summary>Retourne une copie de l'état avec la pioche remplacée (ex: après un tirage).</summary>
         public GameState WithDrawPile(IEnumerable<Card> drawPile)
-            => new GameState(_players, drawPile.ToList(), Pile, ActivePlayerIndex, Direction, Constraint, RefRank);
+            => new GameState(_players, drawPile.ToList(), Pile, ActivePlayerIndex, Direction, Constraint, RefRank, FinishOrder);
 
         /// <summary>Retourne une copie de l'état avec la Pile remplacée (nouveau coup ajouté, ou pile détruite via Pile.Empty).</summary>
         public GameState WithPile(Pile pile)
-            => new GameState(_players, _drawPile, pile, ActivePlayerIndex, Direction, Constraint, RefRank);
+            => new GameState(_players, _drawPile, pile, ActivePlayerIndex, Direction, Constraint, RefRank, FinishOrder);
 
         /// <summary>Retourne une copie de l'état avec un nouveau joueur actif désigné.</summary>
         public GameState WithActivePlayerIndex(int activePlayerIndex)
@@ -127,12 +160,12 @@ namespace Psycko.Core.Domain
             if (activePlayerIndex < 0 || activePlayerIndex >= _players.Count)
                 throw new ArgumentOutOfRangeException(nameof(activePlayerIndex));
 
-            return new GameState(_players, _drawPile, Pile, activePlayerIndex, Direction, Constraint, RefRank);
+            return new GameState(_players, _drawPile, Pile, activePlayerIndex, Direction, Constraint, RefRank, FinishOrder);
         }
 
         /// <summary>Retourne une copie de l'état avec le sens de jeu inversé (effet Valet).</summary>
         public GameState WithDirection(PlayDirection direction)
-            => new GameState(_players, _drawPile, Pile, ActivePlayerIndex, direction, Constraint, RefRank);
+            => new GameState(_players, _drawPile, Pile, ActivePlayerIndex, direction, Constraint, RefRank, FinishOrder);
 
         /// <summary>
         /// Retourne une copie de l'état avec une nouvelle contrainte de hauteur et son RefRank associé
@@ -140,9 +173,9 @@ namespace Psycko.Core.Domain
         /// retour au mode normal → constraint=Normal, refRank=rang du dernier coup posé).
         /// </summary>
         public GameState WithConstraint(HeightConstraint constraint, DefRank refRank)
-            => new GameState(_players, _drawPile, Pile, ActivePlayerIndex, Direction, constraint, refRank);
-    
-            // --- IGameStateCommand ---
+            => new GameState(_players, _drawPile, Pile, ActivePlayerIndex, Direction, constraint, refRank, FinishOrder);
+
+        // --- IGameStateCommand ---
 
         public IGameState PlayCards(Play play)
         {
@@ -177,7 +210,7 @@ namespace Psycko.Core.Domain
 
             var updatedPile = Pile.Add(play);
 
-            return new GameState(updatedPlayers, _drawPile, updatedPile, ActivePlayerIndex, Direction, Constraint, RefRank)
+            return new GameState(updatedPlayers, _drawPile, updatedPile, ActivePlayerIndex, Direction, Constraint, RefRank, FinishOrder)
                 as IGameState;
         }
 
@@ -192,7 +225,7 @@ namespace Psycko.Core.Domain
             var updatedPlayers = new List<Player>(_players);
             updatedPlayers[playerIndex] = updatedPlayer;
 
-            return new GameState(updatedPlayers, _drawPile, Pile.Empty, ActivePlayerIndex, Direction, Constraint, RefRank)
+            return new GameState(updatedPlayers, _drawPile, Pile.Empty, ActivePlayerIndex, Direction, Constraint, RefRank, FinishOrder)
                 as IGameState;
         }
 
@@ -226,10 +259,15 @@ namespace Psycko.Core.Domain
             var updatedPlayers = new List<Player>(_players);
             updatedPlayers[playerIndex] = updatedPlayer;
 
-            return new GameState(updatedPlayers, remainingDraw, Pile, ActivePlayerIndex, Direction, Constraint, RefRank)
+            return new GameState(updatedPlayers, remainingDraw, Pile, ActivePlayerIndex, Direction, Constraint, RefRank, FinishOrder)
                 as IGameState;
         }
 
+        /// <summary>
+        /// Fait avancer la phase du joueur (Work → Talent → Luck → Finished).
+        /// Au passage en Finished, le joueur est enregistré UNE fois dans FinishOrder.
+        /// Appel sur un joueur déjà Finished : aucun changement (rang jamais réécrit).
+        /// </summary>
         public IGameState AdvancePlayerPhase(int playerIndex)
         {
             ValidatePlayerIndex(playerIndex, _players.Count, nameof(playerIndex));
@@ -247,9 +285,18 @@ namespace Psycko.Core.Domain
             var updatedPlayers = new List<Player>(_players);
             updatedPlayers[playerIndex] = updatedPlayer;
 
-            return WithPlayers(updatedPlayers) as IGameState;
+            var updatedOrder = nextPhase == DefPhase.Finished
+                ? FinishOrder.Add(player.Id)
+                : FinishOrder;
+
+            return new GameState(updatedPlayers, _drawPile, Pile, ActivePlayerIndex, Direction, Constraint, RefRank, updatedOrder)
+                as IGameState;
         }
 
+        /// <summary>
+        /// Élimine le joueur (force Finished). Il reçoit un rang au moment de l'appel,
+        /// une seule fois (FinishOrder.Add ignore un Id déjà présent).
+        /// </summary>
         public IGameState EliminatePlayer(int playerIndex)
         {
             ValidatePlayerIndex(playerIndex, _players.Count, nameof(playerIndex));
@@ -260,9 +307,11 @@ namespace Psycko.Core.Domain
             var updatedPlayers = new List<Player>(_players);
             updatedPlayers[playerIndex] = updatedPlayer;
 
-            return WithPlayers(updatedPlayers) as IGameState;
+            return new GameState(updatedPlayers, _drawPile, Pile, ActivePlayerIndex, Direction, Constraint, RefRank, FinishOrder.Add(player.Id))
+                as IGameState;
         }
-                /// <summary>
+
+        /// <summary>
         /// Transfert mécanique strict Hand→Hand. Les couches FaceUp/FaceDown ne sont
         /// volontairement pas représentées par cette commande.
         /// </summary>
@@ -291,11 +340,27 @@ namespace Psycko.Core.Domain
                     destination.Hand.Concat(new[] { card }).ToList());
             }
 
-            return new GameState(updatedPlayers, _drawPile, Pile, ActivePlayerIndex, Direction, Constraint, RefRank)
+            return new GameState(updatedPlayers, _drawPile, Pile, ActivePlayerIndex, Direction, Constraint, RefRank, FinishOrder)
                 as IGameState;
         }
 
-        // --- Helpers privés (nouveaux, strictement mécaniques) ---
+        public IGameState PickUpFaceUp(int playerIndex)
+        {
+            ValidatePlayerIndex(playerIndex, _players.Count, nameof(playerIndex));
+
+            var player = _players[playerIndex];
+            var updatedPlayer = player
+                .WithHand(player.Hand.Concat(player.FaceUp).ToList())
+                .WithFaceUp(new List<Card>());
+
+            var updatedPlayers = new List<Player>(_players);
+            updatedPlayers[playerIndex] = updatedPlayer;
+
+            return new GameState(updatedPlayers, _drawPile, Pile, ActivePlayerIndex, Direction, Constraint, RefRank, FinishOrder)
+                as IGameState;
+        }
+
+        // --- Helpers privés (strictement mécaniques) ---
 
         private static List<Card> RemoveCards(IReadOnlyList<Card> source, IReadOnlyList<Card> toRemove)
         {
@@ -308,6 +373,7 @@ namespace Psycko.Core.Domain
             }
             return result;
         }
+
         public int GetSeatIndex(int playerId) => FindPlayerIndexById(playerId);
 
         private int FindPlayerIndexById(int playerId)
@@ -323,20 +389,6 @@ namespace Psycko.Core.Domain
         {
             if (playerIndex < 0 || playerIndex >= playerCount)
                 throw new ArgumentOutOfRangeException(parameterName, playerIndex, "L'index du joueur est hors limites.");
-        }
-        public IGameState PickUpFaceUp(int playerIndex)
-        {
-            ValidatePlayerIndex(playerIndex, _players.Count, nameof(playerIndex));
-
-            var player = _players[playerIndex];
-            var updatedPlayer = player
-                .WithHand(player.Hand.Concat(player.FaceUp).ToList())
-                .WithFaceUp(new List<Card>());
-
-            var updatedPlayers = new List<Player>(_players);
-            updatedPlayers[playerIndex] = updatedPlayer;
-
-            return new GameState(updatedPlayers, _drawPile, Pile, ActivePlayerIndex, Direction, Constraint, RefRank);
         }
     }
 }

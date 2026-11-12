@@ -27,7 +27,8 @@ namespace Psycko.Presentation.UI
                 state.SelfHand,
                 state.SelfFaceUp,
                 state.SelfFaceDown == null ? 0 : state.SelfFaceDown.Count,
-                state.SelfPlayerId == activeId);
+                state.SelfPlayerId == activeId,
+                state.SelfFinishRank);
 
             var opponents = new List<OpponentSeatViewModel>();
             IReadOnlyList<IOpponentVisibleInfo> source = state.Opponents;
@@ -35,15 +36,16 @@ namespace Psycko.Presentation.UI
             for (int i = 0; i < count; i++)
             {
                 IOpponentVisibleInfo o = source[i];
-                opponents.Add(new OpponentSeatViewModel(
-                    o.PlayerId,
-                    o.Name,
-                    OpponentSlots[i],
-                    o.HandCount,
-                    o.FaceUp == null ? 0 : o.FaceUp.Count,
-                    o.FaceDownCount,
-                    o.PlayerId == activeId,
-                    o.FaceUp));
+                    opponents.Add(new OpponentSeatViewModel(
+                        o.PlayerId,
+                        o.Name,
+                        OpponentSlots[i],
+                        o.HandCount,
+                        o.FaceUp == null ? 0 : o.FaceUp.Count,
+                        o.FaceDownCount,
+                        o.PlayerId == activeId,
+                        o.FaceUp,
+                        o.FinishRank));
             }
 
             int pileCount = state.Pile == null ? 0 : state.Pile.Count;

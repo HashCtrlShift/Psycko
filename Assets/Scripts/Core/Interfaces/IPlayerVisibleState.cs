@@ -23,6 +23,13 @@ namespace Psycko.Core.Interfaces
         PlayDirection Direction { get; }
         HeightConstraint Constraint { get; }
         DefRank RefRank { get; }
+
+        /// <summary>
+        /// Rang d'arrivée du joueur lui-même (1 = premier), ou null s'il n'a pas fini.
+        /// Le dernier joueur (le Psycko) reçoit le dernier rang (4 à quatre joueurs)
+        /// dès que tous les autres ont fini.
+        /// </summary>
+        int? SelfFinishRank { get; }
     }
 
     /// <summary>Informations filtrées visibles pour un joueur adverse.</summary>
@@ -34,5 +41,11 @@ namespace Psycko.Core.Interfaces
         int HandCount { get; }                 // compte seulement
         int FaceDownCount { get; }              // compte seulement
         DefPhase CurrentPhase { get; }
+
+        /// <summary>
+        /// Rang d'arrivée (1 = premier), ou null s'il n'a pas fini. Donnée publique.
+        /// Le Psycko (dernier joueur) reçoit le dernier rang dès que tous les autres ont fini.
+        /// </summary>
+        int? FinishRank { get; }
     }
 }

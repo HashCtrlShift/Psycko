@@ -10,7 +10,8 @@ namespace Psycko.Core.Domain
     /// <summary>
     /// Vue immuable de l'état de la partie pour UN joueur : ses trois couches complètes,
     /// et pour les adversaires uniquement ce que les règles rendent public
-    /// (FaceUp + comptes). Instantané : copié à la construction, jamais lié au GameState.
+    /// (FaceUp + comptes + rang d'arrivée). Instantané : copié à la construction,
+    /// jamais lié au GameState.
     /// </summary>
     public sealed class PlayerVisibleState : IPlayerVisibleState
     {
@@ -25,6 +26,9 @@ namespace Psycko.Core.Domain
         public PlayDirection Direction { get; }
         public HeightConstraint Constraint { get; }
         public DefRank RefRank { get; }
+
+        /// <summary>Rang d'arrivée du joueur lui-même (1 = premier), ou null s'il n'a pas fini.</summary>
+        public int? SelfFinishRank { get; }
 
         private readonly int _activePlayerId;
 
@@ -42,7 +46,8 @@ namespace Psycko.Core.Domain
             int activePlayerId,
             PlayDirection direction,
             HeightConstraint constraint,
-            DefRank refRank)
+            DefRank refRank,
+            int? selfFinishRank)
         {
             SelfPlayerId = selfPlayerId;
             SelfHand = selfHand;
@@ -56,6 +61,7 @@ namespace Psycko.Core.Domain
             Direction = direction;
             Constraint = constraint;
             RefRank = refRank;
+            SelfFinishRank = selfFinishRank;
         }
 
         /// <summary>
@@ -73,7 +79,8 @@ namespace Psycko.Core.Domain
             for (int seat = 0; seat < state.Players.Count; seat++)
             {
                 if (seat == selfSeat) continue;
-                opponents.Add(OpponentVisibleInfo.From(state.Players[seat]));
+                Player opponent = state.Players[seat];
+                opponents.Add(OpponentVisibleInfo.From(opponent, state.GetFinishRank(opponent.Id)));
             }
 
             return new PlayerVisibleState(
@@ -88,12 +95,14 @@ namespace Psycko.Core.Domain
                 state.GetActivePlayer().Id,
                 state.Direction,
                 state.Constraint,
-                state.RefRank);
+                state.RefRank,
+                state.GetFinishRank(self.Id));
         }
 
         /// <summary>
         /// Vue pendant l'échange pré-partie (aucun GameState n'existe encore) :
-        /// pile vide, sens horaire, contrainte normale, pas de joueur actif (index 0 neutre).
+        /// pile vide, sens horaire, contrainte normale, pas de joueur actif (index 0 neutre),
+        /// aucun rang d'arrivée.
         /// </summary>
         public static PlayerVisibleState FromExchange(
             Exchange.PreGameExchangeState exchange,
@@ -115,7 +124,7 @@ namespace Psycko.Core.Domain
             for (int seat = 0; seat < exchange.Players.Count; seat++)
             {
                 if (seat == selfSeat) continue;
-                opponents.Add(OpponentVisibleInfo.From(exchange.Players[seat]));
+                opponents.Add(OpponentVisibleInfo.From(exchange.Players[seat], null));
             }
 
             return new PlayerVisibleState(
@@ -130,7 +139,8 @@ namespace Psycko.Core.Domain
                 exchange.Players[0].Id,
                 PlayDirection.Clockwise,
                 HeightConstraint.Normal,
-                DefRank.Three);
+                DefRank.Three,
+                null);
         }
     }
 }
