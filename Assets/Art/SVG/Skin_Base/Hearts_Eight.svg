@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg1"
+   width="1024"
+   height="1536"
+   viewBox="0 0 1024 1536"
+   sodipodi:docname="Hearts_Ace.svg"
+   inkscape:export-filename="Hearts_Six.svg"
+   inkscape:export-xdpi="300"
+   inkscape:export-ydpi="300"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1">
+    <rect
+       x="750.0351"
+       y="927.8877"
+       width="356.60349"
+       height="374.56842"
+       id="rect4-2" />
+    <rect
+       x="750.0351"
+       y="927.8877"
+       width="356.60349"
+       height="374.56842"
+       id="rect4-2-1" />
+  </defs>
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showguides="true"
+     inkscape:export-bgcolor="#00000000">
+    <sodipodi:guide
+       position="950.34386,95.438594"
+       orientation="0,-1"
+       id="guide1"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="73.207018,1441.9088"
+       orientation="0,-1"
+       id="guide2"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="73.207018,1441.9088"
+       orientation="1,0"
+       id="guide3"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="950.34386,1442.5825"
+       orientation="1,0"
+       id="guide4"
+       inkscape:locked="false" />
+    <inkscape:page
+       x="0"
+       y="0"
+       width="1024"
+       height="1536"
+       id="page2"
+       margin="0"
+       bleed="0" />
+    <sodipodi:guide
+       position="838.08031,460.629"
+       orientation="1,0"
+       id="guide5"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="186.8175,1087.2119"
+       orientation="1,0"
+       id="guide6"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="816.81006,172.03485"
+       orientation="0,-1"
+       id="guide7"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="205.69825,1375.7992"
+       orientation="0,-1"
+       id="guide8"
+       inkscape:locked="false" />
+  </sodipodi:namedview>
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke:#1e785a;stroke-width:0;stroke-linecap:square;stroke-dasharray:none;stroke-opacity:1"
+     id="rect5-3"
+     width="864.92743"
+     height="1334.6442"
+     x="79.240997"
+     y="99.966415"
+     ry="85.29892"
+     inkscape:label="Fond" />
+  <rect
+     style="fill:#1e785a;fill-opacity:0;stroke:#c30628;stroke-width:12;stroke-linecap:square;stroke-dasharray:none;stroke-opacity:1"
+     id="rect5"
+     width="864.92743"
+     height="1334.6442"
+     x="79.240997"
+     y="99.966393"
+     ry="85.29892"
+     inkscape:label="Bordure" />
+  <path
+     id="rect4-2-1-2"
+     style="fill:#c30628;fill-opacity:1;stroke:#f26418;stroke-width:0;stroke-linecap:square"
+     d="m 807.00091,1198.8461 a 35.705535,39.255929 0 0 1 -35.7055,-39.2558 35.705535,39.255929 0 0 1 13.136,-30.4188 h -0.1516 l 53.8005,-53.8005 53.8008,53.8008 h -0.1862 a 35.705535,39.255929 0 0 1 13.136,30.4188 35.705535,39.255929 0 0 1 -35.7055,39.2558 35.705535,39.255929 0 0 1 -31.0454,-19.8641 l -0.026,-0.016 a 35.705535,39.255929 0 0 1 -31.0527,19.8802 z"
+     inkscape:label="Coeur Bas" />
+  <text
+     xml:space="preserve"
+     id="text4-5"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:266.667px;font-family:Rajdhani;-inkscape-font-specification:'Rajdhani Bold';writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect4-2);shape-padding:32.3368;fill:#c30628;fill-opacity:1;stroke:#2f2597;stroke-width:0;stroke-linecap:square;stroke-opacity:0.48"
+     transform="matrix(-0.91396984,0,0,-0.76950167,1619.0546,2146.1227)"
+     inkscape:label="A Bas"><tspan
+       x="782.37109"
+       y="1187.9136"
+       id="tspan3">8</tspan></text>
+  <path
+     id="rect4-5"
+     style="fill:#c30628;fill-opacity:1;stroke:#f26418;stroke-width:0;stroke-linecap:square"
+     d="m 409.39252,582.62919 a 110.84376,121.86555 0 0 0 -110.84375,121.86523 110.84376,121.86555 0 0 0 40.77929,94.43164 h -0.47069 L 505.87494,965.94364 672.89345,798.92508 h -0.5781 a 110.84376,121.86555 0 0 0 40.7793,-94.43168 110.84376,121.86555 0 0 0 -110.8437,-121.8652 110.84376,121.86555 0 0 0 -96.377,61.66601 l -0.082,0.0508 a 110.84376,121.86555 0 0 0 -96.3994,-61.7158 z"
+     inkscape:label="Coeur Centre" />
+  <path
+     id="rect4-2-0"
+     style="fill:#c30628;fill-opacity:1;stroke:#f26418;stroke-width:0;stroke-linecap:square"
+     d="m 155.73811,325.31294 a 35.705535,39.255929 0 0 0 -35.70553,39.25583 35.705535,39.255929 0 0 0 13.13602,30.41878 h -0.15162 l 53.80052,53.80052 53.80083,-53.80083 -0.18623,-10e-6 a 35.705535,39.255929 0 0 0 13.13602,-30.41879 35.705535,39.255929 0 0 0 -35.70553,-39.25581 35.705535,39.255929 0 0 0 -31.04542,19.86415 l -0.0264,0.0164 a 35.705535,39.255929 0 0 0 -31.05266,-19.88021 z"
+     inkscape:label="Coeur Haut" />
+  <text
+     xml:space="preserve"
+     id="text4-5-3"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:266.667px;font-family:Rajdhani;-inkscape-font-specification:'Rajdhani Bold';writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect4-2-1);shape-padding:32.3368;fill:#c30628;fill-opacity:1;stroke:#2f2597;stroke-width:0;stroke-linecap:square;stroke-opacity:0.48"
+     transform="matrix(0.91396984,0,0,0.76950167,-594.19105,-621.95675)"
+     inkscape:label="A Haut"><tspan
+       x="782.37109"
+       y="1187.9136"
+       id="tspan4">8</tspan></text>
+</svg>

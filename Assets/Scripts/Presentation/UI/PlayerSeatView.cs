@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Psycko.Core.Domain;
+using Psycko.Presentation.Controllers;
 using Psycko.Presentation.Interfaces;
 using Psycko.Presentation.Models;
 using UnityEngine;
@@ -36,10 +37,34 @@ namespace Psycko.Presentation.UI
         [SerializeField] private float _minSpacing = HandSpacing.DefaultMinSpacing;
         [SerializeField] private float _tableRotationZ = 0f;       // 90 (ou -90) sur SeatLeft/SeatRight : FaceUp/FaceDown couchées
 
+        [Header("Main humaine (T55-11)")]
+
+        [Tooltip("Faux : petits rangs à gauche. Vrai : grands rangs à gauche. Affichage uniquement.")]
+        [SerializeField] private bool _selfHandDescending = false;
+        [SerializeField] private float _selfHandSpacing = 90f;      // espacement souhaité entre colonnes
+        [SerializeField] private float _selfHandZoneLength = 1500f; // largeur utile de la main
+        [SerializeField] private float _selfHandMinSpacing = 60f;   // plancher : en dessous, on regroupe par rang
+
+        [Header("Éventail du groupe ouvert (T55-11)")]
+        [SerializeField] private float _fanLift = 220f;             // hauteur de l'éventail au-dessus de la main
+        [SerializeField] private float _fanOverlap = 0.6f;          // pas entre cartes de l'éventail = largeur × 0.6
+
         private readonly List<CardView> _handViews = new List<CardView>();
         private readonly List<CardView> _faceUpViews = new List<CardView>();
         private readonly List<CardView> _faceDownViews = new List<CardView>();
+        private readonly List<CardView> _fanViews = new List<CardView>();
+
+        // T55-11 : tampons réutilisés (aucune allocation de listes par mise en page).
+        private readonly List<List<CardView>> _columns = new List<List<CardView>>();
+        private readonly List<List<CardView>> _columnPool = new List<List<CardView>>();
+        private readonly List<Card> _sortInput = new List<Card>();
+        private readonly List<CardView> _order = new List<CardView>();
+        private readonly List<bool> _used = new List<bool>();
+
         private int _playerId = -1;
+        private bool _groupingAllowed = true;
+        private bool _isSelfHand;
+        private Card _openKey; // une carte du groupe ouvert (référence stable entre deux relayouts), null = fermé
 
         public event Action<Card, CardView> HandCardClicked;
         public event Action<Card, CardView> FaceUpCardClicked;
@@ -50,6 +75,7 @@ namespace Psycko.Presentation.UI
         public IReadOnlyList<CardView> FaceUpViews { get { return _faceUpViews.AsReadOnly(); } }
         public IReadOnlyList<CardView> FaceDownViews { get { return _faceDownViews.AsReadOnly(); } }
         public int PlayerId { get { return _playerId; } }
+        public bool IsFanOpen { get { return _openKey != null; } }
 
         private void Awake()
         {
@@ -73,6 +99,78 @@ namespace Psycko.Presentation.UI
             else if (clickable) Debug.LogWarning("[PlayerSeatView] Assigner un Button au siège pour activer les clics.");
         }
 
+                /// <summary>T55-11 : sens d'affichage de la main humaine. Purement visuel.</summary>
+        public void SetSelfHandDescending(bool descending)
+        {
+            if (_selfHandDescending == descending) return;
+            _selfHandDescending = descending;
+            LayoutSelfHand();
+        }
+
+        /// <summary>
+        /// T55-11 : autorise le regroupement par rang de la main humaine.
+        /// Don du 7 et échange : false, cartes unitaires (éventail refermé). Relayout immédiat si la valeur change.
+        /// </summary>
+        public void SetGroupingAllowed(bool allowed)
+        {
+            if (_groupingAllowed == allowed) return;
+            _groupingAllowed = allowed;
+            if (!allowed) _openKey = null;
+            if (_isSelfHand) LayoutSelfHand();
+        }
+
+        // ── Éventail ─────────────────────────────────────────────────────
+
+        /// <summary>Nombre de cartes de la colonne contenant la vue (1 = carte seule), 0 si absente.</summary>
+        public int ColumnSizeOf(CardView view)
+        {
+            int c = ColumnOf(view);
+            return c < 0 ? 0 : _columns[c].Count;
+        }
+
+        /// <summary>Vrai si la vue fait partie de l'éventail actuellement ouvert.</summary>
+        public bool IsInOpenFan(CardView view) { return view != null && _fanViews.Contains(view); }
+
+        /// <summary>
+        /// Ouvre l'éventail du groupe contenant la vue, ou le referme s'il est déjà ouvert.
+        /// Ne fait rien pour une carte seule. Retourne true si l'état a changé.
+        /// </summary>
+        public bool ToggleColumnOf(CardView view)
+        {
+            if (!_isSelfHand) return false;
+            int c = ColumnOf(view);
+            if (c < 0 || _columns[c].Count < 2) return false;
+            bool alreadyOpen = _openKey != null && ColumnContains(_columns[c], _openKey);
+            _openKey = alreadyOpen ? null : _columns[c][0].Card;
+            LayoutSelfHand();
+            return true;
+        }
+
+        /// <summary>Referme l'éventail (jeu, ramassage, clic sur le fond, nouvelle requête).</summary>
+        public void CloseFan()
+        {
+            if (_openKey == null) return;
+            _openKey = null;
+            if (_isSelfHand) LayoutSelfHand();
+        }
+
+        private int ColumnOf(CardView view)
+        {
+            if (view == null) return -1;
+            for (int c = 0; c < _columns.Count; c++)
+                if (_columns[c].Contains(view)) return c;
+            return -1;
+        }
+
+        private static bool ColumnContains(List<CardView> col, Card card)
+        {
+            for (int k = 0; k < col.Count; k++)
+                if (ReferenceEquals(col[k].Card, card)) return true;
+            return false;
+        }
+
+        // ── Rendu ────────────────────────────────────────────────────────
+
         /// <summary>
         /// Masque le siège (null) ou affiche un adversaire. Cartes FaceUp publiques rendues ;
         /// main et FaceDown : dos uniquement, à partir des compteurs (T55-8).
@@ -81,6 +179,9 @@ namespace Psycko.Presentation.UI
         /// </summary>
         public void RenderOpponent(OpponentSeatViewModel model, ICardSkin skin)
         {
+            _isSelfHand = false;
+            _openKey = null;
+            _fanViews.Clear();
             if (model == null)
             {
                 gameObject.SetActive(false);
@@ -119,8 +220,13 @@ namespace Psycko.Presentation.UI
 
         public void RenderSelf(SelfSeatViewModel model, string displayName, ICardSkin skin)
         {
-            if (model == null) { gameObject.SetActive(false); _playerId = -1; return; }
+            if (model == null)
+            {
+                gameObject.SetActive(false); _playerId = -1; _isSelfHand = false; _openKey = null; _fanViews.Clear();
+                return;
+            }
             gameObject.SetActive(true);
+            _isSelfHand = true;
             _playerId = model.PlayerId;
             Set(_nameLabel, displayName);
             Set(_handCountLabel, model.Hand.Count.ToString());
@@ -134,6 +240,203 @@ namespace Psycko.Presentation.UI
             RenderCards(_faceUpViews, _faceUpContainer, model.FaceUp, skin, OnFaceUpClicked);
             // Jamais de Card liée aux FaceDown : uniquement le nombre et l'index aveugle.
             RenderFaceDownSlots(model.FaceDownCount, skin); // T55-5
+            LayoutSelfHand(); // T55-11
+        }
+
+        /// <summary>
+        /// T55-11 : placement par code de la main humaine. Affichage pur.
+        /// - Tri visuel via HandSorter, sans jamais réordonner _handViews (ordre du Core conservé).
+        /// - Regroupement progressif par rang, le plus petit d'abord, si les colonnes ne tiennent pas au plancher.
+        /// - Groupe fermé : seule la carte du dessus est active, avec badge ×N.
+        /// - Groupe ouvert : ses cartes sont étalées au-dessus de la main (éventail), sans badge.
+        /// - Jamais de débordement : l'espacement descend sous le plancher si nécessaire.
+        /// </summary>
+        private void LayoutSelfHand()
+        {
+            _fanViews.Clear();
+            if (_handContainer == null) return;
+            int n = _handViews.Count;
+            ReleaseColumns();
+            if (n == 0) { _openKey = null; return; }
+
+            // 1. Ordre visuel (tri stable et déterministe).
+            _sortInput.Clear();
+            for (int i = 0; i < n; i++) _sortInput.Add(_handViews[i].Card);
+            List<Card> sorted = HandSorter.Sort(_sortInput);
+
+            _order.Clear();
+            _used.Clear();
+            for (int i = 0; i < n; i++) _used.Add(false);
+            for (int s = 0; s < sorted.Count; s++)
+            {
+                for (int i = 0; i < n; i++)
+                {
+                    if (_used[i] || !ReferenceEquals(_handViews[i].Card, sorted[s])) continue;
+                    _used[i] = true;
+                    _order.Add(_handViews[i]);
+                    break;
+                }
+            }
+            // Sécurité : toute vue non appariée garde sa place à la fin.
+            for (int i = 0; i < n; i++) if (!_used[i]) _order.Add(_handViews[i]);
+
+            // 2. Colonnes initiales : une carte par colonne.
+            for (int i = 0; i < _order.Count; i++)
+            {
+                List<CardView> col = RentColumn();
+                col.Add(_order[i]);
+                _columns.Add(col);
+            }
+
+            // 3. Regroupement progressif, rang le plus petit d'abord.
+            if (_groupingAllowed)
+            {
+                while (_columns.Count > 1 && !Fits(_columns.Count))
+                {
+                    if (!MergeSmallestRank()) break;
+                }
+            }
+
+            // 4. Groupe ouvert : retrouvé par sa carte clé ; fermé s'il n'existe plus ou n'est plus groupé.
+            int open = -1;
+            if (_openKey != null)
+            {
+                for (int c = 0; c < _columns.Count; c++)
+                    if (ColumnContains(_columns[c], _openKey)) { open = c; break; }
+                if (open < 0 || _columns[open].Count < 2) { open = -1; _openKey = null; }
+            }
+
+            // 5. Espacement des colonnes : souhaité, réduit pour tenir dans la zone.
+            int count = _columns.Count;
+            float step = 0f;
+            if (count > 1)
+            {
+                float free = _selfHandZoneLength - _cardWidth;
+                step = Mathf.Max(0f, Mathf.Min(_selfHandSpacing, free / (count - 1)));
+            }
+            float total = step * (count - 1);
+            float halfZone = Mathf.Max(0f, (_selfHandZoneLength - _cardWidth) * 0.5f);
+
+            // 6. Placement. En décroissant, les positions sont inversées (le regroupement est inchangé).
+            for (int c = 0; c < count; c++)
+            {
+                List<CardView> col = _columns[c];
+                int slot = _selfHandDescending ? count - 1 - c : c;
+                float x = -total * 0.5f + step * slot;
+
+                if (c == open)
+                {
+                    // Éventail centré sur la colonne, borné à la zone de main, dans le même sens que la main.
+                    float spread = _cardWidth * _fanOverlap;
+                    float width = spread * (col.Count - 1);
+                    float startX = Mathf.Clamp(x - width * 0.5f, -halfZone, Mathf.Max(-halfZone, halfZone - width));
+                    for (int k = 0; k < col.Count; k++)
+                    {
+                        CardView view = col[k];
+                        int fk = _selfHandDescending ? col.Count - 1 - k : k;
+                        if (!view.gameObject.activeSelf) view.gameObject.SetActive(true);
+                        Place(view, startX + spread * fk, _fanLift);
+                        view.SetCountBadge(0);
+                        _fanViews.Add(view);
+                    }
+                    continue;
+                }
+
+                for (int k = 0; k < col.Count; k++)
+                {
+                    CardView view = col[k];
+                    bool top = k == col.Count - 1;
+                    if (view.gameObject.activeSelf != top) view.gameObject.SetActive(top);
+                    if (!top) continue;
+                    Place(view, x, 0f);
+                    view.SetCountBadge(col.Count);
+                }
+            }
+
+            // 7. Ordre de rendu : de gauche à droite à l'écran, éventail par-dessus tout.
+            int sibling = 0;
+            for (int i = 0; i < count; i++)
+            {
+                int c = _selfHandDescending ? count - 1 - i : i;
+                if (c == open) continue;
+                _columns[c][_columns[c].Count - 1].transform.SetSiblingIndex(sibling++);
+            }
+            if (_selfHandDescending)
+                for (int k = _fanViews.Count - 1; k >= 0; k--) _fanViews[k].transform.SetAsLastSibling();
+            else
+                for (int k = 0; k < _fanViews.Count; k++) _fanViews[k].transform.SetAsLastSibling();
+        }
+
+        private void Place(CardView view, float x, float y)
+        {
+            var rt = (RectTransform)view.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(_cardWidth, _cardHeight);
+            rt.localScale = Vector3.one;
+            rt.localRotation = Quaternion.identity;
+            rt.anchoredPosition = new Vector2(x, y);
+        }
+
+        /// <summary>Vrai si columnCount colonnes tiennent sans descendre sous le plancher.</summary>
+        private bool Fits(int columnCount)
+        {
+            if (columnCount <= 1) return true;
+            float free = _selfHandZoneLength - _cardWidth;
+            return free / (columnCount - 1) >= _selfHandMinSpacing;
+        }
+
+        /// <summary>
+        /// Fusionne la première paire de colonnes voisines de même rang (colonnes triées par rang,
+        /// donc rang le plus petit d'abord). Jokers jamais regroupés. False si plus rien à fusionner.
+        /// </summary>
+                /// <summary>
+        /// Fusionne entièrement le plus petit rang encore éclaté (colonnes triées par rang).
+        /// Un rang n'est jamais coupé : toutes ses colonnes voisines sont absorbées d'un coup.
+        /// Jokers jamais regroupés. False si plus rien à fusionner.
+        /// </summary>
+        private bool MergeSmallestRank()
+        {
+            for (int c = 0; c < _columns.Count - 1; c++)
+            {
+                Card a = _columns[c][0].Card;
+                if (a == null || a.IsJoker || !a.Rank.HasValue) continue;
+
+                bool mergedAny = false;
+                while (c + 1 < _columns.Count)
+                {
+                    Card b = _columns[c + 1][0].Card;
+                    if (b == null || b.IsJoker || !b.Rank.HasValue || b.Rank.Value != a.Rank.Value) break;
+
+                    List<CardView> merged = _columns[c + 1];
+                    _columns[c].AddRange(merged);
+                    _columns.RemoveAt(c + 1);
+                    merged.Clear();
+                    _columnPool.Add(merged);
+                    mergedAny = true;
+                }
+                if (mergedAny) return true;
+            }
+            return false;
+        }
+
+        private List<CardView> RentColumn()
+        {
+            int last = _columnPool.Count - 1;
+            if (last < 0) return new List<CardView>(4);
+            List<CardView> col = _columnPool[last];
+            _columnPool.RemoveAt(last);
+            return col;
+        }
+
+        private void ReleaseColumns()
+        {
+            for (int c = 0; c < _columns.Count; c++)
+            {
+                _columns[c].Clear();
+                _columnPool.Add(_columns[c]);
+            }
+            _columns.Clear();
         }
 
         /// <summary>
@@ -205,6 +508,7 @@ namespace Psycko.Presentation.UI
             for (int i = 0; i < views.Count; i++)
             {
                 CardView view = views[i];
+                if (!view.gameObject.activeSelf) view.gameObject.SetActive(true);
                 view.Bind(null, skin);
                 view.SetState(CardVisualState.FaceDown);
                 view.SetInteractable(false);
@@ -282,6 +586,7 @@ namespace Psycko.Presentation.UI
             EnsureCount(views, container, count, handler);
             for (int i = 0; i < count; i++)
             {
+                if (!views[i].gameObject.activeSelf) views[i].gameObject.SetActive(true);
                 views[i].Bind(cards[i], skin);
                 views[i].SetState(CardVisualState.Normal);
             }

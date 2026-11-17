@@ -26,11 +26,16 @@ namespace Psycko.Presentation.UI
         [SerializeField] private float _selectedLift = 24f;
         [SerializeField] private Color _placeholderColor = new Color(0.85f, 0.85f, 0.85f, 1f);
 
+        [Header("Regroupement (T55-11)")]
+        [SerializeField] private Text _countBadge;         // Text enfant "×N", Raycast Target décoché
+        [SerializeField] private CanvasGroup _canvasGroup; // sur la racine du prefab
+
         private Card _card;
         private Card _previewCard;
         private bool _hasPreview;
         private ICardSkin _skin;
         private CardVisualState _state = CardVisualState.Normal;
+        private int _badgeCount = -1;
 
         public Card Card { get { return _card; } }
         public CardVisualState State { get { return _state; } }
@@ -40,17 +45,50 @@ namespace Psycko.Presentation.UI
         {
             if (_button == null) _button = GetComponent<Button>();
             if (_button != null) _button.onClick.AddListener(RaiseClicked);
+            if (_canvasGroup == null) _canvasGroup = GetComponent<CanvasGroup>();
         }
 
         private void OnDestroy() { if (_button != null) _button.onClick.RemoveListener(RaiseClicked); }
 
         private void RaiseClicked() { if (Clicked != null) Clicked(this); }
 
-        public void Bind(Card card, ICardSkin skin) { _card = card; _previewCard = null; _hasPreview = false; _skin = skin; Refresh(); }
+        public void Bind(Card card, ICardSkin skin)
+        {
+            _card = card;
+            _previewCard = null;
+            _hasPreview = false;
+            _skin = skin;
+            SetCountBadge(0);
+            SetHidden(false);
+            Refresh();
+        }
+
         public void SetPreview(Card displayCard) { _previewCard = displayCard; _hasPreview = true; Refresh(); }
         public void ClearPreview() { _previewCard = null; _hasPreview = false; Refresh(); }
         public void SetState(CardVisualState state) { _state = state; Refresh(); }
         public void SetInteractable(bool value) { if (_button != null) _button.interactable = value; }
+
+        /// <summary>Affiche « ×N » si count > 1, masque le badge sinon. Aucune allocation si inchangé.</summary>
+        public void SetCountBadge(int count)
+        {
+            if (_countBadge == null) return;
+            if (count < 2) count = 0;
+            if (_badgeCount == count) return;
+            _badgeCount = count;
+            bool show = count > 1;
+            if (_countBadge.gameObject.activeSelf != show) _countBadge.gameObject.SetActive(show);
+            if (show) _countBadge.text = "×" + count;
+        }
+
+        /// <summary>Masque la carte sans la détruire : l'ordre de HandViews reste intact.</summary>
+        public void SetHidden(bool hidden)
+        {
+            if (_canvasGroup == null) _canvasGroup = GetComponent<CanvasGroup>();
+            if (_canvasGroup == null) return;
+            _canvasGroup.alpha = hidden ? 0f : 1f;
+            _canvasGroup.blocksRaycasts = !hidden;
+            _canvasGroup.interactable = !hidden;
+        }
 
         public void Refresh()
         {

@@ -645,61 +645,224 @@ Pas de tests NUnit ici (prévus en Phase 5). La projection est pure (`CardStateP
 
 ---
 
-#### T55-10 — Pile désalignée + carte visible sous la pile
-- `ZoneView.Render` : décalage déterministe par index de carte dans la pile (hash de l'index,
-  pas de `Random`) : position ±8 px (X, Y), rotation Z ±15° pour la carte du dessus et ±180°
-  pour la carte du dessous. Rendu identique à chaque rafraîchissement.
-- `ZoneViewModel.CardBelowTop` : carte juste sous le dessus, projetée par `TableProjection`
-  depuis `Pile.Cards` (données publiques uniquement).
-- La carte du dessous est rendue systématiquement (`_pileBelowCardView`, sibling index inférieur).
-  Aucune détection du Joker de Verre dans `Presentation/` : sa transparence est portée par le
-  sprite lui-même. Pile d'une seule carte : rien dessous, aucune erreur.
-- Sprite Joker de Verre : importeur `Sprite Mode = Single`, `Mesh Type = Full Rect`,
-  `Alpha Is Transparency` coché (le mode Multiple/slicing auto ne détecte que les pixels opaques).
+#### T55-10 — Pile désalignée + cartes visibles sous le dessus
 
-  ---
+**Statut :** ✅ FAIT (validé localement à 4 joueurs). Branche : `T55-10-pile-offset`.
 
-#### T55-11 — Main triée et contenue
-- `HandSorter.Sort` appliqué à la main humaine (rang puis couleur).
-- Spacing : `Min(_defaultSpacing, (_handMaxWidth − _cardWidth) / (n − 1))`,
-  `_defaultSpacing = 90`, `_cardWidth = 120`, `_handMaxWidth = 1500` (Inspector), plancher 28 px.
+**Objectif :**
+Donner à la pile centrale un rendu « posé à la main » : cartes éparpillées de façon irrégulière, avec le plus de cartes possibles visibles, afin que la carte précédente reste lisible sous le Joker de Verre (transparent).
 
-#### T55-12 — Validation finale
-- Run All EditMode (89/89), test manuel complet (jouer même rang / autre rang / Joker, ramasser,
-  FaceDown aveugle, Don, échange infini, 90 s, « Prêt ! », bannières, dos adverses, pile, main contenue).
-- Commit `Phase 4 T55`. Ne pas merger (T51).
+**Comportement :**
+- `ZoneView` affiche les N dernières cartes de la pile via un **pool** d'instances `CardView` (N = `Max Visible Pile Cards`).
+- Décalage **déterministe** par index de carte dans la pile (hash de l'index, ni `UnityEngine.Random` ni `System.Random`) : rendu identique à chaque rafraîchissement, aucun scintillement. Le décalage dépend de l'index, pas de l'identité de la carte.
+- Position : point dans un **disque** de rayon `Scatter Radius` (et non un carré, pour éviter un effet de grille).
+- Rotation : jusqu'à ±180° pour les cartes du dessous, ±`Top Max Rotation` (15°) pour la carte du dessus, qui reste lisible.
+- Ordre d'affichage (sibling index) : le dessus est rendu en dernier, chaque carte du dessous est rendue sous la suivante.
+- `ZoneViewModel` expose les cartes visibles de la pile, projetées par `TableProjection` depuis `Pile.Cards` (données publiques uniquement, aucune carte cachée lue ou stockée).
+- **Aucune détection du Joker de Verre dans `Presentation/`** : sa transparence est portée par le sprite. La carte sous lui reste visible par simple empilement.
+- Pile d'une seule carte : une seule carte rendue, aucune erreur. Pile vide : aucune carte, `EmptyPileMarker` actif.
+- Les cartes de pile ne sont pas interactives (`SetInteractable(false)`) et ne bloquent aucun clic.
 
-### Critères
-- Aucun `if` de règle dans Controllers/ ni UI/. Aucune Card FaceDown/main adverse lue.
-- Sélection toujours cohérente avec le relevé. Durées réglables : `_exchangeSeconds`, `_giftSeconds`.
+**Fichiers :**
+- `Assets/Scripts/Presentation/UI/ZoneView.cs` (pool, décalage déterministe, rotation, sibling index)
+- `Assets/Scripts/Presentation/UI/TableViewModels.cs` (`ZoneViewModel` : cartes visibles de la pile)
+- `Assets/Scripts/Presentation/UI/TableProjection.cs` (projection des dernières cartes publiques)
+- Aucune modification du Core ni de `Psycko.Bots/`.
+
+**Réglages (Inspector / import) :**
+- `ZoneView` : `Pile Card Prefab` = `PileCard` (prefab `CardView`) ; `Pile Cards Root` = `PileCardsRoot` (RectTransform, ancré au centre, pivot 0.5 / 0.5) ; `Max Visible Pile Cards` = 8 ; `Scatter Radius` = 16 ; `Top Max Rotation` = 15 ; `Below Max Rotation` = 180.
+- `PileCard` : Raycast Target décoché sur les images.
+- Sprite `Joker_Glass` : `Texture Type = Sprite (2D and UI)`, `Sprite Mode = Single`, `Mesh Type = Full Rect`, `Alpha Is Transparency` coché.
+- Asset `SkinSet` (skin `classique`) : liste `Faces` avec une entrée `Key = Joker_Glass` et le champ `Sprite` assigné. La clé suit le format `Joker_{JokerType}` (`DefaultCardSkin.KeyOf`).
+
+**Correctif découvert en validation :**
+Le Joker de Verre s'affichait en placeholder gris « Joker Glass ». Cause : l'entrée `Joker_Glass` du `SkinSet` n'avait pas de sprite utilisable (warning `[CardView] Sprite absent pour la clé 'Joker_Glass'`). Les scripts de mapping (`CardSpriteKey`, `DefaultCardSkin`) étaient corrects. Correction : assignation du sprite dans la liste `Faces`. Aucun changement de code.
+
+**Critères d'acceptation :**
+- [x] Compilation propre.
+- [x] Tests EditMode existants verts (aucun test nouveau : tests de la projection reportés en Phase 6).
+- [x] Partie à 4 joueurs : pile éparpillée, stable d'un frame à l'autre, sans scintillement.
+- [x] Plusieurs cartes de la pile visibles (jusqu'à `Max Visible Pile Cards`).
+- [x] Carte précédente visible sous le Joker de Verre, sprite transparent affiché correctement.
+- [x] Aucun clic bloqué par la pile.
+- [x] Aucun `Random` utilisé, aucune règle de jeu dans `Presentation/`.
+
+**Hors périmètre :**
+- Tests NUnit de la projection (Phase 6).
+- Nouveaux sprites de cartes (travail d'illustration d'Ekinox, à part).
+- Animations de pose et de ramassage de la pile.
+- Outil Editor de vérification des clés manquantes d'un `SkinSet` (ticket séparé possible).
+
+**Dépendances :** T61 (Core, ordre de fin), T55-9 (bannière de classement).
+
+# T55-11 ✅ — Main triée, contenue et regroupée par rang
+
+**Branche** : `feature/T55-11-main-triee-groupee`
+**Phase** : 5 — Présentation
+**Couches touchées** : Presentation uniquement (aucun changement Core / Bots)
+**Fichiers** : `PlayerSeatView.cs`, `CardView.cs`, `InputHandler.cs` (patch minimal)
+
+## 1. Objectif
+
+La main humaine (jusqu'à 25 cartes) est triée, ne déborde jamais de la zone,
+et se regroupe par rang quand la place manque. Un clic sur un groupe ouvre un
+éventail au-dessus, où le joueur choisit de 1 à N cartes du rang.
+
+## 2. Contraintes
+
+- Aucune logique de jeu en Présentation.
+- Aucun `Image` raycastable ajouté à `_handContainer`.
+- `_handViews` conserve l'ordre du Core (inchangé), car `SimCardAt`,
+  `ApplyExchangePreview` et `DisplayedHandCard` s'appuient sur l'indexation.
+- Le tri est purement visuel (positions et ordre des siblings).
+- Aucune allocation de `CardView` ni de prefab nouveau. Les listes de colonnes
+  sont recyclées via un pool (`RentColumn` / `ReleaseColumns`).
+
+## 3. Tri
+
+`HandSorter.Sort` est appliqué à la main humaine (rang puis couleur) pour
+calculer la position d'affichage de chaque `CardView`. `_handViews` n'est jamais
+réordonné.
+
+Sens d'affichage : `_selfHandDescending` (Inspector, ou `SetSelfHandDescending(bool)`).
+Faux = petits rangs à gauche ; vrai = grands rangs à gauche. Seules les positions
+sont inversées : le calcul des colonnes et le regroupement restent en ordre croissant.
+
+## 4. Contenance
+
+Pas = `Min(_selfHandSpacing, (_selfHandZoneLength − _cardWidth) / (n − 1))`,
+où n = nombre de colonnes. Pour `n ≤ 1`, pas de calcul de pas.
+Si, après regroupement maximal, le pas reste sous `_selfHandMinSpacing`,
+il est compressé sous le plancher (chevauchement), jamais de débordement.
+
+| Champ (Inspector) | Valeur actuelle |
+|---|---|
+| `_cardWidth` | 120 |
+| `_cardHeight` | 196 |
+| `_selfHandSpacing` | 90 |
+| `_selfHandZoneLength` | 1500 |
+| `_selfHandMinSpacing` | 60 |
+| `_fanLift` | 220 |
+| `_fanOverlap` | 0.6 (fraction de `_cardWidth`, soit 72 px) |
+| `_selfHandDescending` | false |
+
+`_selfHandZoneLength` est volontairement proche de la largeur d'écran moins
+la place réservée aux futurs boutons et au chat. Valeur à ajuster plus tard.
+
+## 5. Regroupement
+
+5.1 Le regroupement n'intervient que si, au plancher `_selfHandMinSpacing`,
+la main ne tient pas (`Fits`).
+
+5.2 Les rangs se regroupent progressivement, du plus petit au plus grand,
+jusqu'à ce que la main tienne. Chaque pas regroupe un rang **entier** :
+un rang n'est jamais coupé, quitte à regrouper une carte de plus que le strict
+nécessaire. Un rang à une seule carte n'est jamais groupé.
+Les Jokers et cartes sans rang ne sont jamais regroupés.
+
+5.3 Un groupe replié affiche une carte représentante (la **dernière** carte
+de la colonne dans l'ordre trié) avec un badge `×N`, ancré bas-gauche.
+
+5.4 Les autres cartes du groupe restent des `CardView` vivants de `_handViews`,
+masqués via `SetActive(false)`. Ils sont réactivés à l'ouverture de l'éventail
+ou au rendu suivant.
+
+5.5 Le badge `×N` (`SetCountBadge(int)`) est affiché sur la représentante
+d'un groupe fermé ; `SetCountBadge(0)` le masque.
+
+## 6. Éventail du groupe ouvert
+
+6.1 Un clic sur la représentante d'un groupe replié ouvre l'éventail au-dessus
+(`_fanLift`), avec les N cartes du rang espacées de `_cardWidth × _fanOverlap`,
+centré sur la colonne et borné à la zone de main, dans le même sens que la main.
+Les `CardView` masqués sont réutilisés, aucune instance nouvelle.
+
+6.2 Un clic sur une carte de l'éventail émet `HandCardClicked(card, view)`
+normalement. `InputHandler` appelle `HumanSelectionState.Toggle` sans
+changement. Choix libre de 1 à N cartes, sans seuil.
+
+6.3 Les cartes sélectionnées se lèvent (état `Selected` existant) et restent
+levées, y compris quand on clique d'autres cartes du même rang.
+
+6.4 Un clic sur une carte d'un autre rang efface la sélection précédente
+(règle existante) ; les cartes se baissent. L'éventail s'ouvre sur le nouveau
+groupe si c'en est un, sinon se ferme.
+
+6.5 L'éventail reste ouvert après chaque clic de carte.
+
+6.6 Le groupe ouvert est mémorisé par sa carte clé (`_openKey`) et retrouvé
+à chaque rendu ; il se ferme s'il n'existe plus ou ne compte plus qu'une carte.
+Fermeture aussi sur requête différente de `NormalPlay`, soumission d'une pose
+ou clic sur un autre rang.
+
+## 7. Modes spéciaux
+
+7.1 **Échange** (`Exchanges`) : regroupement désactivé, tri visuel conservé,
+simulation locale inchangée.
+
+7.2 **Don** (`Gift`) : regroupement désactivé, un clic sélectionne une carte unique.
+
+7.3 `InputHandler` appelle `SetGroupingAllowed(bool)` sur `PlayerSeatView`
+à chaque changement de requête. Le retour en `NormalPlay` réactive le regroupement.
+
+## 8. Fichiers et changements
+
+| Fichier | Changement |
+|---|---|
+| `PlayerSeatView.cs` | tri visuel, sens d'affichage, calcul du pas, regroupement par rang entier, éventail, `SetGroupingAllowed`, `SetSelfHandDescending` |
+| `CardView.cs` | `_countBadge`, `SetCountBadge(int)` |
+| `InputHandler.cs` | appels à `SetGroupingAllowed` et fermeture de l'éventail après pose (patch minimal) |
+
+## 9. Réglages Unity
+
+**`PlayerSeatView`** : valeurs du tableau section 4.
+
+**`CardView` (prefab)** :
+- `_countBadge` : `Text` enfant de `_visualRoot`, ancré bas-gauche,
+  Pos (8, 8), taille 56 × 36, police 24 gras, `Raycast Target` désactivé,
+  masqué par défaut.
+- Pas de `CanvasGroup` requis (retirer s'il a été ajouté).
+
+**`_handContainer`** : pas de `RectMask2D`, pas de `Image` raycastable.
+
+## 10. Risques (résolus)
+
+1. Cartes masquées déplacées par l'éventail : repositionnées à chaque rendu par `LayoutSelfHand`.
+2. 25 cartes non groupables : pas compressé sous le plancher, sans masquer de carte. Validé en jeu.
+3. Chaque `StateChanged` recalcule tout depuis l'état du Core (`ReleaseColumns` en tête de rendu).
+
+## 11. Validation
+
+- [x] Compilation propre.
+- [ ] Tests EditMode existants verts.
+- [x] Main de 8, 15 et 25 cartes à 4 joueurs : aucun débordement.
+- [x] Regroupement progressif, du plus petit rang au plus grand, rang entier.
+- [x] Clic sur un groupe : éventail ouvert au-dessus, cartes du rang visibles.
+- [x] Sélection de 1 à N cartes dans l'éventail ; elles restent levées.
+- [x] Clic sur un autre rang : les cartes sélectionnées se baissent.
+- [x] Pose : cartes retirées de la main, éventail fermé.
+- [x] Échange : clic main/FaceUp, aperçu et soumission inchangés.
+- [x] Don : sélection unitaire, aucun regroupement.
+- [x] Retour à `NormalPlay` : regroupement de nouveau actif.
+- [x] Aucun clic bloqué.
+- [x] Badge non raycastable (vérifier `Raycast Target` décoché).
+- [x] Sens décroissant : main et éventail inversés, regroupement inchangé.
+
+## 12. Hors périmètre
+
+- Tests NUnit (Phase 6).
+- Modification du Core ou des Bots.
+- Chat et boutons futurs.
+- Ajustement fin de `_selfHandZoneLength`.
+- Exposition de `_selfHandDescending` dans un menu d'options joueur.
 
 ### Ordre d'attaque
-T55-2✅ → 4✅ → 3✅ → 5✅ → 6✅ → 7✅ → 11 → 8✅ → 10 → T61✅ → 9✅ → 12.
+T55-2✅ → 4✅ → 3✅ → 5✅ → 6✅ → 7✅ → 11✅ → 8✅ → 10✅ → T61✅ → 9✅
 
 ### Hors périmètre
-- Tests (Phase 5). Animations, bandeau d'effets, `TableColor` / `SeatColor`.
+- Tests (Phase 6). Animations, bandeau d'effets, `TableColor` / `SeatColor`.
 - Timer par joueur + score « Fidélité » (serveur, avec Photon).
 - Canal « rejet métier → message UI » : ticket Phase 5.
-
----
-
-## T60 — Performance (atlas de sprites, draw calls)
-
-**Statut : À FAIRE**
-
-Dépendances : T54.
-
-## Travail
-- Regrouper les sprites d'un même skin dans un Sprite Atlas unique.
-- Un draw call = une instruction de rendu envoyée au GPU ; moins de draw calls = moins de charge sur téléphone.
-- Cible : 60 fps sur appareil d'entrée de gamme.
-- Mesure avant/après au Profiler Unity, consignée dans le ticket.
-
-## Critères
-- Mesure Profiler consignée.
-
-## Note d'ordre
-Placé avant T56 : l'atlas conditionne le chargement des sprites dont dépendent les animations.
 
 ---
 
@@ -924,6 +1087,39 @@ Intégration :
 - Simulation console (Tools/PsyckoConsole) inchangée : mêmes résultats à seed égal.
 - Tests existants verts (89/89).
 
+## T63 — Rythme des bots : délai de jeu et mode accéléré
+
+**Statut : À FAIRE**
+
+Fichiers : Controllers/GameplayController.cs (ou contrôleur de tour existant), éventuellement Controllers/BotPacing.cs (nouveau)
+
+Dépendances : T55. Absorbe le point (b) de T56. T56 se limite alors aux multiplicateurs et à la durée des animations.
+
+## Travail
+- Délai avant chaque coup de bot, côté Présentation uniquement. Le Core décide toujours instantanément ; la Présentation retarde seulement l'affichage et l'appel au bot suivant.
+- Délai de base configurable (champ Inspector, valeur initiale proposée : 0,8 s).
+- Mode accéléré : dès que le joueur humain a terminé (rang attribué, `GetFinishRank` non nul) ou est éliminé, délai quasi nul (valeur Inspector, proposée : 0,02 s), y compris dans les boucles longues.
+- Passage en accéléré **automatique**, sans clic, dès l'événement de fin de l'humain.
+- Bouton optionnel « Passer » pour accélérer manuellement (à valider).
+
+## Critères
+- Contre bots, chaque bot attend le délai avant de jouer ; le joueur suit la partie.
+- Dès que l'humain a gagné, la partie se termine très vite et reste fluide (pas de gel de l'interface).
+- Le délai n'influe jamais sur l'état de jeu : mêmes décisions, même résultat à seed égal.
+- Aucune décision de jeu en Présentation.
+- Aucun événement du Core n'est sauté ni réordonné.
+
+## À trancher avant de coder
+- Le délai dépend-il de l'action (pose, ramassage, destruction) ou est-il fixe ?
+- Comment la Présentation détecte la fin de l'humain : événement `IGameObserver` ou `GetFinishRank` ?
+- Mise en pause (menu) : le délai doit-il se figer ?
+- Humain éliminé mais pas gagnant : accélère-t-on aussi ? (proposé : oui)
+
+## Hors périmètre
+- Animations et multiplicateurs (T56).
+- Modification du Core ou des bots.
+- Tests NUnit (Phase 6).
+
 ## Ordre d'exécution
 
-T50 ✅ → T51 ⏸ → T52 ✅ → T53 ✅ → T54 ✅ → T55 [+ T61] 🔄 → T60 → T56 → T57 → T58 → T59
+T50 ✅ → T51 ✅ → T52 ✅ → T53 ✅ → T54 ✅ → T55✅ [+ T61✅]  → T62 → T63 → T58 → T59 → T56 (a) → T57

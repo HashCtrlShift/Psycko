@@ -1,0 +1,472 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg1"
+   width="1024"
+   height="1536"
+   viewBox="0 0 1024 1536"
+   sodipodi:docname="Joker_Black.svg"
+   inkscape:export-filename="..\Psycko\Assets\Art\SVG\Skin_Base\Clubs_Ace.svg"
+   inkscape:export-xdpi="13.42"
+   inkscape:export-ydpi="13.42"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1">
+    <rect
+       x="750.0351"
+       y="927.8877"
+       width="372.32822"
+       height="983.90331"
+       id="rect4-2-1" />
+    <rect
+       x="750.0351"
+       y="927.8877"
+       width="372.32822"
+       height="983.90331"
+       id="rect6" />
+  </defs>
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showguides="true"
+     inkscape:export-bgcolor="#00000000">
+    <sodipodi:guide
+       position="950.34386,95.438594"
+       orientation="0,-1"
+       id="guide1"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="73.207018,1441.9088"
+       orientation="0,-1"
+       id="guide2"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="73.207018,1441.9088"
+       orientation="1,0"
+       id="guide3"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="950.34386,1442.5825"
+       orientation="1,0"
+       id="guide4"
+       inkscape:locked="false" />
+    <inkscape:page
+       x="0"
+       y="0"
+       width="1024"
+       height="1536"
+       id="page2"
+       margin="0"
+       bleed="0" />
+    <sodipodi:guide
+       position="143.20702,1441.9088"
+       orientation="-1,0"
+       id="guide5"
+       inkscape:label=""
+       inkscape:locked="false"
+       inkscape:color="rgb(0,134,229)" />
+    <sodipodi:guide
+       position="79.240997,768.71151"
+       orientation="0,-1"
+       id="guide6"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="511.70473,1436.0336"
+       orientation="1,0"
+       id="guide7"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="511.70474,-998464"
+       orientation="0,1"
+       id="guide9"
+       inkscape:label=""
+       inkscape:locked="false"
+       inkscape:color="rgb(0,134,229)" />
+    <sodipodi:guide
+       position="511.70474,1040.1689"
+       orientation="0,1"
+       id="guide10"
+       inkscape:locked="false"
+       inkscape:label=""
+       inkscape:color="rgb(0,134,229)" />
+    <sodipodi:guide
+       position="511.70474,496.4776"
+       orientation="0,-1"
+       id="guide11"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="511.70474,940.1689"
+       orientation="0,1"
+       id="guide17"
+       inkscape:label=""
+       inkscape:locked="false"
+       inkscape:color="rgb(0,134,229)" />
+    <sodipodi:guide
+       position="511.70474,596.4776"
+       orientation="0,1"
+       id="guide18"
+       inkscape:label=""
+       inkscape:locked="false"
+       inkscape:color="rgb(0,134,229)" />
+    <sodipodi:guide
+       position="-1631.2414,1842.6318"
+       orientation="0,-1"
+       id="guide24"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="-844,408.87"
+       orientation="1,0"
+       id="guide36"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="-837.23183,543.70628"
+       orientation="0,-1"
+       id="guide37"
+       inkscape:locked="false" />
+  </sodipodi:namedview>
+  <rect
+     style="fill:#000000;fill-opacity:0;stroke:#1e785a;stroke-width:0;stroke-linecap:square;stroke-dasharray:none;stroke-opacity:1"
+     id="rect5-3"
+     width="864.92743"
+     height="1334.6442"
+     x="79.240997"
+     y="99.966415"
+     ry="85.29892"
+     inkscape:label="Fond" />
+  <rect
+     style="fill:#7fd6e8;fill-opacity:0.3919192;stroke:#7fd6e8;stroke-width:12;stroke-linecap:square;stroke-dasharray:none;stroke-opacity:1"
+     id="rect5"
+     width="864.92743"
+     height="1334.6442"
+     x="79.240997"
+     y="99.966393"
+     ry="85.29892"
+     inkscape:label="Bordure" />
+  <text
+     xml:space="preserve"
+     id="text4-5-3"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:228.945px;font-family:Rajdhani;-inkscape-font-specification:'Rajdhani Bold';writing-mode:tb-rl;direction:ltr;white-space:pre;shape-inside:url(#rect4-2-1);shape-padding:32.3368;fill:#7f94e8;fill-opacity:1;stroke:#ffffff;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+     transform="matrix(0.91396984,0,0,0.76950167,-674.38005,-585.60969)"
+     inkscape:label="Joker Haut"><tspan
+       x="946.93671"
+       y="960.22266"
+       id="tspan3">Joker</tspan></text>
+  <text
+     xml:space="preserve"
+     id="text5"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:228.945px;font-family:Rajdhani;-inkscape-font-specification:'Rajdhani Bold';writing-mode:tb-rl;direction:ltr;white-space:pre;shape-inside:url(#rect6);shape-padding:32.3368;fill:#7f94e8;fill-opacity:1;stroke:#ffffff;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+     transform="matrix(-0.91396984,0,0,-0.76950167,1721.7629,2118.4534)"
+     inkscape:label="Joker Bas"><tspan
+       x="946.93671"
+       y="960.22266"
+       id="tspan4">Joker</tspan></text>
+  <path
+     id="rect2"
+     style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+     d="M 944.16843,151.81111 79.382557,1016.5951 v 139.4305 L 944.16843,291.24164 Z"
+     inkscape:label="Brillance Bas" />
+  <path
+     id="rect3"
+     style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+     d="M 950.27311,328.71908 73.136345,1205.8579 v 51.1367 L 950.27311,379.85978 Z"
+     inkscape:label="Brillance Haut" />
+  <g
+     id="g36"
+     transform="matrix(0.49525172,0,0,0.48936379,928.47028,391.81356)"
+     style="fill:#ffffff"
+     inkscape:label="Diamant">
+    <g
+       id="g48"
+       inkscape:label="Diamant Brillance">
+      <rect
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         id="rect34"
+         width="342.91479"
+         height="342.91479"
+         x="-1017.8582"
+         y="596.6076"
+         inkscape:label="Carré Central" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="M -1017.8582,596.6076 -841.87272,409 -674.9434,596.6076 Z"
+         id="path35"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Triangle Haut" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="M -1017.8582,939.5224 -841.8727,1127.13 -674.94338,939.5224 Z"
+         id="path36"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Triangle Bas" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -858.03966,1056.0288 h 31.39075 l -14.87379,267.5445 z"
+         id="path37"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Bas" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -857.21805,480.10117 h 31.39075 l -15.69538,-267.5445 z"
+         id="path38"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Haut" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -933.46172,701.06721 21.94534,-22.44504 -202.27292,-175.81836 z"
+         id="path39"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Haut Gauche" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -763.59448,701.0672 -21.9453,-22.44504 202.27292,-175.81836 z"
+         id="path40"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Haut Droite" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -763.59449,835.06278 -21.9453,22.44504 202.27292,175.81838 z"
+         id="path41"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Bas Droite" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -933.46169,835.06278 21.9453,22.44504 -202.27291,175.81838 z"
+         id="path42"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Bas Gauche" />
+    </g>
+    <path
+       style="fill:#7fb5e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -1113.7893,1033.3262 101.1365,-87.90923 158.19464,168.29633 12.93549,209.86 z"
+       id="path43"
+       inkscape:label="Bas Gauche" />
+    <path
+       style="fill:#7fd6e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -841.52267,1323.5733 11.66868,-209.8922 147.81936,-166.18904 98.76779,85.83414 z"
+       id="path44"
+       inkscape:label="Bas Droite" />
+    <path
+       style="fill:#7fb5e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -841.52268,212.55667 11.66868,209.89224 147.81936,166.189 98.76779,-85.8341 z"
+       id="path45"
+       inkscape:label="Haut Droite" />
+    <path
+       style="fill:#7fd6e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -1113.7893,502.8038 101.1365,87.9092 158.19463,-168.2963 12.93549,-209.86003 z"
+       id="path46"
+       inkscape:label="Haut Gauche" />
+    <path
+       style="fill:#7fb5e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -1113.7893,1033.3262 95.9826,-105.52925 -0.059,-319.52867 -95.9238,-105.4645 z"
+       id="path47"
+       inkscape:label="Gauche" />
+    <path
+       style="fill:#7fb5e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -583.26697,1033.3262 -95.9826,-105.52924 0.059,-319.52867 95.9238,-105.4645 z"
+       id="path48"
+       inkscape:label="Droite" />
+  </g>
+  <g
+     id="g76"
+     transform="matrix(0,-0.11476894,0.11340448,0,765.52978,774.69397)"
+     style="fill:#ffffff"
+     inkscape:label="Diamant Bas">
+    <g
+       id="g70"
+       inkscape:label="Diamant Brillance">
+      <rect
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         id="rect62"
+         width="342.91479"
+         height="342.91479"
+         x="-1017.8582"
+         y="596.6076"
+         inkscape:label="Carré Central" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="M -1017.8582,596.6076 -841.87272,409 -674.9434,596.6076 Z"
+         id="path63"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Triangle Haut" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="M -1017.8582,939.5224 -841.8727,1127.13 -674.94338,939.5224 Z"
+         id="path64"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Triangle Bas" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -858.03966,1056.0288 h 31.39075 l -14.87379,267.5445 z"
+         id="path65"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Bas" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -857.21805,480.10117 h 31.39075 l -15.69538,-267.5445 z"
+         id="path66"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Haut" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -933.46172,701.06721 21.94534,-22.44504 -202.27292,-175.81836 z"
+         id="path67"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Haut Gauche" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -763.59448,701.0672 -21.9453,-22.44504 202.27292,-175.81836 z"
+         id="path68"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Haut Droite" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -763.59449,835.06278 -21.9453,22.44504 202.27292,175.81838 z"
+         id="path69"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Bas Droite" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -933.46169,835.06278 21.9453,22.44504 -202.27291,175.81838 z"
+         id="path70"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Bas Gauche" />
+    </g>
+    <path
+       style="fill:#7fb5e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -1113.7893,1033.3262 101.1365,-87.90923 158.19464,168.29633 12.93549,209.86 z"
+       id="path71"
+       inkscape:label="Bas Gauche" />
+    <path
+       style="fill:#7fd6e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -841.52267,1323.5733 11.66868,-209.8922 147.81936,-166.18904 98.76779,85.83414 z"
+       id="path72"
+       inkscape:label="Bas Droite" />
+    <path
+       style="fill:#7fb5e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -841.52268,212.55667 11.66868,209.89224 147.81936,166.189 98.76779,-85.8341 z"
+       id="path73"
+       inkscape:label="Haut Droite" />
+    <path
+       style="fill:#7fd6e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -1113.7893,502.8038 101.1365,87.9092 158.19463,-168.2963 12.93549,-209.86003 z"
+       id="path74"
+       inkscape:label="Haut Gauche" />
+    <path
+       style="fill:#7fb5e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -1113.7893,1033.3262 95.9826,-105.52925 -0.059,-319.52867 -95.9238,-105.4645 z"
+       id="path75"
+       inkscape:label="Gauche" />
+    <path
+       style="fill:#7fb5e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -583.26697,1033.3262 -95.9826,-105.52924 0.059,-319.52867 95.9238,-105.4645 z"
+       id="path76"
+       inkscape:label="Droite" />
+  </g>
+  <g
+     id="g90"
+     transform="matrix(0,-0.11476894,-0.11340448,0,293.30616,528.89019)"
+     style="fill:#ffffff"
+     inkscape:label="Diamant Haut">
+    <g
+       id="g84"
+       inkscape:label="Diamant Brillance">
+      <rect
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         id="rect76"
+         width="342.91479"
+         height="342.91479"
+         x="-1017.8582"
+         y="596.6076"
+         inkscape:label="Carré Central" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="M -1017.8582,596.6076 -841.87272,409 -674.9434,596.6076 Z"
+         id="path77"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Triangle Haut" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="M -1017.8582,939.5224 -841.8727,1127.13 -674.94338,939.5224 Z"
+         id="path78"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Triangle Bas" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -858.03966,1056.0288 h 31.39075 l -14.87379,267.5445 z"
+         id="path79"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Bas" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -857.21805,480.10117 h 31.39075 l -15.69538,-267.5445 z"
+         id="path80"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Haut" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -933.46172,701.06721 21.94534,-22.44504 -202.27292,-175.81836 z"
+         id="path81"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Haut Gauche" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -763.59448,701.0672 -21.9453,-22.44504 202.27292,-175.81836 z"
+         id="path82"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Haut Droite" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -763.59449,835.06278 -21.9453,22.44504 202.27292,175.81838 z"
+         id="path83"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Bas Droite" />
+      <path
+         style="fill:#ffffff;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+         d="m -933.46169,835.06278 21.9453,22.44504 -202.27291,175.81838 z"
+         id="path84"
+         sodipodi:nodetypes="cccc"
+         inkscape:label="Pointe Bas Gauche" />
+    </g>
+    <path
+       style="fill:#7fb5e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -1113.7893,1033.3262 101.1365,-87.90923 158.19464,168.29633 12.93549,209.86 z"
+       id="path85"
+       inkscape:label="Bas Gauche" />
+    <path
+       style="fill:#7fd6e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -841.52267,1323.5733 11.66868,-209.8922 147.81936,-166.18904 98.76779,85.83414 z"
+       id="path86"
+       inkscape:label="Bas Droite" />
+    <path
+       style="fill:#7fb5e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -841.52268,212.55667 11.66868,209.89224 147.81936,166.189 98.76779,-85.8341 z"
+       id="path87"
+       inkscape:label="Haut Droite" />
+    <path
+       style="fill:#7fd6e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -1113.7893,502.8038 101.1365,87.9092 158.19463,-168.2963 12.93549,-209.86003 z"
+       id="path88"
+       inkscape:label="Haut Gauche" />
+    <path
+       style="fill:#7fb5e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -1113.7893,1033.3262 95.9826,-105.52925 -0.059,-319.52867 -95.9238,-105.4645 z"
+       id="path89"
+       inkscape:label="Gauche" />
+    <path
+       style="fill:#7fb5e8;fill-opacity:1;stroke:#7fd6e8;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       d="m -583.26697,1033.3262 -95.9826,-105.52924 0.059,-319.52867 95.9238,-105.4645 z"
+       id="path90"
+       inkscape:label="Droite" />
+  </g>
+</svg>

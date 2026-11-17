@@ -1,5 +1,3 @@
-# CLAUDE.md — Règles pures et invariantes de Psycko
-
 # CLAUDE.md — Référence des Règles Verrouillées de Psycko
 
 **Objectif :** Capturer toutes les règles de jeu finalisées et sans ambiguïté pour la cohérence entre les sessions d'implémentation.  
@@ -60,22 +58,22 @@ Les joueurs jouent **à tour de rôle** en posant des cartes de leur **main** ju
 
 #### Règle de Pose
 - Le joueur pose une ou plusieurs cartes de la même hauteur par tour sur la **Pile de Jeu** (par exemple : 3 x10 )
-- La carte (ou le groupe de cartes) doit respecter les **règles de validité** (voir section "Validité d'une Pose")
+- La carte (ou le groupe de cartes) doit respecter la **Règle de Pose** (voir les règles de pose ci-dessus)
 - On applique une seule fois l'effet d'un groupe de cartes.
 
 ### Effets Spéciaux en Phase 1
-- **Joker de Verre** : Voir section "Effets Spéciaux"
-- **Joker Noir (Passe)** : Voir section "Effets Spéciaux"
-- **Joker Couleur (Bombe)** : Voir section "Effets Spéciaux"
-- **Carte 7** : Déclenche un "Don" si applicable — **Attention particulière si c'est la dernière carte de Phase 1** (voir section "Condition d'Applicabilité du Don")
-- **Carte 2** : Voir section "Effets Spéciaux"— **Interdit de Terminer la Phase 1 sur un (ou plusieurs) 2**
-- **Doublon** : Actif (compare deux tours consécutifs) tant qu'il y a **plus de 2 joueurs**
-- **Carré** : Voir section "Effets Spéciaux"
-- **Prêtre** : Voir section "Effets Spéciaux"
-- **Valet** : Voir section "Effets Spéciaux"
+- **Joker de Verre** : voir la section « Glass Joker (Joker de Verre) »
+- **Joker Noir (Passe)** : voir la section « Black Joker (Joker Noir / Passe) »
+- **Joker Couleur (Bombe)** : voir la section « Joker Couleur (Color / Bombe) »
+- **Carte 7** : Déclenche un "Don" si applicable — **Attention particulière si c'est la dernière carte de Phase 1** (voir la section « Condition d'applicabilité du Don »)
+- **Carte 2** : voir la section « 2 Card (La Fermeture / The Closure) — Clarifications Verrouillées » — **Interdit de Terminer la Phase 1 sur un (ou plusieurs) 2**
+- **Doublon** : Actif (compare deux tours consécutifs) à partir de **3 joueurs actifs (plus de 2), décomptés via `CurrentPhase != DefPhase.Finished`**
+- **Carré** : voir la section « Carré (Quad) »
+- **Prêtre** : voir la section « Priest (Prêtre) — Clarifications Verrouillées »
+- **Valet** : voir la section « Jack (Valet) »
 
 ### Pioche
-- Après chaque pose valide ou Don de Carte, le joueur **pioche 1 carte** du dessus de la **Pioche commune**
+- Après chaque pose valide ou Don de Carte, le joueur effectue une **Pioche** du dessus de la **Pioche commune**
 - La carte piochée **rejoint la main du joueur**
 - **Si la Pioche est vide** et ne reviendra plus.
 
@@ -103,7 +101,7 @@ Les joueurs jouent **à tour de rôle** en posant des cartes de leur **main** ju
 - Phase 1 se termine quand **deux conditions sont simultanément vraies** :
   1. La **main du joueur actif est vide** (même en fin de tour par exemple il lui reste 2 cartes en main : il pose un 7 -> Don de sa dernière carte)
   2. La **Pioche n'existe plus** (Pioche vide)
-- **Transition vers Phase 2** (Le Talent) — voir section "Transitions Entre Phases"
+- **Transition vers Phase 2** (Le Talent) — voir la section « Déclenchement » sous « Phase 2 : Le Talent (The Talent) »
 
 ---
 
@@ -124,16 +122,16 @@ Les joueurs jouent **à tour de rôle** en posant des cartes de leur **main** ju
   - Joker de Verre
   - Joker Noir (Passe)
   - Joker Couleur (Bombe)
-  - Carte 7 (Don) — **Attention particulière si c'est la dernière carte de Phase 2** (voir section "Condition d'Applicabilité du Don")
+  - Carte 7 (Don) — **Attention particulière si c'est la dernière carte de Phase 2** (voir la section « Condition d'applicabilité du Don »)
   - Carte 2 — **Interdit de Terminer la Phase 2 sur un (ou plusieurs) 2**
-  - Doublon (actif tant qu'il y a plus de 2 joueurs)
+  - Doublon (actif à partir de **3 joueurs actifs (plus de 2), décomptés via `CurrentPhase != DefPhase.Finished`**)
   - Carré
   - Prêtre
   - Valet
 
 ### Fin de Phase 2 : Le Talent
 - Phase 2 se termine quand **la main du joueur est vide** (la Pioche étant déjà épuisée depuis la fin de Phase 1)
-- **Transition vers Phase 3** (La Chance) — voir section "Transitions Entre Phases"
+- **Transition vers Phase 3** (La Chance) — voir la section « Déclenchement » sous « Phase 3 : La Chance (The Luck) »
 
 ---
 
@@ -219,7 +217,7 @@ Les joueurs jouent **à tour de rôle** en posant des cartes de leur **main** ju
 - **Joker Noir casse tout** : remet le cumul à zéro, aucune chaîne (Carré ou Doublon) ne traverse un Joker Noir.
 
 ### Carré (Quad)
-- Se construit par **cumul de cartes de même hauteur sur plusieurs coups consécutifs** (jusqu'à 5 coups max dans le deck actuel : 1+1+1+1, 2+1+1, 2+2, 3+1, 2+1+1(Joker Verre transparent), etc.).
+- Se construit par **cumul de cartes de même hauteur sur plusieurs coups consécutifs** (jusqu'à 5 coups max dans le deck actuel, le Joker de Verre transparent pouvant s'insérer dans la chaîne sans compter comme une carte de même hauteur : 1+1+1+1, 2+1+1, 2+2, 3+1, 2+1+1(Joker Verre transparent), etc.).
 - **Validé dès que le cumul atteint 4**, peu importe la répartition des coups — y compris quand un coup de 2 ou 3 cartes fait franchir directement le seuil de 4 (ex. cumul=2 puis un coup de 2 cartes → cumul=4 → Carré direct, pas de Doublon sur ce coup).
 - **Un coup de 4 cartes d'un seul coup valide immédiatement un Carré.**
 - **Futur (PowerCards)** : validé dès que le seuil de 4 est atteint/franchi, peu importe le total final.
@@ -232,10 +230,11 @@ Les joueurs jouent **à tour de rôle** en posant des cartes de leur **main** ju
 - Se répète à **chaque** coup consécutif de même hauteur (cumul 2 ou 3), sautant à chaque fois le joueur suivant — jusqu'à ce que : le cumul atteigne 4 (→ Carré, priorité), qu'un Joker Noir casse la chaîne, ou qu'une autre hauteur soit jouée.
 - **Joker de Verre transparent** : ne casse pas la chaîne, comparaison sautant par-dessus lui.
 - **Joker Noir casse la chaîne** : remet tout à zéro immédiatement.
-- **Désactivé à ≤2 joueurs** — **le Carré, lui, reste actif à ≤2 joueurs.**
+- **Doublon actif à partir de 3 joueurs actifs (plus de 2), décomptés via `CurrentPhase != DefPhase.Finished` ; désactivé à 2 joueurs actifs ou moins.** Le Carré reste actif à 2 joueurs ou moins.
 ### Source d'autorité — décompte des joueurs actifs
-- Le seuil « ≤2 joueurs » (Doublon désactivé, Carré/Don toujours actifs) se
-calcule exclusivement sur le nombre de joueurs dont CurrentPhase != DefPhase.Finished.
+- Le seuil de 2 joueurs ou moins (Doublon désactivé, Carré/Don toujours actifs)
+se calcule exclusivement sur le nombre de joueurs encore actifs, comptés via
+`CurrentPhase != DefPhase.Finished`.
 - Ne jamais utiliser Players.Count brut : ce compte inclut les joueurs déjà
 Finished (ayant gagné leur partie), ce qui fausserait le seuil une fois des
 joueurs éliminés en cours de partie.
@@ -318,13 +317,12 @@ En Phase 3, un joueur dispose de deux sources de cartes :
   • Sa main (Couche 1) — cartes en main, donables
   • Ses cartes Face Cachée (Couche 3) — révélées directement sur la pile, NON donables
 
-Lorsqu'un joueur pose un 7 :
+Lorsqu'un joueur pose un 7, le **Cas A est le cas générique** ; les autres cas ci-dessous sont des exceptions.
 
-  **Cas A — 7 joué depuis la Main (CardLayer.Hand) en Phase 3** :
-    • Le Don s'applique NORMALEMENT.
-    • Le joueur donne une carte de sa main reconstituée (après éventuelle pioche).
+  **Cas A — cas générique : 7 joué depuis la Main (CardLayer.Hand) en Phase 3** :
+    • Le Don s'applique normalement.
 
-  **Cas B — 7 révélé depuis Face Cachée (CardLayer.FaceDown) en Phase 3** :
+  **Cas B — exception : 7 révélé depuis Face Cachée (CardLayer.FaceDown) en Phase 3** :
     • AUCUN DON n'est déclenché (effet silencieux).
     • Raison : Une carte Face Cachée n'a jamais transité par la main du joueur
       — elle est révélée directement sur la pile. Il n'existe donc aucune main
@@ -450,7 +448,7 @@ moteur) ou de la Présentation (choix humain).
 ## PowerCards — Système Méta (Hors-Scope V1, Réservé Extension Future)
 
 ### Statut
-- **Hors scope des Phases 0→5 actuelles.** Aucune implémentation avant validation complète
+- **Hors scope des Phases 0→6 actuelles (dont la Phase 6 : tests NUnit généraux et correctifs associés).** Aucune implémentation avant validation complète
   du Core de base (63 cartes) + Bots + Présentation V1.
 - Réflexion et idées à consigner au fur et à mesure dans **Notion** (liste vivante, non figée).
 
@@ -483,7 +481,7 @@ moteur) ou de la Présentation (choix humain).
 
 ### Prochaine étape
 - Ekinox consigne les idées de PowerCards dans Notion (liste ouverte, brainstorming).
-- Reprise du sujet en session dédiée une fois le Core V1 (63 cartes) stabilisé et testé.
+
 
 ---
 
@@ -637,7 +635,7 @@ cet ordre IMMUABLE (chaque étape reçoit l'état du précédent, jamais de muta
        sens courant (jamais un joueur Finished, qui ne compte pas comme le
        joueur sauté).
      - Ne détecte JAMAIS la fin de partie : cette responsabilité revient
-       exclusivement à GameOrchestrator (voir section Fin de Partie).
+       exclusivement à GameOrchestrator (voir la section « Fin de Partie »).
  
 ⚠️ CRITÈRE : Interroger un handler d'effet de main (ex. SevenHandler) à l'étape 1 
 (avant reconstitution) produirait des Dons silencieux à tort. Un 7 en dernière carte 
@@ -650,7 +648,7 @@ qui court-circuite entièrement les étapes 1 à 6. TurnManager doit trancher
 ### Règle verrouillée — Ramassage en phases Work/Talent
 
 Elle concerne uniquement les phases **Work** et **Talent**. La phase **Luck** possède
-une mécanique distincte et relève de T24.
+une mécanique distincte, décrite dans la section « Exclusion explicite de Luck » ci-dessous.
 
 - **Décision du ramassage forcé** :
   `TurnManager.BeginTurn(state)` est appelé au début du tour, avant toute proposition
@@ -663,7 +661,7 @@ une mécanique distincte et relève de T24.
   possible via une action explicite de la Présentation, par exemple le bouton
   **"Ramasser"**. Cette action est exposée par `GameOrchestrator.RequestPickup(GameState state, int playerId)`
 (statique, public). Qu'il soit volontaire (via RequestPickup) ou forcé (via ApplyPlay en
-cas d'absence de coup jouable), le ramassage converge vers la même séquence T23 exécutée
+cas d'absence de coup jouable), le ramassage converge vers la même séquence exécutée
 par `ExecutePickup` : rejet de NotYourTurn / PlayerFinished / GameAlreadyOver, puis
 `PickUpPile(seatIndex)` → `SetConstraint(Normal, Three)` → avancement Step6, direction
 inchangée.
@@ -679,7 +677,7 @@ inchangée.
   `GameOrchestrator.ApplyPlay(state, play, playerIndex)` ne gère plus que la pose de
   carte. Le ramassage volontaire est une API dédiée : `GameOrchestrator.RequestPickup
   (state, playerId)` (statique). Les deux chemins (forcé via BeginTurn dans ApplyPlay,
-  ou volontaire via RequestPickup) convergent vers la même séquence T23, exécutée par
+  ou volontaire via RequestPickup) convergent vers la même séquence, exécutée par
   `ExecutePickup` : `PickUpPile(seatIndex)`, puis `SetConstraint(Normal, Three)`, puis
   l'avancement de Step6, sans modifier la direction. Aucun enchaînement de ramassages
   forcés n'est possible : après un ramassage, le joueur suivant a une pile vide et peut
@@ -689,11 +687,11 @@ inchangée.
   `PlayResult` expose `ForcedPickupPlayerIds` en `IReadOnlyList<int>` ; la collection
   n'est jamais `null`. `Accepted` accepte une liste optionnelle.
 
-- **Exclusion explicite de Luck / T24** :
+- **Exclusion explicite de Luck** :
   cette règle ne couvre pas la phase Luck. En Luck, le joueur choisit une carte
   FaceDown à l'aveugle ; la carte est révélée et rendue visible à tous les joueurs,
   puis, si elle n'est pas jouable, la pile est ramassée et la carte révélée est
-  fusionnée dans la main. Cette mécanique sera traitée séparément dans T24,
+  fusionnée dans la main. Cette mécanique est distincte du ramassage forcé au début du tour et relève de
   `ApplyBlindPlay`. Elle ne doit pas être mélangée avec `BeginTurn`, qui s'applique
   uniquement aux phases Work/Talent.
 
@@ -712,7 +710,7 @@ Replay (cas Carré) avec le GrantsReplay déjà porté par incomingResult (issu 
 Step3, ex. rejeu du Valet). Le TurnResult retourné par Step5 repart de
 incomingResult et applique la fusion par OR logique explicite :
 .WithReplay(incomingResult.GrantsReplay || step5Replay) — JAMAIS par
-écrasement séquentiel via WithState. Même classe de risque que celle déjà corrigée pour Step2/Step3 : perte silencieuse d'un drapeau de rejeu si les deux Steps l'activent indépendamment. ⚠️ Depuis T26a, step5Replay n'est plus une lecture simple de poseur.HasCards : c'est elle-même une projection OR (poseur.HasCards || DrawCount>0 || FinalReconstruction.DrawCount>0), fusionnée ensuite avec GrantsReplay. Voir bloc T26bis dans TICKETS.md pour le détail de cette projection — ne pas la confondre avec la fusion Step3/Step5 documentée ici, qui reste inchangée.
+écrasement séquentiel via WithState. Même classe de risque que celle déjà corrigée pour Step2/Step3 : perte silencieuse d'un drapeau de rejeu si les deux Steps l'activent indépendamment. step5Replay est une projection OR (poseur.HasCards || DrawCount>0 || FinalReconstruction.DrawCount>0), fusionnée ensuite avec GrantsReplay. Cette projection est distincte de la fusion Step3/Step5 documentée ici, qui reste inchangée.
 
 ---
 
@@ -783,7 +781,7 @@ RÈGLES VERROUILLÉES PAR PHASE :
   Work (Phase 1) :
     - Seule Hand est jouable.
     - Transition → Talent quand Hand.Count == 0.
-    - INVARIANT (garanti par TurnManager, pas testé dans le resolver) :
+    - INVARIANT (garanti par TurnManager) :
       cette méthode est appelée APRÈS re-pioche (étape 2 de l'Ordre Strict).
       Hand.Count == 0 implique donc pioche épuisée par construction.
 
@@ -818,4 +816,3 @@ VS Code/OmniSharp.
 - Toute réactivation future du nullable reference context doit être une
   décision explicite, documentée ici, et appliquée de façon uniforme à tout
   le projet (jamais fichier par fichier).
-- Voir T29 (TICKETS.md) pour l'historique de cette décision.

@@ -25,6 +25,8 @@ namespace Psycko.Presentation.Controllers
         [SerializeField] private float _giftSeconds = 30f;
         [SerializeField] private float _exchangeSeconds = 90f;
         [SerializeField] private float _messageSeconds = 2f;
+        [Tooltip("Fond de table plein écran, derrière les sièges : un clic referme l'éventail ouvert.")]
+        [SerializeField] private Button _tableBackground;
 
         private readonly HumanSelectionState _selection = new HumanSelectionState();
         private readonly List<ExchangeChoice> _exchanges = new List<ExchangeChoice>();
@@ -53,6 +55,7 @@ namespace Psycko.Presentation.Controllers
             if (_playButton != null) _playButton.onClick.AddListener(OnPlayClicked);
             if (_pickupButton != null) _pickupButton.onClick.AddListener(OnPickupClicked);
             if (_readyButton != null) _readyButton.onClick.AddListener(OnReadyClicked);
+            if (_tableBackground != null) _tableBackground.onClick.AddListener(OnTableBackgroundClicked);
             _selection.Changed += OnSelectionChanged;
             SubscribeSeats(true);
             SetAllSeatsClickable(false);
@@ -71,9 +74,11 @@ namespace Psycko.Presentation.Controllers
             if (_playButton != null) _playButton.onClick.RemoveListener(OnPlayClicked);
             if (_pickupButton != null) _pickupButton.onClick.RemoveListener(OnPickupClicked);
             if (_readyButton != null) _readyButton.onClick.RemoveListener(OnReadyClicked);
+            if (_tableBackground != null) _tableBackground.onClick.RemoveListener(OnTableBackgroundClicked);
             _selection.Changed -= OnSelectionChanged;
             SubscribeSeats(false);
             SetAllSeatsClickable(false);
+            CloseFan();
         }
 
         private void SubscribeSeats(bool add)
@@ -105,9 +110,10 @@ namespace Psycko.Presentation.Controllers
 
         private void OnRequest(HumanRequestKind kind)
         {
-            // Toute nouvelle requête arrête les minuteurs de la requête précédente.
+            // Toute nouvelle requête arrête les minuteurs de la requête précédente et referme l'éventail.
             StopGiftCountdown();
             StopExchangeCountdown();
+            CloseFan();
 
             _request = kind; _submitted = false;
             _pending = _controller == null ? null : _controller.VisibleState;
@@ -150,11 +156,9 @@ namespace Psycko.Presentation.Controllers
                 if (_messageRemaining <= 0f && _messageLabel != null) _messageLabel.text = string.Empty;
             }
 
-            // Minuteur du don : décompte tant qu'aucun don n'a été soumis.
             if (_request == HumanRequestKind.Gift && !_submitted)
                 TickCountdown(_giftTimer, _giftCountdownView);
 
-            // Minuteur de l'échange : décompte tant que les échanges n'ont pas été soumis.
             if (_request == HumanRequestKind.Exchanges && !_submitted)
                 TickCountdown(_exchangeTimer, _exchangeCountdownView);
         }
@@ -187,13 +191,46 @@ namespace Psycko.Presentation.Controllers
             if (_exchangeCountdownView != null) _exchangeCountdownView.Hide();
         }
 
+        // ── Éventail (T55-11) ────────────────────────────────────────────
+
+        private void CloseFan()
+        {
+            if (_table != null && _table.SelfSeat != null) _table.SelfSeat.CloseFan();
+        }
+
+        private void OnTableBackgroundClicked()
+        {
+            if (_table == null || _table.SelfSeat == null || !_table.SelfSeat.IsFanOpen) return;
+            CloseFan();
+            ReapplyCardStates();
+        }
+
+        // ── Clics ────────────────────────────────────────────────────────
+
         private void OnHandCard(Card card, CardView view)
         {
             if (card == null || view == null || _submitted) return;
-            if (_request == HumanRequestKind.NormalPlay)
+                        if (_request == HumanRequestKind.NormalPlay)
             {
-                // Le Changed de _selection déclenche ReapplyCardStates.
+                PlayerSeatView self = _table == null ? null : _table.SelfSeat;
+                bool inOpenFan = self != null && self.IsInOpenFan(view);
+
+                // Groupe fermé (×N) : le clic ouvre l'éventail (et referme l'autre), sans sélectionner.
+                if (self != null && !inOpenFan && self.ColumnSizeOf(view) > 1)
+                {
+                    self.ToggleColumnOf(view);
+                    ReapplyCardStates();
+                    return;
+                }
+
+                // Clic sur une carte hors de l'éventail ouvert : on baisse l'éventail,
+                // la sélection du groupe est conservée (ses cartes restent levées dans la main).
+                if (self != null && self.IsFanOpen && !inOpenFan)
+                    self.CloseFan();
+
+                // Carte seule ou carte de l'éventail : bascule de sélection (Changed -> ReapplyCardStates).
                 _selection.Toggle(card);
+                ReapplyCardStates();
             }
             else if (_request == HumanRequestKind.Gift)
             {
@@ -208,7 +245,6 @@ namespace Psycko.Presentation.Controllers
                 if (_table == null || _table.SelfSeat == null) return;
                 Card shown = SimCardAt(_table.SelfSeat.HandViews, view, _simHand);
                 if (shown == null) return;
-                // Une seule carte de main levée : re-clic = baisse, autre carte = déplacement.
                 _pendingExchangeHand = _pendingExchangeHand == shown ? null : shown;
                 ReapplyCardStates();
             }
@@ -227,7 +263,6 @@ namespace Psycko.Presentation.Controllers
             int handIdx = _simHand.IndexOf(_pendingExchangeHand);
             if (faceUpIdx < 0 || handIdx < 0) return;
 
-            // Choix enregistré en cartes réelles à cet instant : le Core les rejoue séquentiellement.
             _exchanges.Add(new ExchangeChoice(_pendingExchangeHand, shownFaceUp));
 
             // Permutation locale, identique à PreGameExchange.Swap.
@@ -240,20 +275,28 @@ namespace Psycko.Presentation.Controllers
 
         private void OnFaceDownIndex(int index)
         {
-            if (_request != HumanRequestKind.FaceDownIndex || _blind == null || _controller.Human == null || _submitted) return;
+            if (_request != HumanRequestKind.FaceDownIndex || _blind == null || _controller == null || _controller.Human == null || _submitted) return;
             if (index < 0 || index >= _blind.SelfFaceDownCount) return;
             _submitted = true; _controller.Human.SubmitFaceDownIndex(index); HideActions();
         }
 
-        private void OnSeatClicked(int playerId) { ChooseGiftRecipient(playerId); }
+        private void OnSeatClicked(int playerId)
+        {
+            // Clic sur le fond de son propre siège : referme l'éventail.
+            if (_table != null && _table.SelfSeat != null && playerId == _table.SelfSeat.PlayerId)
+            {
+                OnTableBackgroundClicked();
+                return;
+            }
+            ChooseGiftRecipient(playerId);
+        }
 
         private void ChooseGiftRecipient(int playerId)
         {
             IOpponentVisibleInfo opponent;
-            if (_request != HumanRequestKind.Gift || _submitted || _giftCard == null || _pending == null || _controller.Human == null) return;
+            if (_request != HumanRequestKind.Gift || _submitted || _giftCard == null || _pending == null || _controller == null || _controller.Human == null) return;
             if (playerId == _pending.SelfPlayerId || !_opponents.TryGetValue(playerId, out opponent) || opponent.CurrentPhase == DefPhase.Finished) return;
             _submitted = true;
-            // Don manuel : le minuteur est arrêté, le Fallback ne se déclenchera jamais.
             StopGiftCountdown();
             _controller.Human.SubmitGift(new GiftResolutionChoice(_giftCard, playerId));
             HideActions(); SetAllSeatsClickable(false);
@@ -269,10 +312,7 @@ namespace Psycko.Presentation.Controllers
             HideActions(); SetAllSeatsClickable(false);
         }
 
-        /// <summary>
-        /// Expiration de l'échange : les échanges non validés sont interrompus. L'agent applique son
-        /// Fallback (décision hors Présentation) ; aucun échange local n'est envoyé au Core.
-        /// </summary>
+        /// <summary>Expiration de l'échange : Fallback de l'agent ; aucun échange local n'est envoyé au Core.</summary>
         private void OnExchangeTimerExpired()
         {
             if (_request != HumanRequestKind.Exchanges || _submitted) return;
@@ -294,7 +334,6 @@ namespace Psycko.Presentation.Controllers
 
             if (!EverySelectedCardPlayable())
             {
-                // Rejet par le Core (ICardPlayabilityChecker) : message court, sélection conservée.
                 ShowMessage("Coup refusé");
                 return;
             }
@@ -306,13 +345,13 @@ namespace Psycko.Presentation.Controllers
             }
             catch (ArgumentException)
             {
-                // Rejet structurel du Core (ex. cartes de rangs différents) : sélection conservée.
                 ShowMessage("Sélection invalide");
                 return;
             }
 
             _submitted = true;
             ShowMessage(string.Empty);
+            CloseFan();
             _controller.Human.SubmitPlay(play);
             _selection.Clear(); // déclenche ReapplyCardStates via Changed
             HideActions();
@@ -321,10 +360,10 @@ namespace Psycko.Presentation.Controllers
         private void OnPickupClicked()
         {
             if (_submitted || _controller == null || _controller.Human == null) return;
-            // GameRunner passe par ProposeNormalPlay : null = ramassage volontaire.
             if (_request == HumanRequestKind.NormalPlay) { _submitted = true; _controller.Human.SubmitNoPlay(); }
             else if (_request == HumanRequestKind.Pickup) { _submitted = true; _controller.Human.SubmitPickup(true); }
             else return;
+            CloseFan();
             ShowMessage(string.Empty);
             HideActions();
         }
@@ -335,7 +374,6 @@ namespace Psycko.Presentation.Controllers
         {
             if (_request != HumanRequestKind.Exchanges || _submitted || _controller == null || _controller.Human == null) return;
             _submitted = true;
-            // Soumission manuelle : le minuteur est arrêté, le Fallback ne se déclenchera jamais.
             StopExchangeCountdown();
             _pendingExchangeHand = null; ClearExchangePreview();
             _controller.Human.SubmitExchanges(_exchanges.ToList().AsReadOnly());
@@ -343,16 +381,18 @@ namespace Psycko.Presentation.Controllers
             _request = HumanRequestKind.None; HideActions();
         }
 
-        /// <summary>
-        /// Point unique de projection : applique à chaque CardView l'état calculé par CardStateProjector.
-        /// Appelé après tout changement de sélection, de requête, de rendu ou d'état.
-        /// </summary>
+        // ── Projection des états ─────────────────────────────────────────
+
+        /// <summary>Point unique de projection : applique à chaque CardView l'état calculé par CardStateProjector.</summary>
         private void ReapplyCardStates()
         {
             if (_table == null) return;
             var self = _table.SelfSeat;
             if (self != null)
             {
+                // T55-11 : regroupement sauf pendant le Don du 7 et l'échange (colonnes unitaires).
+                self.SetGroupingAllowed(_request != HumanRequestKind.Gift && _request != HumanRequestKind.Exchanges);
+
                 var hand = self.HandViews;
                 if (_request == HumanRequestKind.NormalPlay)
                     _selection.Prune(hand.Where(v => v != null && v.Card != null).Select(v => v.Card), IsPlayable);
@@ -361,7 +401,6 @@ namespace Psycko.Presentation.Controllers
                 bool gift = _request == HumanRequestKind.Gift && !_submitted;
                 bool exchange = _request == HumanRequestKind.Exchanges && !_submitted;
 
-                // [ÉCHANGE] En échange, la carte affichée à l'indice i est la carte simulée, pas view.Card.
                 var cards = new List<Card>(hand.Count);
                 for (int i = 0; i < hand.Count; i++)
                     cards.Add(hand[i] == null ? null : DisplayedHandCard(i, hand[i]));
@@ -371,28 +410,30 @@ namespace Psycko.Presentation.Controllers
                     || (gift && c == _giftCard)
                     || (exchange && c == _pendingExchangeHand);
 
-                // Surbrillance Playable uniquement en pose normale ; jamais en don ni en échange.
                 CardProjection[] states = CardStateProjector.Project(cards, isSelected, IsPlayable, play);
 
-                bool handInteractive = _request == HumanRequestKind.NormalPlay
-                    || _request == HumanRequestKind.Gift
-                    || _request == HumanRequestKind.Exchanges;
+                bool handInteractive = play || gift || exchange;
 
                 for (int i = 0; i < hand.Count; i++)
                 {
                     var view = hand[i];
                     if (view == null || view.Card == null) continue;
                     view.SetState(ToVisual(states[i]));
-                    view.SetInteractable(handInteractive);
+
+                    bool interactable = handInteractive;
+                    // Éventail ouvert : seules ses cartes jouables sont cliquables.
+                    if (play && self.IsInOpenFan(view)) interactable = IsPlayable(view.Card);
+                    view.SetInteractable(interactable);
                 }
 
                 foreach (var view in self.FaceUpViews)
                 {
                     if (view == null) continue;
                     view.SetState(CardVisualState.Normal);
-                    view.SetInteractable(_request == HumanRequestKind.Exchanges && !_submitted);
+                    view.SetInteractable(exchange);
                 }
-                foreach (var view in self.FaceDownViews) if (view != null) view.SetInteractable(_request == HumanRequestKind.FaceDownIndex);
+                foreach (var view in self.FaceDownViews)
+                    if (view != null) view.SetInteractable(_request == HumanRequestKind.FaceDownIndex && !_submitted);
             }
             RefreshButtons();
         }
@@ -446,7 +487,13 @@ namespace Psycko.Presentation.Controllers
             if (_table == null) return;
             foreach (var seat in _table.AllSeatViews)
             {
-                if (seat == null || seat == _table.SelfSeat) continue;
+                if (seat == null) continue;
+                if (seat == _table.SelfSeat)
+                {
+                    // Fond du siège humain cliquable seulement pour refermer un éventail ouvert.
+                    seat.SetSeatClickable(_request == HumanRequestKind.NormalPlay && !_submitted && seat.IsFanOpen);
+                    continue;
+                }
                 IOpponentVisibleInfo opponent;
                 bool allowed = _request == HumanRequestKind.Gift && !_submitted && _giftCard != null
                     && _opponents.TryGetValue(seat.PlayerId, out opponent) && opponent.CurrentPhase != DefPhase.Finished;
@@ -461,7 +508,6 @@ namespace Psycko.Presentation.Controllers
 
         // ── [ÉCHANGE] Simulation locale et aperçu ────────────────────────
 
-        /// <summary>Carte simulée affichée à la position de la vue cliquée, ou null si hors limites.</summary>
         private static Card SimCardAt(IReadOnlyList<CardView> views, CardView clicked, List<Card> sim)
         {
             for (int i = 0; i < views.Count && i < sim.Count; i++)
@@ -469,7 +515,6 @@ namespace Psycko.Presentation.Controllers
             return null;
         }
 
-        /// <summary>Recopie la main et la FaceUp réelles de la requête : point de départ de la simulation.</summary>
         private void ResetSimulation()
         {
             _simHand.Clear(); _simFaceUp.Clear();
@@ -478,17 +523,12 @@ namespace Psycko.Presentation.Controllers
             _simFaceUp.AddRange(_pending.SelfFaceUp);
         }
 
-        /// <summary>Carte affichée à l'indice i de la main : simulée pendant l'échange, réelle sinon.</summary>
         private Card DisplayedHandCard(int index, CardView view)
         {
             if (_request == HumanRequestKind.Exchanges && !_submitted && index < _simHand.Count) return _simHand[index];
             return view.Card;
         }
 
-        /// <summary>
-        /// Projette les listes simulées sur les vues, par position. Les vues restent liées aux cartes
-        /// réelles du Core ; seul l'aperçu change. Aucun échange n'est appliqué au Core avant SubmitExchanges.
-        /// </summary>
         private void ApplyExchangePreview()
         {
             ClearExchangePreview();

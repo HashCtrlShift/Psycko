@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg1"
+   width="1024"
+   height="1536"
+   viewBox="0 0 1024 1536"
+   sodipodi:docname="Diamonds_Ace.svg"
+   inkscape:export-filename="Diamonds_Four.svg"
+   inkscape:export-xdpi="300"
+   inkscape:export-ydpi="300"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1">
+    <rect
+       x="750.0351"
+       y="927.8877"
+       width="356.60349"
+       height="374.56842"
+       id="rect4-2" />
+    <rect
+       x="750.0351"
+       y="927.8877"
+       width="356.60349"
+       height="374.56842"
+       id="rect4-2-1" />
+  </defs>
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showguides="true"
+     inkscape:export-bgcolor="#00000000">
+    <sodipodi:guide
+       position="950.34386,95.438594"
+       orientation="0,-1"
+       id="guide1"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="73.207018,1441.9088"
+       orientation="0,-1"
+       id="guide2"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="73.207018,1441.9088"
+       orientation="1,0"
+       id="guide3"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="950.34386,1442.5825"
+       orientation="1,0"
+       id="guide4"
+       inkscape:locked="false" />
+    <inkscape:page
+       x="0"
+       y="0"
+       width="1024"
+       height="1536"
+       id="page2"
+       margin="0"
+       bleed="0" />
+    <sodipodi:guide
+       position="181.73458,1071.7782"
+       orientation="1,0"
+       id="guide5"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="835.09151,311.956"
+       orientation="1,0"
+       id="guide6"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="198.80369,1373.2585"
+       orientation="0,-1"
+       id="guide7"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="843.90176,163.34735"
+       orientation="0,-1"
+       id="guide8"
+       inkscape:locked="false" />
+  </sodipodi:namedview>
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke:#1e785a;stroke-width:0;stroke-linecap:square;stroke-dasharray:none;stroke-opacity:1"
+     id="rect5-3"
+     width="864.92743"
+     height="1334.6442"
+     x="79.240997"
+     y="99.966415"
+     ry="85.29892"
+     inkscape:label="Fond" />
+  <rect
+     style="fill:#1e785a;fill-opacity:0;stroke:#f26418;stroke-width:12;stroke-linecap:square;stroke-dasharray:none;stroke-opacity:1"
+     id="rect5"
+     width="864.92743"
+     height="1334.6442"
+     x="79.240997"
+     y="99.966393"
+     ry="85.29892"
+     inkscape:label="Bordure" />
+  <text
+     xml:space="preserve"
+     id="text4-5"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:266.667px;font-family:Rajdhani;-inkscape-font-specification:'Rajdhani Bold';writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect4-2);shape-padding:32.3368;fill:#f26418;fill-opacity:1;stroke:#2f2597;stroke-width:0;stroke-linecap:square;stroke-opacity:0.48"
+     transform="matrix(-0.91396984,0,0,-0.76950167,1610.954,2154.8102)"
+     inkscape:label="A Bas"><tspan
+       x="782.37109"
+       y="1187.9136"
+       id="tspan3">5</tspan></text>
+  <text
+     xml:space="preserve"
+     id="text4-5-3"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:266.667px;font-family:Rajdhani;-inkscape-font-specification:'Rajdhani Bold';writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect4-2-1);shape-padding:32.3368;fill:#f26418;fill-opacity:1;stroke:#2f2597;stroke-width:0;stroke-linecap:square;stroke-opacity:0.48"
+     transform="matrix(0.91396984,0,0,0.76950167,-595.01505,-619.41605)"
+     inkscape:label="A Haut"><tspan
+       x="782.37109"
+       y="1187.9136"
+       id="tspan4">5</tspan></text>
+  <path
+     id="rect4"
+     style="fill:#f26418;fill-opacity:1;stroke:#1e785a;stroke-width:0;stroke-linecap:square"
+     d="M 505.75694,488.20267 A 400.95071,444.98257 0 0 1 304.92686,769.83548 400.95071,444.98257 0 0 1 505.51475,1054.6832 h 0.082 A 400.95071,444.98257 0 0 1 707.58897,769.91751 400.95071,444.98257 0 0 1 505.75694,488.20267 Z"
+     inkscape:label="Carreau Centre" />
+  <path
+     id="rect4-2-61"
+     style="fill:#f26418;fill-opacity:1;stroke:#1e785a;stroke-width:0;stroke-linecap:square"
+     d="m 181.77823,309.7413 a 109.34016,121.34774 0 0 1 -54.7668,76.8019 109.34016,121.34774 0 0 1 54.70075,77.6786 h 0.0224 a 109.34016,121.34774 0 0 1 55.08368,-77.65623 109.34016,121.34774 0 0 1 -55.04004,-76.82427 z"
+     inkscape:label="Carreau Haut" />
+  <path
+     id="rect4-2-6"
+     style="fill:#f26418;fill-opacity:1;stroke:#1e785a;stroke-width:0;stroke-linecap:square"
+     d="m 835.15756,1069.5635 a 109.34016,121.34774 0 0 1 -54.76681,76.8019 109.34016,121.34774 0 0 1 54.70076,77.6786 h 0.0224 a 109.34016,121.34774 0 0 1 55.08369,-77.6563 109.34016,121.34774 0 0 1 -55.04004,-76.8242 z"
+     inkscape:label="Carreau Bas" />
+</svg>

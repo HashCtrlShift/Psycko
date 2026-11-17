@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg1"
+   width="1024"
+   height="1536"
+   viewBox="0 0 1024 1536"
+   sodipodi:docname="Spades_Two.svg"
+   inkscape:export-filename="Spades_Three.svg"
+   inkscape:export-xdpi="300"
+   inkscape:export-ydpi="300"
+   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1">
+    <rect
+       x="750.0351"
+       y="927.8877"
+       width="356.60349"
+       height="374.56842"
+       id="rect4-2-1" />
+    <rect
+       x="750.0351"
+       y="927.8877"
+       width="356.60349"
+       height="374.56842"
+       id="rect7" />
+  </defs>
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showguides="true"
+     inkscape:export-bgcolor="#00000000"
+     inkscape:zoom="0.5"
+     inkscape:cx="513"
+     inkscape:cy="767"
+     inkscape:window-width="1920"
+     inkscape:window-height="1051"
+     inkscape:window-x="-9"
+     inkscape:window-y="-9"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1">
+    <sodipodi:guide
+       position="950.34386,95.438594"
+       orientation="0,-1"
+       id="guide1"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="73.207018,1441.9088"
+       orientation="0,-1"
+       id="guide2"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="73.207018,1441.9088"
+       orientation="1,0"
+       id="guide3"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="950.34386,1442.5825"
+       orientation="1,0"
+       id="guide4"
+       inkscape:locked="false" />
+    <inkscape:page
+       x="0"
+       y="0"
+       width="1024"
+       height="1536"
+       id="page2"
+       margin="0"
+       bleed="0" />
+    <sodipodi:guide
+       position="234.24306,1208.1333"
+       orientation="1,0"
+       id="guide5"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="125.10176,1139.6845"
+       orientation="1,0"
+       id="guide6"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="897.31851,199.56818"
+       orientation="1,0"
+       id="guide7"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="197,1365.5748"
+       orientation="0,-1"
+       id="guide8"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="848.5,188"
+       orientation="0,-1"
+       id="guide9"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="179.67367,1082.8828"
+       orientation="1,0"
+       id="guide10"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="842.73378,345.44148"
+       orientation="1,0"
+       id="guide11"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="788.1772,399.6794"
+       orientation="1,0"
+       id="guide12"
+       inkscape:locked="false" />
+  </sodipodi:namedview>
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke:#1e785a;stroke-width:0;stroke-linecap:square;stroke-dasharray:none;stroke-opacity:1"
+     id="rect5-3"
+     width="864.92743"
+     height="1334.6442"
+     x="79.240997"
+     y="99.966415"
+     ry="85.29892"
+     inkscape:label="Fond" />
+  <rect
+     style="fill:#1b2a49;fill-opacity:0;stroke:#1b2a49;stroke-width:12;stroke-linecap:square;stroke-dasharray:none;stroke-opacity:1"
+     id="rect5"
+     width="864.92743"
+     height="1334.6442"
+     x="79.240997"
+     y="99.966393"
+     ry="85.29892"
+     inkscape:label="Bordure" />
+  <g
+     id="g7"
+     inkscape:label="Bas"
+     transform="rotate(180,511.21013,759.21259)">
+    <text
+       xml:space="preserve"
+       id="text6"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:266.667px;font-family:Rajdhani;-inkscape-font-specification:'Rajdhani Bold';writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect7);shape-padding:32.3368;display:inline;fill:#1b2a49;fill-opacity:1;stroke:#1b2a49;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       transform="matrix(0.97680338,0,0,0.82240332,-659.012,-665.50409)"
+       inkscape:label="A Bas"><tspan
+         x="782.37109"
+         y="1187.9136"
+         id="tspan1">4</tspan></text>
+    <path
+       id="path6"
+       style="fill:#1b2a49;fill-opacity:1;stroke:#f26418;stroke-width:0;stroke-linecap:square"
+       inkscape:label="Pique Bas"
+       d="m 179.68648,327.86666 -43.97247,43.72604 h 0.12421 a 29.182938,31.905082 0 0 0 -10.73646,24.72283 29.182938,31.905082 0 0 0 29.18272,31.90479 29.182938,31.905082 0 0 0 21.1082,-9.87395 32.526729,58.727794 0 0 1 -17.91594,34.77078 h 44.39386 a 32.526729,58.727794 0 0 1 -17.91497,-34.76585 29.182938,31.905082 0 0 0 21.10475,9.86952 29.182938,31.905082 0 0 0 29.18268,-31.90529 29.182938,31.905082 0 0 0 -10.73592,-24.72283 h 0.1518 z" />
+  </g>
+  <path
+     id="rect4-5-5"
+     style="fill:#1b2a49;fill-opacity:1;stroke:#f26418;stroke-width:0;stroke-linecap:square"
+     inkscape:label="Pique Centre"
+     d="m 504.89301,507.90403 -174.2559,173.2793 h 0.4922 a 115.64733,126.43475 0 0 0 -42.5468,97.97265 115.64733,126.43475 0 0 0 115.6464,126.4336 115.64733,126.43475 0 0 0 83.6485,-39.12891 128.89824,232.72888 0 0 1 -70.9981,137.79113 h 175.9258 a 128.89824,232.72888 0 0 1 -70.9941,-137.7716 115.64733,126.43475 0 0 0 83.6347,39.11133 115.64733,126.43475 0 0 0 115.6465,-126.43555 115.64733,126.43475 0 0 0 -42.5449,-97.97265 h 0.6016 z" />
+  <g
+     id="g6"
+     inkscape:label="Haut">
+    <text
+       xml:space="preserve"
+       id="text4-5-3"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:266.667px;font-family:Rajdhani;-inkscape-font-specification:'Rajdhani Bold';writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect4-2-1);shape-padding:32.3368;display:inline;fill:#1b2a49;fill-opacity:1;stroke:#1b2a49;stroke-width:0;stroke-linecap:square;stroke-opacity:1"
+       transform="matrix(0.97680338,0,0,0.82240332,-656.77406,-665.50407)"
+       inkscape:label="A Haut"><tspan
+         x="782.37109"
+         y="1187.9136"
+         id="tspan3">4</tspan></text>
+    <path
+       id="path4"
+       style="fill:#1b2a49;fill-opacity:1;stroke:#f26418;stroke-width:0;stroke-linecap:square"
+       inkscape:label="Pique Haut"
+       d="m 179.68648,327.86666 -43.97247,43.72604 h 0.12421 a 29.182938,31.905082 0 0 0 -10.73646,24.72283 29.182938,31.905082 0 0 0 29.18272,31.90479 29.182938,31.905082 0 0 0 21.1082,-9.87395 32.526729,58.727794 0 0 1 -17.91594,34.77078 h 44.39386 a 32.526729,58.727794 0 0 1 -17.91497,-34.76585 29.182938,31.905082 0 0 0 21.10475,9.86952 29.182938,31.905082 0 0 0 29.18268,-31.90529 29.182938,31.905082 0 0 0 -10.73592,-24.72283 h 0.1518 z" />
+  </g>
+</svg>
