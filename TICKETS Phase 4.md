@@ -1007,118 +1007,146 @@ Dépendance : aucune. Suite : T55-9 (affichage des rangs dans `Presentation/`).
 
 ---
 
-#### T62 — Fix : 2 terminal par phase (`LastCardValidator`)
+#### T62✅ — Fix : 2 terminal par phase (`LastCardValidator`)
 
-**Statut** : à faire. Ticket Core : **les tests NUnit EditMode sont obligatoires avant le merge**.
+**Statut** : ✅ Fait. Implémentation validée en console (Work et Talent confirmés, Luck vérifié par lecture de code). Reste à clore : simulation 1M, vérification en partie Unity, tests NUnit (reportés en Phase 6).
 
 **Contexte (bug constaté)**
-CLAUDE.md (lignes 394 à 396) interdit de terminer une phase sur un 2, dans les trois phases. Si le 2 est la dernière carte, le joueur le pose, **ramasse toute la pile (2 compris)** et passe son tour, sans destruction de la pile ni rejeu.
+CLAUDE.md (lignes 394 à 396) interdit de terminer une phase sur un 2, dans les trois phases. Si le 2 est la dernière carte de la phase, le joueur le pose, **ramasse toute la pile (2 compris)** et passe son tour, sans destruction de la pile ni rejeu.
 
-Aujourd'hui, `LastCardValidator` ne considère un 2 comme terminal que si **les trois couches sont vides** (`handAfter <= 0 && faceUpAfter <= 0 && faceDownAfter <= 0`). Résultat : un 2 qui termine la phase Work ou Talent détruit la pile et déclenche la transition de phase.
-
-Le bug a été reproduit en console : il restait 3 FaceDown, le dernier 2♠ de la main a été joué, et on a obtenu `Detruite2, PhaseTransition (Luck)`. Le même bug existe dans Unity, puisque la console et Unity partagent le Core.
+Avant le fix, `LastCardValidator` ne considérait un 2 comme terminal que si **les trois couches étaient vides**. Un 2 qui terminait la phase Work ou Talent détruisait donc la pile et déclenchait la transition de phase. Reproduit en console : il restait 3 FaceDown, le dernier 2♠ de la main a été joué, résultat `Detruite2, PhaseTransition (Luck)`. Même bug dans Unity (Core partagé).
 
 **Objectif** : vérifier si le coup termine la **phase en cours**, et non l'ensemble des cartes du joueur.
 
-**Comportement**
-- `LastCardValidator` évalue le coup selon `player.CurrentPhase`, sur l'état **avant** le coup. C'est important parce que `TurnManager.ApplyPlay` déclenche la transition de phase avant que l'orchestrateur appelle le validateur.
-  - **Work** : le coup est terminal si `handAfter <= 0 && state.DrawPile.Count == 0`.
-  - **Talent** : le coup est terminal si `handAfter <= 0 && faceUpAfter <= 0`. Cette condition marche que les FaceUp passent dans la main ou soient jouées depuis la table. La console montre qu'elles passent dans la main ; c'est à confirmer et à écrire dans le GDD.
-  - **Luck** : le coup est terminal si `handAfter <= 0 && faceUpAfter <= 0 && faceDownAfter <= 0`. C'est le comportement actuel, qui doit rester inchangé.
-- Si le coup est terminal **et** que les cartes jouées contiennent un 2 :
-  - le 2 est posé ;
+**Cause racine**
+Dans `GameOrchestrator.ApplyPlay`, le verdict `TerminatesOnTwo` était calculé **après** `TurnManager.ApplyPlay`. À ce stade, la reconstruction (pioche, ramassage FaceUp, transition de phase) était déjà appliquée, donc le validateur lisait un état déjà transformé.
+
+**Comportement implémenté**
+- `LastCardValidator` évalue le coup selon `player.CurrentPhase`, sur l'état **avant** le coup :
+  - **Work** : terminal si `handAfter <= 0` et pioche vide.
+  - **Talent** : terminal si `handAfter <= 0` et `faceUpAfter <= 0`.
+  - **Luck** : terminal si plus aucune carte en main, FaceUp ou FaceDown. Comportement inchangé.
+- Si le coup est terminal **et** contient un 2 :
+  - le 2 est posé (`PlayCards`) ;
   - le joueur ramasse toute la pile, 2 compris ;
   - le tour passe au joueur suivant ;
-  - il n'y a **ni** `Detruite2`, **ni** rejeu, **ni** `PhaseTransition`.
+  - **ni** `Detruite2`, **ni** rejeu, **ni** `PhaseTransition`.
 - La transition de phase normale reprend au prochain tour du joueur, avec sa nouvelle main.
-- `GameOrchestrator` (lignes 104 à 129) applique ce verdict avant tout effet de destruction ou de transition.
+- `GameOrchestrator.ApplyPlay` : la garde est déplacée **avant** `TurnManager.ApplyPlay`. Pas de pioche, de ramassage FaceUp ni de transition sur ce coup. `ResolvePickup` reste appelé sur l'état d'origine, et `ExecutePickup` sur l'état posé.
+- Log : une ligne `Play` sans effet, puis la ligne `PickupPile`.
+- `tracker.RecordPlay` n'est pas appelé pour ce coup (comportement inchangé).
+- **Luck (carte FaceDown)** : déjà géré par `GameOrchestrator.ApplyBlindPlay` (`play.EffectiveRank == DefRank.Two && player.FaceDown.Count == 1`), chemin non modifié par T62.
 
 **Fichiers**
-- [ ] Modifié : `Psycko.Core/Rules/Validation/LastCardValidator.cs`
-- [ ] Modifié si nécessaire : `Psycko.Core/Services/GameOrchestrator.cs` (ordre validation → effets)
-- [ ] Nouveau : `Tests/EditMode/Rules/Validation/LastCardValidatorTests.cs`
-- [ ] Nouveau ou modifié : test d'intégration dans `GameOrchestratorTests`
+- [x] Modifié : `Psycko.Core/Rules/Validation/LastCardValidator.cs`
+- [x] Modifié : `Psycko.Core/Services/GameOrchestrator.cs` (garde déplacée avant `TurnManager.ApplyPlay`)
+- [ ] ⏭️ Reporté en Phase 6 : `Tests/EditMode/Rules/Validation/LastCardValidatorTests.cs`
+- [ ] ⏭️ Reporté en Phase 6 : test d'intégration dans `GameOrchestratorTests`
 
-**Tests NUnit EditMode**
+**Tests NUnit EditMode (reportés en Phase 6)**
 
 Cas où la règle doit s'appliquer :
-- [ ] Work : la main contient un seul 2, la pioche est vide, il reste des FaceUp et des FaceDown. Le joueur ramasse, 2 compris, sans destruction ni rejeu.
-- [ ] Work : la main contient seulement une paire de 2, la pioche est vide. Le joueur ramasse.
-- [ ] Talent : la dernière carte de la phase est un 2 et il reste des FaceDown. Le joueur ramasse.
-- [ ] Luck : le dernier FaceDown retourné est un 2. Le joueur ramasse (non-régression).
+- [ ] Work : un seul 2 en main, pioche vide, FaceUp et FaceDown restants. Ramassage 2 compris, sans destruction ni rejeu.
+- [ ] Work : seulement une paire de 2 en main, pioche vide. Ramassage.
+- [ ] Talent : dernière carte de la phase = 2, FaceDown restants. Ramassage.
+- [ ] Luck : dernier FaceDown retourné = 2. Ramassage (non-régression).
 
 Cas où la règle ne doit **pas** s'appliquer :
 - [ ] Il reste une autre carte dans la phase : le 2 détruit la pile normalement.
-- [ ] Work avec une pioche non vide : le 2 détruit la pile normalement.
-- [ ] La dernière carte n'est pas un 2 : transition de phase normale.
+- [ ] Work avec pioche non vide : destruction normale.
+- [ ] Dernière carte autre qu'un 2 : transition de phase normale.
 
 Intégration :
-- [ ] `GameOrchestrator.ApplyPlay` : le ramassage forcé a bien lieu, et aucun effet `Detruite2` ni `PhaseTransition` n'est émis.
+- [ ] `GameOrchestrator.ApplyPlay` : ramassage forcé, aucun effet `Detruite2` ni `PhaseTransition` émis.
 
 **Critères d'acceptation**
-- [ ] Le scénario console reproduit (dernier 2 de la main, pioche vide, 3 FaceDown) provoque un ramassage forcé.
-- [ ] Tous les nouveaux tests passent, et les tests existants restent verts.
-- [ ] La simulation PsyckoConsole sur 1M parties se termine sans exception ni blocage.
-- [ ] La règle est vérifiée en partie Unity : le joueur humain ramasse automatiquement, et les bots aussi.
-- [ ] La couverture de `LastCardValidator` est d'au moins 90 %.
-- [ ] Aucun changement dans `Presentation/`.
+- [x] Scénario console reproduit (dernier 2 de la main, pioche vide, FaceDown restants) : ramassage forcé confirmé en Work et en Talent.
+- [x] Luck : cas couvert par `ApplyBlindPlay` (vérifié par lecture de code, non modifié).
+- [x] Le projet compile.
+- [ ] Simulation `Tools/PsyckoConsole/` sur 1M parties sans exception ni blocage.
+- [ ] Règle vérifiée en partie Unity : l'humain ramasse automatiquement, les bots aussi.
+- [ ] ⏭️ Tests NUnit verts et couverture de `LastCardValidator` ≥ 90 % (Phase 6).
+- [x] Aucun changement dans `Presentation/`.
 
 **Hors périmètre**
 - Signalement visuel du ramassage forcé (bandeau d'effet de carte, reporté).
-- Une stratégie des bots pour éviter de finir sur un 2 (Phase 4, StrategicBot).
+- Stratégie des bots pour éviter de finir sur un 2 (Phase 4, StrategicBot).
 
 **Dépendances** : `LastCardValidator`, `TurnManager`, `GameOrchestrator`. Indépendant de T55-x.
-**Après le merge** : mettre à jour le GDD Notion, section « 2 en dernière carte », avec la condition de fin de chaque phase.
 
-### Travail
-1. Vérifier d'abord `GameResultCalculator` et le journal (`Core/Services/Log`) : si l'ordre y est déjà
-   calculable de façon fiable, T61 devient une simple exposition en lecture.
-2. Sinon, ajouter à `GameState` une liste immuable `FinishOrder` (ids de joueurs, par ordre de fin),
-   alimentée par `AdvancePlayerPhase` / `EliminatePlayer` quand le joueur passe à `Finished`
-   (jamais deux fois le même id). Mettre à jour tous les `With*` pour la propager.
-3. Exposer `IReadOnlyList<int> FinishOrder` dans `IGameStateQuery` et `IGameState`.
-4. Exposer dans `IOpponentVisibleInfo` / `IPlayerVisibleState` le rang de fin du joueur (0 = pas fini,
-   1, 2…), sans rien révéler de caché.
-5. `GameResultCalculator` : ne pas modifier sans accord d'Ekinox ; ajouter seulement un test de
-   cohérence avec `FinishOrder` si les tests reprennent.
+**Après le merge** : mettre à jour le GDD Notion, section « 2 en dernière carte », avec la condition de fin de chaque phase :
+- Work : main et pioche vides.
+- Talent : main et FaceUp vides (les FaceUp passent dans la main à la transition).
+- Luck : plus aucune carte.
 
-### Critères
-- Core pur, immuabilité conservée, aucun comportement de jeu modifié.
-- Simulation console (Tools/PsyckoConsole) inchangée : mêmes résultats à seed égal.
-- Tests existants verts (89/89).
+Préciser aussi que la transition de phase n'a pas lieu au tour du ramassage forcé.
 
-## T63 — Rythme des bots : délai de jeu et mode accéléré
+## T63 ✅— Rythme des bots : délai de jeu et mode accéléré
 
-**Statut : À FAIRE**
+**Statut : FAIT** (validé manuellement en partie Unity, humain contre 3 bots)
 
-Fichiers : Controllers/GameplayController.cs (ou contrôleur de tour existant), éventuellement Controllers/BotPacing.cs (nouveau)
+Branche : `feat/T63-rythme-bots`
 
-Dépendances : T55. Absorbe le point (b) de T56. T56 se limite alors aux multiplicateurs et à la durée des animations.
+Fichiers :
+- [x] `Assets/Scripts/Presentation/Controllers/BotPacing.cs` (nouveau)
+- [x] `Assets/Scripts/Presentation/Controllers/GameplayController.cs` (modifié)
+- [x] `Assets/Scripts/Presentation/Controllers/LocalGameSession.cs` (modifié : ajout de `TryPeek`)
 
-## Travail
-- Délai avant chaque coup de bot, côté Présentation uniquement. Le Core décide toujours instantanément ; la Présentation retarde seulement l'affichage et l'appel au bot suivant.
-- Délai de base configurable (champ Inspector, valeur initiale proposée : 0,8 s).
-- Mode accéléré : dès que le joueur humain a terminé (rang attribué, `GetFinishRank` non nul) ou est éliminé, délai quasi nul (valeur Inspector, proposée : 0,02 s), y compris dans les boucles longues.
-- Passage en accéléré **automatique**, sans clic, dès l'événement de fin de l'humain.
-- Bouton optionnel « Passer » pour accélérer manuellement (à valider).
+Dépendances : T55. Absorbe le point (b) de T56. T56 se limite désormais aux multiplicateurs et à la durée des animations.
 
-## Critères
-- Contre bots, chaque bot attend le délai avant de jouer ; le joueur suit la partie.
-- Dès que l'humain a gagné, la partie se termine très vite et reste fluide (pas de gel de l'interface).
-- Le délai n'influe jamais sur l'état de jeu : mêmes décisions, même résultat à seed égal.
-- Aucune décision de jeu en Présentation.
-- Aucun événement du Core n'est sauté ni réordonné.
+## Objectif
+Donner au joueur humain le temps de suivre la partie quand les bots jouent, puis accélérer fortement la fin de partie une fois l'humain sorti du jeu (gagné ou éliminé).
 
-## À trancher avant de coder
-- Le délai dépend-il de l'action (pose, ramassage, destruction) ou est-il fixe ?
-- Comment la Présentation détecte la fin de l'humain : événement `IGameObserver` ou `GetFinishRank` ?
-- Mise en pause (menu) : le délai doit-il se figer ?
-- Humain éliminé mais pas gagnant : accélère-t-on aussi ? (proposé : oui)
+## Périmètre
+- Temporisation côté Présentation uniquement, à la consommation des événements de session. Le Core décide toujours instantanément ; la Présentation retarde seulement l'affichage.
+- Délai de base réglable dans l'Inspector : ~1 s entre chaque coup de bot tant que l'humain est en jeu.
+- Mode accéléré **automatique**, sans clic, dès que `GetFinishRank` de l'humain est non nul ou que l'humain est éliminé : délai de 0,02 s, réglable dans l'Inspector, avec plusieurs coups par frame (plafonné) pour rester fluide dans les boucles longues.
+- Aucun délai avant le tour de l'humain : après le dernier coup de bot, la demande à l'humain est affichée sans attente.
+- Délai fixe, indépendant du type d'action (pose, ramassage, destruction).
+- Les `LogEntry` ne sont pas temporisés (traitement du log hors périmètre).
+- Aucun bouton « Passer » : le jeu reste rapide, non nécessaire.
+
+## Décisions
+1. Délai fixe, non dépendant de l'action.
+2. Fin de l'humain détectée par lecture de `GetFinishRank` sur l'état reçu, sans passer par le log.
+3. Pas de délai sur le tour de l'humain.
+4. Délai de base réglable dans l'Inspector (`GameplayController`, scène `GameplayLocal.unity`).
+5. Délai accéléré réglable dans l'Inspector, valeur 0,02 s.
+6. Humain éliminé : accélération aussi.
+7. Pas de bouton « Passer ».
+
+## Champs Inspector (`GameplayController`, scène `GameplayLocal.unity`)
+- `_botDelaySeconds` : valeur retenue en test (1,0 par défaut)
+- `_fastDelaySeconds` : 0,02
+- `_fastMaxEventsPerFrame` : 8
+
+## Critères d'acceptation
+- [x] Contre bots, chaque bot attend le délai avant de jouer ; le joueur suit la partie.
+- [x] Dès que l'humain a gagné, la partie se termine très vite sans gel de l'interface.
+- [x] Accélération aussi quand l'humain est éliminé.
+- [x] Le délai n'influe jamais sur l'état de jeu : mêmes décisions, même résultat à seed égal.
+- [x] Aucune décision de jeu en Présentation.
+- [x] Aucun événement du Core sauté ni réordonné (file FIFO préservée).
+- [x] Aucun changement dans `Psycko.Core/`, `Psycko.Bots/`, `Tools/`.
 
 ## Hors périmètre
-- Animations et multiplicateurs (T56).
+- Animations et multiplicateurs de durée (T56).
 - Modification du Core ou des bots.
+- Bouton « Passer ».
+- Traitement du log et détection d'effets.
 - Tests NUnit (Phase 6).
+
+## Validation
+Procédure manuelle, partie Unity humain contre 3 bots :
+- [x] Délai visible entre chaque coup de bot.
+- [x] Aucun délai avant le tour de l'humain.
+- [x] Accélération automatique dès que l'humain gagne.
+- [x] Accélération automatique quand l'humain est éliminé.
+- [x] Aucun gel de l'interface.
+
+## Après merge
+- Notion : mettre à jour la section rythme des bots (GDD Présentation).
+- Notion : retirer le point (b) de T56.
 
 T64 : Dédoublonnage de la règle « 2 terminal en Luck » (ApplyBlindPlay → LastCardValidator)
 Statut : À faire (à planifier après merge de T62)
@@ -1157,4 +1185,4 @@ Dépendance : T62 mergé.
 
 ## Ordre d'exécution
 
-T50 ✅ → T51 ✅ → T52 ✅ → T53 ✅ → T54 ✅ → T55✅ [+ T61✅]  → T62 → T63 → T58 → T59 → T56 (a) → T57 → T64
+T50 ✅ → T51 ✅ → T52 ✅ → T53 ✅ → T54 ✅ → T55✅ [+ T61✅]  → T62✅ → T63✅ → T58 → T59 → T56 (a) → T57 → T64

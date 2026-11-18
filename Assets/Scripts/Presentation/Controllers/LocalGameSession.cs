@@ -61,6 +61,7 @@ namespace Psycko.Presentation.Controllers
             }
         }
         public bool TryDequeue(out SessionEvent item) { return _events.TryDequeue(out item); }
+        public bool TryPeek(out SessionEvent item) { return _events.TryPeek(out item); }
         internal void Enqueue(SessionEvent e) { _events.Enqueue(e); }
         public void Cancel() { _human.Cancel(); }
         private void OnRequestPending(HumanRequestKind kind) { _events.Enqueue(SessionEvent.Request(kind)); }

@@ -13,13 +13,27 @@ namespace Psycko.Presentation.Controllers
     /// <summary>Adaptateur Unity fin : transfère les événements de session à l'interface.</summary>
     public sealed class GameplayController : MonoBehaviour
     {
+        /// <summary>Siège (et Id) du joueur humain : toujours 0 (voir SeatLayout).</summary>
+        private const int HumanPlayerId = 0;
+
         [SerializeField] private bool _verboseDiagnostics = true;
+
+        [Header("Rythme des bots (T63)")]
+        [Tooltip("Délai avant l'affichage de chaque coup de bot tant que l'humain est en jeu (secondes).")]
+        [SerializeField, Min(0f)] private float _botDelaySeconds = 1.0f;
+
+        [Tooltip("Délai entre deux coups une fois l'humain sorti du jeu (gagné ou éliminé).")]
+        [SerializeField, Min(0f)] private float _fastDelaySeconds = 0.02f;
+
+        [Tooltip("Nombre maximal de coups affichés par frame en mode accéléré.")]
+        [SerializeField, Min(1)] private int _fastMaxEventsPerFrame = 8;
 
         private UnityHumanAgent _human;
         private LocalGameSession _session;
         private CardPlayabilityChecker _checker;
         private IReadOnlyList<Card> _humanHand;
         private GameState _lastState;
+        private BotPacing _pacing;
 
         public event Action<GameState> StateChanged;
         public event Action<GameLogEntry> LogEntryReceived;
@@ -46,6 +60,7 @@ namespace Psycko.Presentation.Controllers
             _human = new UnityHumanAgent();
             var layout = new SeatLayout(new System.Random()).Create(_human, _checker);
             _session = new LocalGameSession(_human, layout);
+            _pacing = CreatePacing();
             _session.Start(Environment.TickCount);
             Log("Session démarrée");
         }
@@ -54,21 +69,40 @@ namespace Psycko.Presentation.Controllers
         {
             _human = human;
             _session = session;
+            _pacing = CreatePacing();
         }
 
-        internal void Tick() { Pump(); }
+        internal void Tick() { Pump(Time.deltaTime); }
 
         private void Start() { Begin(); }
 
-        private void Update() { Pump(); }
+        private void Update() { Pump(Time.deltaTime); }
 
-        private void Pump()
+        private BotPacing CreatePacing()
+        {
+            return new BotPacing(_botDelaySeconds, _fastDelaySeconds, _fastMaxEventsPerFrame);
+        }
+
+        private void Pump(float deltaTime)
         {
             if (_session == null) return;
+            if (_pacing == null) _pacing = CreatePacing();
 
+            _pacing.Advance(deltaTime);
+
+            int stateChangesThisFrame = 0;
             SessionEvent item;
-            while (_session.TryDequeue(out item))
+            while (_session.TryPeek(out item))
             {
+                // Seuls les StateChanged sont temporisés. Les autres événements passent
+                // dès qu'ils sont en tête de file (FIFO strict : rien n'est sauté ni réordonné).
+                if (item.Kind == SessionEventKind.StateChanged)
+                {
+                    if (!_pacing.CanDisplayNext) break;
+                    if (stateChangesThisFrame >= _pacing.MaxStateChangesThisFrame) break;
+                }
+
+                _session.TryDequeue(out item);
                 Log("Event: " + item.Kind);
 
                 switch (item.Kind)
@@ -79,6 +113,8 @@ namespace Psycko.Presentation.Controllers
 
                     case SessionEventKind.StateChanged:
                         HandleStateChanged(item.State);
+                        stateChangesThisFrame++;
+                        _pacing.StartWait();
                         break;
 
                     case SessionEventKind.HumanRequest:
@@ -100,6 +136,14 @@ namespace Psycko.Presentation.Controllers
             _lastState = state;
             if (state != null && state.Players.Count > 0)
                 _humanHand = PlayerVisibleState.From(state, state.Players[0].Id).SelfHand;
+
+            // Bascule automatique en accéléré dès que l'humain a un rang (gagné ou éliminé).
+            if (state != null && !_pacing.IsFast && state.GetFinishRank(HumanPlayerId).HasValue)
+            {
+                _pacing.EnterFastMode();
+                Log("Humain sorti du jeu : mode accéléré");
+            }
+
             if (StateChanged != null) StateChanged(state);
         }
 
