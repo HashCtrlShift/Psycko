@@ -36,6 +36,10 @@ namespace Psycko.Core.Services
     /// tracker.RecordEffects, avec les MÊMES instances (cohérence log/compteurs, un seul
     /// appel au détecteur). Fonctionne en LogMode.Off (recorder null). Aucun effet n'est
     /// compté pour un coup rejeté, ni pour le 2 terminal (ramassage forcé, aucun effet de carte).
+    /// 2 terminal (T62) : le verdict de LastCardValidator est rendu sur l'état AVANT le coup
+    /// et AVANT TurnManager.ApplyPlay. Le 2 est posé sans reconstruction (ni pioche, ni
+    /// ramassage FaceUp, ni transition de phase), puis le joueur ramasse toute la Pile
+    /// (2 compris) et passe son tour. La transition de phase reprend à la fin d'un prochain tour.
     /// </summary>
     public sealed class GameOrchestrator
     {
@@ -95,6 +99,34 @@ namespace Psycko.Core.Services
                 || !play.Cards.All(c => CardPlayability.IsPlayable(c, state)))
                 return PlayResult.Rejected(state, PlayRejectionReason.InvalidCards);
 
+            // GARDE CRITIQUE (T62) : 2 terminal → ramassage forcé, pas destruction/rejeu.
+            // CLAUDE.md § 2 Card : un 2 ne peut pas terminer une phase. Si le coup épuise la
+            // phase courante du joueur (Work : main + pioche vides ; Talent : main + FaceUp
+            // vides ; Luck : plus aucune carte), le joueur pose son 2, ramasse toute la Pile
+            // (2 compris) et passe son tour. Ni destruction, ni rejeu, ni transition de phase.
+            //
+            // Le verdict est rendu sur l'état AVANT le coup et AVANT TurnManager.ApplyPlay :
+            // ApplyPlay applique déjà la pioche, le ramassage FaceUp et la transition de phase,
+            // ce qui fausserait le verdict ET ferait changer le joueur de phase avant le ramassage.
+            // La pose se fait donc ici, seule, sans reconstruction.
+            var actingPlayer = state.Players[playerIndex];
+            if (LastCardValidator.TerminatesOnTwo(play, actingPlayer, state))
+            {
+                var forced = TurnManager.ResolvePickup(state, play.PlayerId);
+                if (!forced.IsAccepted)
+                    throw new InvalidOperationException(
+                        $"Bug: ramassage forcé (2 terminal) rejeté. Raison: {forced.RejectionReason}");
+
+                // Pose seule : aucune pioche, aucun ramassage FaceUp, aucune transition de phase.
+                var placedOnly = (GameState)state.PlayCards(play);
+
+                recorder?.Record(GameLogEntry.PlayerAction(
+                    play.PlayerId, ActionKind.Play, play.Cards, PileSnapshot(placedOnly)));
+
+                return ExecutePickup(placedOnly, playerIndex, new List<int>(),
+                    ActionKind.PickupPile, recorder, tracker);
+            }
+
             // Phase du poseur AVANT le coup : sert au Proverbe (log).
             var phaseBefore = state.Players[playerIndex].CurrentPhase;
 
@@ -102,32 +134,6 @@ namespace Psycko.Core.Services
             var directionBefore = state.Direction;
 
             var turnResult = TurnManager.ApplyPlay(state, play);
-
-            // GARDE CRITIQUE : 2 terminal → ramassage forcé, pas destruction/rejeu
-            // CLAUDE.md § 2 Card : "Si c'est la dernière carte du joueur : le joueur pose son 2,
-            // ramasse la pile et passe son tour (y compris le 2 qui vient d'être posé).
-            // Pas de destruction, pas de rejeu."
-            //
-            // Cette garde s'applique AVANT la branche Don (Step3), donc:
-            // - On court-circuite Step3→Step4→Step5→Step6
-            // - On applique un ramassage forcé immédiat
-            // - Aucun rejet (le coup est valide, il est simplement "consommé" par le ramassage)
-            bool isLastCard = LastCardValidator.TerminatesOnTwo(play, state.Players[playerIndex], state);
-            if (isLastCard)
-            {
-                var forced = TurnManager.ResolvePickup(state, play.PlayerId);
-                if (!forced.IsAccepted)
-                    throw new InvalidOperationException(
-                        $"Bug: ramassage forcé (2 terminal) rejeté. Raison: {forced.RejectionReason}");
-
-                var placed = turnResult.State;   // pose + reconstruction déjà appliquées
-
-                recorder?.Record(GameLogEntry.PlayerAction(
-                    play.PlayerId, ActionKind.Play, play.Cards, PileSnapshot(placed)));
-
-                return ExecutePickup(placed, playerIndex, new List<int>(),
-                    ActionKind.PickupPile, recorder, tracker);
-            }
 
             // Don du 7 : le tour est suspendu après Step3. Aucune mutation n'est appliquée ici
             // (ni pioche, ni destruction, ni changement de joueur) : tout est rejoué par

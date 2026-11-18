@@ -1120,6 +1120,41 @@ Dépendances : T55. Absorbe le point (b) de T56. T56 se limite alors aux multipl
 - Modification du Core ou des bots.
 - Tests NUnit (Phase 6).
 
+T64 : Dédoublonnage de la règle « 2 terminal en Luck » (ApplyBlindPlay → LastCardValidator)
+Statut : À faire (à planifier après merge de T62)
+Branche : refactor/T64-dedoublonnage-2-terminal-luck
+Couches touchées : Core uniquement. Aucun changement dans Presentation/, Bots/ ni Tools/.
+Objectif
+Supprimer la duplication de la règle « 2 terminal ». GameOrchestrator.ApplyBlindPlay calcule sa propre condition (play.EffectiveRank == DefRank.Two && player.FaceDown.Count == 1) au lieu de passer par LastCardValidator. Après T62, le validateur est la source unique de la règle, évaluée par phase. Le blind play (Luck) doit l'appeler.
+Aucun changement de comportement. C'est un refactor pur. En Luck avec la main vide, les deux calculs sont équivalents : un 2 est terminal si FaceDown.Count == 1.
+Périmètre
+
+Remplacer le calcul local terminatesOnTwo dans ApplyBlindPlay par LastCardValidator.TerminatesOnTwo(play, player, state).
+Vérifier que le résultat est identique dans tous les cas Luck : dernier FaceDown, FaceDown restants, carte non jouable, 2 non terminal.
+Conserver la branche !playable || terminatesOnTwo et les deux entrées de log inchangées.
+Mettre à jour le commentaire de ApplyBlindPlay pour référencer le validateur.
+
+Fichiers
+
+ Modifié : Psycko.Core/Services/GameOrchestrator.cs (ApplyBlindPlay uniquement)
+ Modifié ou nouveau : tests de non-régression ApplyBlindPlay dans GameOrchestratorTests
+ Aucun changement dans LastCardValidator.cs (déjà traité par T62)
+
+Hors périmètre
+
+Toute modification de la règle elle-même (T62).
+Signalement visuel du ramassage forcé.
+Refactor des autres méthodes de GameOrchestrator.
+
+Validation
+
+ Tests NUnit EditMode verts, dont les tests existants (aucune régression).
+ Tests ApplyBlindPlay ajoutés : dernier FaceDown = 2 (ramassage forcé), 2 non terminal (destruction normale), carte non jouable (ramassage forcé).
+ Simulation Tools/PsyckoConsole/ sur 1M parties : sans exception ni blocage, et résultats identiques à la baseline post-T62 (même graine).
+ Aucune règle « 2 terminal » codée en dehors de LastCardValidator (recherche DefRank.Two dans GameOrchestrator).
+
+Dépendance : T62 mergé.
+
 ## Ordre d'exécution
 
-T50 ✅ → T51 ✅ → T52 ✅ → T53 ✅ → T54 ✅ → T55✅ [+ T61✅]  → T62 → T63 → T58 → T59 → T56 (a) → T57
+T50 ✅ → T51 ✅ → T52 ✅ → T53 ✅ → T54 ✅ → T55✅ [+ T61✅]  → T62 → T63 → T58 → T59 → T56 (a) → T57 → T64

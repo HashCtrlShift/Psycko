@@ -1,79 +1,70 @@
-using System;
 using Psycko.Core.Domain;
 using Psycko.Core.Interfaces;
 
 namespace Psycko.Core.Rules.Validation
 {
     /// <summary>
-    /// Valide la règle : interdiction de terminer une phase sur un (ou plusieurs) 2.
-    /// Cette règle s'applique dans les 3 phases (Travail, Talent, Chance).
+    /// Valide la règle « un 2 ne peut pas terminer une phase » (CLAUDE.md § 2 Card).
+    ///
+    /// Un coup est un « 2 terminal » si les DEUX conditions sont vraies :
+    /// 1. Le coup est un coup de 2 (EffectiveRank == Two). Un Joker a
+    ///    EffectiveRank null : un Joker en dernière carte n'est jamais concerné.
+    /// 2. Après ce coup, le joueur a terminé SA PHASE COURANTE :
+    ///    - Work   : plus de main ET pioche vide.
+    ///    - Talent : plus de main ET plus de Face Découverte.
+    ///    - Luck   : plus de main, de Face Découverte ET de Face Cachée.
+    ///
+    /// Le verdict est calculé sur l'état AVANT le coup (le joueur dans l'état reçu
+    /// n'a pas encore posé ses cartes). Il doit être demandé AVANT
+    /// TurnManager.ApplyPlay, qui applique pioche, ramassage FaceUp et transition
+    /// de phase.
+    ///
+    /// Conséquence d'un 2 terminal : le joueur pose son 2, ramasse toute la Pile
+    /// (2 compris) et passe son tour. Ni destruction, ni rejeu, ni transition de
+    /// phase ; la transition reprend à la fin de son prochain tour.
+    ///
+    /// Consommateur : GameOrchestrator.ApplyPlay.
     /// </summary>
     public static class LastCardValidator
     {
-        /// <summary>
-        /// Détermine si ce coup termine le joueur ET contient un ou plusieurs 2.
-        ///
-        /// Retourne true si et seulement si :
-        /// 1. Le coup est un coup de 2 (EffectiveRank == Two). Un Joker a un
-        ///    EffectiveRank null : un Joker de Verre en dernière carte n'est donc
-        ///    jamais concerné, conformément à CLAUDE.md.
-        /// 2. Après ce coup, le joueur n'a plus aucune carte en main,
-        ///    Face Découverte, ni Face Cachée.
-        ///
-        /// Consommateur : TurnManager — avant d'appliquer les effets du 2, vérifier
-        /// cette condition et forcer un ramassage si elle est vraie.
-        /// </summary>
         public static bool TerminatesOnTwo(Play play, Player player, IGameStateQuery state)
         {
-            if (play is null) throw new ArgumentNullException(nameof(play));
-            if (player is null) throw new ArgumentNullException(nameof(player));
-
-            return IsTwoPlay(play) && TerminatesAfterPlay(play, player);
+            return IsTwoPlay(play) && TerminatesPhaseAfterPlay(play, player, state);
         }
 
         /// <summary>
         /// Un coup est un coup de 2 si sa hauteur effective est Two.
-        /// Play.Create garantit l'homogénéité : soit N cartes de même hauteur,
-        /// soit UN Joker (EffectiveRank null). Aucun mélange possible.
+        /// Play.Create garantit l'homogénéité : N cartes de même hauteur, ou UN Joker
+        /// (EffectiveRank null). Aucun mélange possible.
         /// </summary>
         private static bool IsTwoPlay(Play play)
             => play.EffectiveRank == DefRank.Two;
 
         /// <summary>
-        /// Simule l'état du joueur après le coup en retirant Count cartes de la
-        /// couche d'origine (Play.SourceLayer), puis vérifie que les trois couches
-        /// sont vides.
-        ///
-        /// On s'appuie sur SourceLayer et non sur une comparaison d'identité :
-        /// Card est un record (égalité par valeur), donc Hand.Contains(card)
-        /// produirait des faux positifs sur des cartes identiques situées dans
-        /// une autre couche.
+        /// Vrai si, après le retrait des cartes du coup, la phase courante du joueur
+        /// est épuisée. Lit l'état AVANT le coup : on soustrait les cartes jouées
+        /// de la couche source.
         /// </summary>
-        private static bool TerminatesAfterPlay(Play play, Player player)
+        private static bool TerminatesPhaseAfterPlay(Play play, Player player, IGameStateQuery state)
         {
-            int handAfter = player.Hand.Count;
-            int faceUpAfter = player.FaceUp.Count;
-            int faceDownAfter = player.FaceDown.Count;
+            int handAfter = player.Hand.Count - (play.SourceLayer == CardLayer.Hand ? play.Count : 0);
+            int faceUpAfter = player.FaceUp.Count - (play.SourceLayer == CardLayer.FaceUp ? play.Count : 0);
+            int faceDownAfter = player.FaceDown.Count - (play.SourceLayer == CardLayer.FaceDown ? play.Count : 0);
 
-            switch (play.SourceLayer)
+            switch (player.CurrentPhase)
             {
-                case CardLayer.Hand:
-                    handAfter -= play.Count;
-                    break;
-                case CardLayer.FaceUp:
-                    faceUpAfter -= play.Count;
-                    break;
-                case CardLayer.FaceDown:
-                    faceDownAfter -= play.Count;
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(
-                        nameof(play),
-                        play.SourceLayer,
-                        "CardLayer non supporté.");
-            }
+                case DefPhase.Work:
+                    return handAfter <= 0 && state.DrawPile.Count == 0;
 
-            return handAfter <= 0 && faceUpAfter <= 0 && faceDownAfter <= 0;
+                case DefPhase.Talent:
+                    return handAfter <= 0 && faceUpAfter <= 0;
+
+                case DefPhase.Luck:
+                    return handAfter <= 0 && faceUpAfter <= 0 && faceDownAfter <= 0;
+
+                default: // Finished
+                    return false;
+            }
         }
     }
 }
