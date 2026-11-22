@@ -17,29 +17,17 @@ namespace Psycko.Presentation.Controllers
         public SessionEventKind Kind { get; private set; }
         public GameLogEntry LogEntry { get; private set; }
 
-        /// <summary>
-        /// StateChanged : état résolu (après effets).
-        /// CardsPlaced : état d'aperçu (cartes posées, AVANT effets).
-        /// </summary>
+        /// <summary>État porté par StateChanged ou CardsPlaced selon Kind.</summary>
         public GameState State { get; private set; }
 
         public GameRunOutcome Outcome { get; private set; }
         public HumanRequestKind RequestKind { get; private set; }
 
-        /// <summary>
-        /// TEMPORAIRE (compatibilité GameplayController actuel) : Pile de l'aperçu.
-        /// Supprimé au fichier 3.
-        /// </summary>
-        public IReadOnlyList<Card> PlacedPile
-        {
-            get { return State == null ? null : State.Pile.Cards; }
-        }
-
         private SessionEvent() { }
 
         internal static SessionEvent Log(GameLogEntry e) { return new SessionEvent { Kind = SessionEventKind.LogEntry, LogEntry = e }; }
         internal static SessionEvent Changed(GameState s) { return new SessionEvent { Kind = SessionEventKind.StateChanged, State = s }; }
-        internal static SessionEvent Placed(GameLogEntry e, GameState preview) { return new SessionEvent { Kind = SessionEventKind.CardsPlaced, LogEntry = e, State = preview }; }
+        internal static SessionEvent Placed(GameState stateAfterPlacement) { return new SessionEvent { Kind = SessionEventKind.CardsPlaced, State = stateAfterPlacement }; }
         internal static SessionEvent Complete(GameRunOutcome o) { return new SessionEvent { Kind = SessionEventKind.Finished, Outcome = o }; }
         internal static SessionEvent Request(HumanRequestKind k) { return new SessionEvent { Kind = SessionEventKind.HumanRequest, RequestKind = k }; }
     }
@@ -90,16 +78,6 @@ namespace Psycko.Presentation.Controllers
         public void Cancel() { _human.Cancel(); }
 
         /// <summary>
-        /// Prochain état RÉSOLU (StateChanged) présent dans la file, sans la modifier,
-        /// ou null s'il n'est pas encore arrivé.
-        /// </summary>
-        public GameState PeekNextState()
-        {
-            foreach (var e in _events)
-                if (e.Kind == SessionEventKind.StateChanged) return e.State;
-            return null;
-        }
-        /// <summary>
         /// Vrai si une requête humaine est en file : le thread de jeu est bloqué en attente
         /// d'une réponse, aucun StateChanged n'arrivera avant elle (cas du Don du 7).
         /// </summary>
@@ -111,34 +89,23 @@ namespace Psycko.Presentation.Controllers
         }
         private void OnRequestPending(HumanRequestKind kind) { _events.Enqueue(SessionEvent.Request(kind)); }
 
-        /// <summary>
-        /// Appelé sur le thread de jeu uniquement : _lastResolved n'a pas besoin de verrou.
-        /// </summary>
         private sealed class SessionObserver : IGameObserver
         {
             private readonly ConcurrentQueue<SessionEvent> _queue;
-            private GameState _lastResolved;
-
             internal SessionObserver(ConcurrentQueue<SessionEvent> queue) { _queue = queue; }
 
             public void OnLogEntry(GameLogEntry entry)
             {
                 _queue.Enqueue(SessionEvent.Log(entry));
-
-                if (entry.Kind != ActionKind.Play && entry.Kind != ActionKind.BlindPlay)
-                    return;
-
-                // Aperçu = dernier état résolu + la pose, AVANT effets (aucune règle ici).
-                GameState preview = PreviewStateBuilder.Build(_lastResolved, entry);
-                if (preview != null)
-                    _queue.Enqueue(SessionEvent.Placed(entry, preview));
-                // Sinon : pas d'aperçu, le StateChanged résolu s'affiche directement.
             }
-            public void OnCardsPlaced(GameState stateAfterPlacement) { }
+
+            public void OnCardsPlaced(GameState stateAfterPlacement)
+            {
+                _queue.Enqueue(SessionEvent.Placed(stateAfterPlacement));
+            }
 
             public void OnStateChanged(GameState state)
             {
-                _lastResolved = state;
                 _queue.Enqueue(SessionEvent.Changed(state));
             }
         }

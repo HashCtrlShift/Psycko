@@ -42,6 +42,7 @@ namespace Psycko.Console
         }
         public void OnCardsPlaced(GameState stateAfterPlacement)
         {
+            
         }
 
         public void OnStateChanged(GameState state)

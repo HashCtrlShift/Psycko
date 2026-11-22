@@ -108,11 +108,6 @@ namespace Psycko.Presentation.Controllers
             SessionEvent item;
             while (_session.TryPeek(out item))
             {
-                // Une pose n'est affichée que lorsque le StateChanged du même tour est
-                // déjà dans la file : on peut alors décider s'il faut un aperçu.
-                if (item.Kind == SessionEventKind.CardsPlaced && _session.PeekNextState() == null)
-                    break;
-
                 // Événements visuels : soumis au rythme (FIFO strict, rien n'est sauté).
                 if (item.Kind == SessionEventKind.CardsPlaced || item.Kind == SessionEventKind.StateChanged)
                 {
@@ -154,36 +149,15 @@ namespace Psycko.Presentation.Controllers
             }
         }
 
-        private void HandleCardsPlaced(GameState preview)
+        private void HandleCardsPlaced(GameState stateAfterPlacement)
         {
-            // Aperçu impossible (PreviewStateBuilder a renvoyé null) : on laisse
-            // le StateChanged résolu qui suit s'afficher sans attente.
-            if (preview == null)
-            {
-                _pacing.StartWait(0f);
-                return;
-            }
+            if (CardsPlaced != null) CardsPlaced(stateAfterPlacement);
 
-            if (CardsPlaced != null) CardsPlaced(preview);
-
-            // Aperçu uniquement si la Pile résolue qui suit est plus courte
-            // (destruction ou ramassage). Sinon le StateChanged enchaîne aussitôt.
-            if (WillPileShrink(preview))
-            {
-                _pacing.StartWait(_previewBeforeClearSeconds);
-                Log("Aperçu avant destruction/ramassage : " + preview.Pile.Count + " carte(s)");
-            }
-            else
-            {
-                _pacing.StartWait(0f);
-            }
-        }
-
-        private bool WillPileShrink(GameState preview)
-        {
-            GameState next = _session.PeekNextState();
-            if (next == null || preview == null) return false;
-            return next.Pile.Count < preview.Pile.Count;
+            // Le Core fournit l'état réel après la pose, avant les effets.
+            // Le délai donne à la vue le temps de montrer la Pile avant l'état résolu.
+            _pacing.StartWait(_previewBeforeClearSeconds);
+            if (stateAfterPlacement != null)
+                Log("Aperçu après pose : " + stateAfterPlacement.Pile.Count + " carte(s)");
         }
 
         private void HandleStateChanged(GameState state)
