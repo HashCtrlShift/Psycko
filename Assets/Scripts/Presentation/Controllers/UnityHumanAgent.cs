@@ -47,16 +47,24 @@ namespace Psycko.Presentation.Controllers
 
         private object Request(HumanRequestKind kind, IPlayerVisibleState state, IFaceDownBlindView blind, object forced = null)
         {
+            UnityEngine.Debug.Log("[HumanAgent] Request entrée : " + kind + " (pending actuel = " + _pending + ")");
             Action<HumanRequestKind> handler;
             lock (_gate)
             {
                 if (_cancelled) return Fallback(kind, state, forced);
-                if (_pending != HumanRequestKind.None) throw new InvalidOperationException("Une requête humaine est déjà en attente.");
+                if (_pending != HumanRequestKind.None)
+                    throw new InvalidOperationException("Une requête humaine est déjà en attente : " + _pending + " alors que " + kind + " est demandé.");
                 _response.Dispose(); _response = new ManualResetEventSlim(false);
                 _pending = kind; _state = state; _blindView = blind; _answer = null; _expired = false; handler = RequestPending;
             }
-            if (handler != null) handler(kind);
+            if (handler != null)
+            {
+                try { handler(kind); }
+                catch (Exception e) { UnityEngine.Debug.LogException(e); throw; }
+            }
+            UnityEngine.Debug.Log("[HumanAgent] Attente réponse : " + kind);
             bool signaled = _response.Wait(_timeout);
+            UnityEngine.Debug.Log("[HumanAgent] Réponse reçue : " + kind + ", signaled=" + signaled);
             lock (_gate)
             {
                 if (_cancelled || !signaled || _expired) { Clear(); _expired = false; return Fallback(kind, state, forced); }

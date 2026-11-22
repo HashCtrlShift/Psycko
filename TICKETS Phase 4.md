@@ -271,7 +271,7 @@ Dépendances : T53 (merge bloqué par T51)
 
 ---
 
-## T55 — Input humain, surbrillance, relevé, phase d'échange, lisibilité de table
+## T55 — Input humain, surbrillance, relevé, phase d'échange, lisibilité de table ✅
 
 **Statut : EN COURS** (T55-0 mergé et poussé ; T55-1 à T55-7 faits et validés ; T55-8 à T55-12 à faire)
 
@@ -645,7 +645,7 @@ Pas de tests NUnit ici (prévus en Phase 5). La projection est pure (`CardStateP
 
 ---
 
-#### T55-10 — Pile désalignée + cartes visibles sous le dessus
+#### T55-10 — Pile désalignée + cartes visibles sous le dessus✅
 
 **Statut :** ✅ FAIT (validé localement à 4 joueurs). Branche : `T55-10-pile-offset`.
 
@@ -1183,6 +1183,221 @@ Validation
 
 Dépendance : T62 mergé.
 
+# T65 — Correctifs Présentation : Pile stable, aperçu avant destruction/ramassage, ramassage forcé auto, zones cliquables, échange pré-partie
+
+**Statut : À FAIRE**
+
+**Contexte :** série de correctifs de jouabilité locale (GameplayLocal) relevés en test. Aucun changement de règle de jeu : la Présentation ne fait que mieux afficher et mieux capter les entrées. Toute décision reste prise par `GameRunner` / `GameOrchestrator` (zéro logique de jeu dans la Présentation).
+
+**Dépendances :** T52 (table), T54 (CardView), T55 (InputHandler, HumanSelectionState, échange), T56 (AnimationController). Le merge reste conditionné à T51 si T51 est toujours en pause.
+
+**Fichiers probables (sous `Assets/Scripts/Presentation/`, à confirmer à la lecture du code) :**
+
+| Fichier | Rôle dans T65 |
+|---|---|
+| `UI/ZoneView.cs` (ou vue de Pile) | Placement stable des cartes de la Pile (correctif 1) |
+| `UI/GameTableView.cs` | Zone cliquable de la Pile ; aperçu avant destruction/ramassage |
+| `UI/PlayerSeatView.cs` | Zone cliquable complète d'un siège (Don du 7) |
+| `Controllers/InputHandler.cs` | Routage des clics : siège, Pile, FaceUp/Hand |
+| `Models/HumanSelectionState.cs` | Sélection courante, y compris sélection FaceUp en premier |
+| `Controllers/GameplayController.cs` | Délais, ramassage forcé automatique, échange pré-partie |
+| `Controllers/AnimationController.cs` | Séquencement de l'aperçu avant destruction/ramassage |
+| `Models/PresentationTimings.cs` (nouveau, ScriptableObject) | Délais réglables centralisés |
+
+---
+
+## Correctif 1 ✅ — La Pile ne doit pas se désaligner — **FAIT**
+
+**Symptôme :** quand la Pile était affichée, les cartes déjà posées changeaient de position/rotation à chaque nouvelle pose (voir captures : la carte du dessous bougeait d'une pose à l'autre).
+
+**Cause confirmée :** la pose de chaque carte dépendait de sa position dans la fenêtre affichée (index relatif au sommet de la Pile). Toute nouvelle carte décalait donc l'index de toutes les précédentes et modifiait leur pose.
+
+**Solution livrée (`UI/ZoneView.cs`) :**
+- Pose calculée par **index absolu** de la carte dans la Pile (`PileStartIndex + modelIndex`), jamais par position dans la fenêtre affichée.
+- Fonctions `Hash(index, salt)` et `Unit(hash)` : hash entier déterministe (mélange multiplicatif), sans état ni `Random`. Même index = même pose, toujours.
+- Trois valeurs dérivées par carte (sel 1, 2, 3) : décalage X, décalage Y, rotation.
+- Plages **réglables dans l'Inspector** (composant `ZoneView`, en-tête « Pile éparpillée ») :
+
+| Champ | Défaut code | Valeur retenue (Ekinox) |
+|---|---|---|
+| `_maxOffsetX` (px) | 14 | ___ |
+| `_maxOffsetY` (px) | 10 | ___ |
+| `_maxRotation` (°) | 12 | ___ |
+| `_maxVisiblePileCards` | 8 (plage 1 à 12) | ___ |
+
+- Les valeurs modifiées pendant le Play sont perdues à l'arrêt : les ressaisir en mode édition.
+- Ordre d'affichage : `SetSiblingIndex(i)`, la carte la plus récente est au-dessus.
+- Aucune donnée ajoutée à `Pile` dans Core ; la graine est purement locale à la Présentation.
+
+**Correctif de compilation associé :** `ZoneViewModel` n'expose pas `PileCount`. Le total de la Pile est calculé dans `ZoneView.Render` par `PileStartIndex + PileCards.Count`. Cela reste exact tant que `TableProjection.ReadPileTail` définit `startIndex = total - cartes prises`. Ce total alimente le compteur de Pile et le marqueur de Pile vide.
+
+**Validation :**
+- [x] Les cartes déjà posées ne bougent plus quand on en ajoute une (validé visuellement par Ekinox).
+- [x] Décalage X/Y et rotation réglables dans l'Inspector (plus de « bazar » possible en augmentant les valeurs).
+- [ ] Test NUnit EditMode de pose déterministe (voir ci-dessous).
+
+**Reste à faire pour clore le correctif 1 :**
+- [ ] Extraire `Hash`, `Unit` et le calcul de pose dans une classe `PilePoseCalculator` (C# pur, sans `UnityEngine`, sous `Assets/Scripts/Presentation/Logic/`). `ZoneView` appelle ensuite cette classe pour obtenir (x, y, rotation) à partir de l'index et des plages.
+- [ ] Tests NUnit EditMode :
+  - même index et mêmes plages = même pose (appels répétés identiques) ;
+  - ajouter des cartes à la Pile ne change pas les poses des cartes précédentes (poses indexées par index absolu) ;
+  - toutes les valeurs restent dans `[-max, +max]` pour des plages données (balayage de 0 à 1000 index) ;
+  - plages à 0 = pose nulle (aucun décalage, aucune rotation).
+- [ ] Commit dédié : `T65 (1/5): Pile stable, pose déterministe par index absolu`.
+
+---
+
+## Correctif 2 — Aperçu de la carte posée avant destruction / ramassage — **EN COURS**
+
+**Problème :** un 2 (ou un FaceDown destructeur) détruit la Pile et la carte posée n'est jamais visible ; un ramassage vide la Pile sans montrer ce qui l'a provoqué. Cause : `GameRunner` ne notifie qu'un `StateChanged` par coup, déjà résolu.
+
+**Décision (Ekinox) :**
+- Core et log **inchangés**. Le log reste la source de rejeu exact (bugs joueurs, tests enregistrés in-game).
+- Un seul délai pour le 2 et le FaceDown : `PreviewBeforeClearSeconds`, **1,5 s par défaut**, modifiable dans l'Inspector (`[SerializeField, Min(0f)]`, 0 = instantané). Pas d'`AnimationController` (inexistant).
+- Mode accéléré (humain sorti du jeu) : aperçu ignoré.
+
+**Principe :**
+1. Détection d'un « clear » = comparaison de deux états consécutifs (Pile non vide → vide, ou taille de Pile qui diminue). Aucune règle de jeu : comparaison de tailles uniquement.
+2. Si clear : avant d'afficher l'état résolu N, la Présentation affiche d'abord un état d'aperçu = Pile précédente + carte(s) posée(s), puis attend `PreviewBeforeClearSeconds`, puis applique N.
+3. La carte posée est lue dans le `LogEntry` Play qui précède le `StateChanged` dans la file FIFO (lecture seule, aucune modification du log).
+
+**Découpage :**
+- `Logic/ClearDetector.cs` (C# pur) : `IsClear(GameState previous, GameState next)`.
+- `Logic/PreviewStateBuilder.cs` (C# pur) : construit l'état d'aperçu à partir de l'état précédent et des cartes posées.
+- `GameplayController.Pump` : mémorise le dernier `LogEntry` Play ; sur `StateChanged` avec clear (hors mode accéléré), émet d'abord l'aperçu puis arme `BotPacing.StartWait(PreviewBeforeClearSeconds)`, et applique N au tick suivant.
+- `BotPacing` : ajout de `StartWait(float seconds)` (surcharge), `StartWait()` existant inchangé.
+
+**Tests NUnit EditMode :**
+- [ ] `ClearDetector` : destruction (Pile → vide) = clear ; ramassage = clear ; pose simple = pas de clear ; Pile déjà vide = pas de clear.
+- [ ] `PreviewStateBuilder` : l'état d'aperçu contient la Pile précédente + la carte posée en dernier.
+- [ ] Mode accéléré : aucun aperçu.
+- [ ] Délai 0 : aperçu instantané, ordre FIFO conservé.
+
+**Validation :**
+- [ ] Un 2 posé reste visible `PreviewBeforeClearSeconds` avant destruction.
+- [ ] Un FaceDown destructeur est visible avant destruction.
+- [ ] Un ramassage montre la Pile avant son transfert.
+- [ ] Délai modifiable dans l'Inspector sans recompiler.
+- [ ] Core et log inchangés ; rejeu du log identique à avant.
+---
+
+## Correctif 3 — Ramassage forcé automatique
+
+**Comportement attendu :** quand le joueur humain n'a aucune carte jouable (ramassage forcé décidé par `TurnManager.BeginTurn`), le ramassage s'exécute **automatiquement** après un délai **réglable**, sans clic.
+
+- Délai dans `PresentationTimings` : `ForcedPickupDelaySeconds` (valeur initiale proposée : 1,0 s).
+- Pendant le délai, un message court indique que le ramassage est forcé (ex. « Aucune carte jouable »).
+- L'appel passe par le chemin existant du ramassage (`ExecutePickup` via l'orchestrateur) ; aucune règle dupliquée en Présentation.
+- Le ramassage **volontaire** reste manuel (correctif 4.3).
+- Ce délai est distinct de celui du correctif 2 ; les deux peuvent s'enchaîner (aperçu, puis ramassage).
+
+---
+
+## Correctif 4 — Zones cliquables élargies
+
+### 4.1 Don du 7
+- Pendant le Don, le joueur peut désigner le destinataire en cliquant **n'importe où sur l'espace de jeu du joueur** : ses cartes, sa zone de jeu (siège entier) ou son nom.
+- Le collider/Raycast Target du siège couvre toute la zone (aucun trou entre cartes, nom et fond).
+- Seuls les destinataires valides (non terminés, différents du donneur) réagissent ; un siège invalide ne réagit pas.
+
+### 4.2 Jeu de cartes : clic sur la Pile
+- En plus du bouton **Jouer**, un clic sur la **Pile** lance le jeu.
+- Si des cartes sont sélectionnées, elles sont **jouées directement** (équivalent exact du bouton Jouer, mêmes validations).
+- Si aucune carte n'est sélectionnée, le clic sur la Pile ne fait rien (pas d'erreur, pas de ramassage).
+
+### 4.3 Ramassage volontaire
+- Si aucune carte de la main n'est sélectionnée, un clic direct sur la **Pile** déclenche le ramassage volontaire (équivalent du bouton Ramasser).
+- Si des cartes sont sélectionnées, le clic sur la Pile suit la règle 4.2 (jouer), pas le ramassage.
+- Le ramassage volontaire ne reste proposé que dans les cas où il est déjà autorisé ; sinon le clic est ignoré.
+
+**Priorité de routage du clic sur la Pile (à implémenter dans `InputHandler`) :**
+1. Phase de Don du 7 : ignoré (la Pile n'est pas une cible).
+2. Cartes sélectionnées : jouer.
+3. Aucune sélection et ramassage volontaire autorisé : ramasser.
+4. Sinon : ignoré.
+
+---
+
+## Correctif 5 — Échange pré-partie
+
+### 5.1 Fin du décompte : conserver les échanges déjà faits
+- Si des échanges FaceUp/Hand ont déjà été effectués, la fin du décompte (ou « Prêt ! » de tous) **garde** les positions obtenues pour débuter la partie.
+- Aucun retour à l'état initial, aucune annulation des échanges effectués. Un éventuel échange à moitié sélectionné (une seule carte choisie) est simplement abandonné, sans modifier la main ni les FaceUp.
+- À l'expiration, `GameplayController` envoie à Core l'état d'échange réel du joueur humain, pas la réponse par défaut « aucun échange » (cf. point ouvert 4 de T53).
+
+### 5.2 Sélection dans les deux sens
+- On peut cliquer d'abord sur une **FaceUp**, puis sur une carte de la **Main** pour les échanger, ou l'inverse (Main puis FaceUp, déjà en place).
+- Cliquer une 2e fois sur la même carte désélectionne.
+- Cliquer une 2e carte de la même zone remplace la sélection.
+- Le ratio 1 contre 1 reste imposé par Core (`PreGameExchange`) ; la Présentation ne valide rien elle-même.
+
+---
+
+## Paramètres réglables (`PresentationTimings`, ScriptableObject)
+
+`Create > Psycko > Presentation Timings`
+
+| Champ | Défaut proposé | Usage |
+|---|---|---|
+| `PreviewBeforeClearSeconds` | 1,0 | Correctif 2 |
+| `ForcedPickupDelaySeconds` | 1,0 | Correctif 3 |
+
+- Référencé par `GameplayController` dans l'Inspector ; aucune valeur écrite en dur dans le code.
+- Valeurs ≥ 0 ; une valeur négative est ramenée à 0 (`OnValidate`).
+
+---
+
+## Tests (NUnit EditMode uniquement)
+
+Logique pure extraite de la Présentation pour être testable, sans MonoBehaviour :
+- [ ] Pose de Pile déterministe : même graine, même décalage/rotation ; ajouter une carte ne change pas les poses précédentes.
+- [ ] Routage du clic sur la Pile : les 4 cas de priorité (Don, sélection, ramassage volontaire autorisé, ignoré).
+- [ ] Don du 7 : un siège valide accepte le clic ; un siège terminé ou le donneur est refusé.
+- [ ] Échange : FaceUp puis Main = échange ; Main puis FaceUp = échange ; même carte deux fois = désélection ; 2e carte de la même zone = remplacement.
+- [ ] Fin du décompte avec échanges déjà faits : l'état conservé est l'état échangé ; sélection à moitié ignorée.
+- [ ] `PresentationTimings` : valeur négative ramenée à 0.
+- [ ] Séquençage : l'aperçu est joué avant destruction/ramassage, et un délai à 0 saute l'aperçu.
+
+Les tests de Core existants doivent rester verts (aucun changement dans Core).
+
+## Critères d'acceptation
+
+- [ ] Les cartes déjà posées sur la Pile ne bougent plus quand on en ajoute une (vérification visuelle sur 10 poses consécutives).
+- [ ] Un 2 posé reste visible `PreviewBeforeClearSeconds` avant la destruction de la Pile.
+- [ ] Une carte FaceDown révélée reste visible sur la Pile avant destruction ou ramassage.
+- [ ] Sans carte jouable, le ramassage se fait seul après `ForcedPickupDelaySeconds`.
+- [ ] Don du 7 : clic valide sur cartes, zone ou nom du joueur cible.
+- [ ] Clic sur la Pile avec sélection : cartes jouées directement.
+- [ ] Clic sur la Pile sans sélection, ramassage volontaire autorisé : ramassage.
+- [ ] Échange : FaceUp d'abord puis Main fonctionne ; Main puis FaceUp aussi.
+- [ ] Fin du décompte : les échanges déjà faits sont conservés au début de partie.
+- [ ] Les deux délais sont modifiables dans l'Inspector sans recompiler ; 0 = instantané.
+- [ ] Aucune règle de jeu ajoutée dans la Présentation ; Core inchangé.
+- [ ] Aucune erreur rouge en Play ; partie locale complète jouable (1 humain + 3 bots).
+- [ ] Tests NUnit EditMode verts.
+
+## Hors périmètre
+
+- Modification des règles Core (2, FaceDown, ramassage, Don, échange).
+- Nouvelles animations ou nouveaux skins.
+- Réseau (Photon Fusion).
+- Rendu des cartes de la Pile en atlas (T60).
+
+## Points ouverts
+
+1. Confirmer la cause réelle du décalage de la Pile en lisant le code de la vue de Pile.
+2. Un seul délai d'aperçu pour le 2 et le FaceDown, ou deux délais distincts ?
+3. Le clic sur la Pile doit-il aussi fonctionner pour les bots en mode debug ? (proposé : non).
+4. Faut-il un retour visuel (surbrillance) sur la Pile quand elle est cliquable ?
+
+## Étapes suivantes
+
+1. Branche `T65-correctifs-presentation`.
+2. Un commit par correctif (1 à 5) pour faciliter la relecture.
+3. Validation locale d'Ekinox en Play avant merge.
+4. Message de commit final proposé : `T65: Pile stable, aperçu avant clear, ramassage forcé auto, zones cliquables, échange pré-partie`.
+5. Notion en priorité après merge : statut T65, valeurs retenues pour `PresentationTimings`.
+
 ## Ordre d'exécution
 
-T50 ✅ → T51 ✅ → T52 ✅ → T53 ✅ → T54 ✅ → T55✅ [+ T61✅]  → T62✅ → T63✅ → T58 → T59 → T56 (a) → T57 → T64
+T50 ✅ → T51 ✅ → T52 ✅ → T53 ✅ → T54 ✅ → T55✅ [+ T61✅]  → T62✅ → T63✅ → T58 → T59 → T56 (a) → T57 → T64 → T65

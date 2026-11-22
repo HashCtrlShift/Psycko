@@ -2462,9 +2462,9 @@ MonoBehaviour:
   _pileCardPrefab: {fileID: 1300799817}
   _pileCardsRoot: {fileID: 505815432}
   _maxVisiblePileCards: 8
-  _scatterRadius: 16
-  _belowMaxRotation: 180
-  _topMaxRotation: 15
+  _maxOffsetX: 35
+  _maxOffsetY: 25
+  _maxRotation: 25
 --- !u!1 &932392050
 GameObject:
   m_ObjectHideFlags: 0

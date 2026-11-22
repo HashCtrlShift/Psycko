@@ -352,6 +352,8 @@ namespace Psycko.Presentation.Controllers
             _submitted = true;
             ShowMessage(string.Empty);
             CloseFan();
+            try { _controller.Human.SubmitPlay(play); }
+            catch (Exception e) { Debug.LogException(e); }
             _controller.Human.SubmitPlay(play);
             _selection.Clear(); // déclenche ReapplyCardStates via Changed
             HideActions();

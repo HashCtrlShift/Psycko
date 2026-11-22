@@ -28,6 +28,10 @@ namespace Psycko.Presentation.Controllers
         [Tooltip("Nombre maximal de coups affichés par frame en mode accéléré.")]
         [SerializeField, Min(1)] private int _fastMaxEventsPerFrame = 8;
 
+        [Header("Aperçu avant destruction (T65)")]
+        [Tooltip("Durée pendant laquelle la dernière pose reste visible avant destruction de la Pile (secondes). 0 = instantané.")]
+        [SerializeField, Min(0f)] private float _previewBeforeClearSeconds = 1.0f;
+
         private UnityHumanAgent _human;
         private LocalGameSession _session;
         private CardPlayabilityChecker _checker;
@@ -39,6 +43,13 @@ namespace Psycko.Presentation.Controllers
         public event Action<GameLogEntry> LogEntryReceived;
         public event Action<HumanRequestKind> HumanRequestPending;
         public event Action<GameRunOutcome> GameFinished;
+
+        /// <summary>
+        /// État d'aperçu juste après une pose, AVANT l'effet (destruction, ramassage…) :
+        /// la carte a déjà quitté sa couche ET est déjà sur la Pile.
+        /// Le StateChanged résolu suit une fois le délai d'aperçu écoulé.
+        /// </summary>
+        public event Action<GameState> CardsPlaced;
 
         public UnityHumanAgent Human { get { return _human; } }
         public ICardPlayabilityChecker PlayabilityChecker { get { return _checker; } }
@@ -56,11 +67,13 @@ namespace Psycko.Presentation.Controllers
 
         internal void Begin()
         {
+            AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+            Debug.LogError("[Gameplay] Exception non gérée (thread secondaire) : " + args.ExceptionObject);
             _checker = new CardPlayabilityChecker();
             _human = new UnityHumanAgent();
             var layout = new SeatLayout(new System.Random()).Create(_human, _checker);
             _session = new LocalGameSession(_human, layout);
-            _pacing = CreatePacing();
+            CreatePacing();
             _session.Start(Environment.TickCount);
             Log("Session démarrée");
         }
@@ -69,7 +82,7 @@ namespace Psycko.Presentation.Controllers
         {
             _human = human;
             _session = session;
-            _pacing = CreatePacing();
+            CreatePacing();
         }
 
         internal void Tick() { Pump(Time.deltaTime); }
@@ -78,28 +91,33 @@ namespace Psycko.Presentation.Controllers
 
         private void Update() { Pump(Time.deltaTime); }
 
-        private BotPacing CreatePacing()
+        private void CreatePacing()
         {
-            return new BotPacing(_botDelaySeconds, _fastDelaySeconds, _fastMaxEventsPerFrame);
+            _pacing = new BotPacing(_botDelaySeconds, _fastDelaySeconds, _fastMaxEventsPerFrame);
         }
 
         private void Pump(float deltaTime)
         {
             if (_session == null) return;
-            if (_pacing == null) _pacing = CreatePacing();
+            if (_pacing == null) CreatePacing();
 
             _pacing.Advance(deltaTime);
 
-            int stateChangesThisFrame = 0;
+            int displayedThisFrame = 0;
+
             SessionEvent item;
             while (_session.TryPeek(out item))
             {
-                // Seuls les StateChanged sont temporisés. Les autres événements passent
-                // dès qu'ils sont en tête de file (FIFO strict : rien n'est sauté ni réordonné).
-                if (item.Kind == SessionEventKind.StateChanged)
+                // Une pose n'est affichée que lorsque le StateChanged du même tour est
+                // déjà dans la file : on peut alors décider s'il faut un aperçu.
+                if (item.Kind == SessionEventKind.CardsPlaced && _session.PeekNextState() == null)
+                    break;
+
+                // Événements visuels : soumis au rythme (FIFO strict, rien n'est sauté).
+                if (item.Kind == SessionEventKind.CardsPlaced || item.Kind == SessionEventKind.StateChanged)
                 {
                     if (!_pacing.CanDisplayNext) break;
-                    if (stateChangesThisFrame >= _pacing.MaxStateChangesThisFrame) break;
+                    if (displayedThisFrame >= _pacing.MaxStateChangesThisFrame) break;
                 }
 
                 _session.TryDequeue(out item);
@@ -111,10 +129,15 @@ namespace Psycko.Presentation.Controllers
                         if (LogEntryReceived != null) LogEntryReceived(item.LogEntry);
                         break;
 
+                    case SessionEventKind.CardsPlaced:
+                        HandleCardsPlaced(item.State);
+                        displayedThisFrame++;
+                        break;
+
                     case SessionEventKind.StateChanged:
                         HandleStateChanged(item.State);
-                        stateChangesThisFrame++;
                         _pacing.StartWait();
+                        displayedThisFrame++;
                         break;
 
                     case SessionEventKind.HumanRequest:
@@ -129,6 +152,38 @@ namespace Psycko.Presentation.Controllers
                         break;
                 }
             }
+        }
+
+        private void HandleCardsPlaced(GameState preview)
+        {
+            // Aperçu impossible (PreviewStateBuilder a renvoyé null) : on laisse
+            // le StateChanged résolu qui suit s'afficher sans attente.
+            if (preview == null)
+            {
+                _pacing.StartWait(0f);
+                return;
+            }
+
+            if (CardsPlaced != null) CardsPlaced(preview);
+
+            // Aperçu uniquement si la Pile résolue qui suit est plus courte
+            // (destruction ou ramassage). Sinon le StateChanged enchaîne aussitôt.
+            if (WillPileShrink(preview))
+            {
+                _pacing.StartWait(_previewBeforeClearSeconds);
+                Log("Aperçu avant destruction/ramassage : " + preview.Pile.Count + " carte(s)");
+            }
+            else
+            {
+                _pacing.StartWait(0f);
+            }
+        }
+
+        private bool WillPileShrink(GameState preview)
+        {
+            GameState next = _session.PeekNextState();
+            if (next == null || preview == null) return false;
+            return next.Pile.Count < preview.Pile.Count;
         }
 
         private void HandleStateChanged(GameState state)

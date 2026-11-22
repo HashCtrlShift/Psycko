@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Psycko.Presentation.Interfaces;
+using Psycko.Core.Domain;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -25,26 +26,32 @@ namespace Psycko.Presentation.UI
         [SerializeField] private RectTransform _pileCardsRoot;
         [Range(1, 12)]
         [SerializeField] private int _maxVisiblePileCards = 8;
-        [Tooltip("Rayon max (px) du disque d'éparpillement.")]
-        [SerializeField] private float _scatterRadius = 16f;
-        [Tooltip("Rotation max (+-) des cartes sous le dessus. 180 = 360 degrés complets.")]
-        [SerializeField] private float _belowMaxRotation = 180f;
-        [Tooltip("Rotation max (+-) de la carte du dessus (lisibilité).")]
-        [SerializeField] private float _topMaxRotation = 15f;
+        [Tooltip("Décalage horizontal max (+-) en px. Garde le coin gauche lisible.")]
+        [SerializeField] private float _maxOffsetX = 14f;
+        [Tooltip("Décalage vertical max (+-) en px.")]
+        [SerializeField] private float _maxOffsetY = 10f;
+        [Tooltip("Rotation max (+-) en degrés. Identique pour toutes les cartes.")]
+        [SerializeField] private float _maxRotation = 12f;
 
         private readonly List<CardView> _pool = new List<CardView>();
 
         public void Render(ZoneViewModel model, ICardSkin skin)
         {
             if (model == null) return;
+
             if (_drawCountLabel != null) _drawCountLabel.text = model.DrawPileCount.ToString();
-            if (_pileCountLabel != null) _pileCountLabel.text = model.PileCardCount.ToString();
-            if (_emptyPileMarker != null) _emptyPileMarker.SetActive(model.IsPileEmpty);
-
-            if (skin == null) return;
-
             RenderDraw(model, skin);
-            RenderPile(model, skin);
+            RenderPile(model.PileCards, model.PileStartIndex, skin);
+        }
+
+        /// <summary>
+        /// Affiche la Pile telle qu'elle est juste après une pose (aperçu T65).
+        /// La pioche n'est pas touchée : seule la pile et son compteur sont redessinés.
+        /// </summary>
+        public void RenderPlacedPile(IReadOnlyList<Card> fullPile, ICardSkin skin)
+        {
+            if (fullPile == null) return;
+            RenderPile(fullPile, 0, skin);
         }
 
         private void RenderDraw(ZoneViewModel model, ICardSkin skin)
@@ -58,14 +65,20 @@ namespace Psycko.Presentation.UI
             _drawCardView.SetInteractable(false);
         }
 
-        private void RenderPile(ZoneViewModel model, ICardSkin skin)
+        /// <param name="cards">Cartes disponibles (tout ou partie de la Pile), du bas vers le haut.</param>
+        /// <param name="startIndex">Index absolu dans la Pile de cards[0].</param>
+        private void RenderPile(IReadOnlyList<Card> cards, int startIndex, ICardSkin skin)
         {
+            int pileTotal = startIndex + cards.Count;
+            if (_pileCountLabel != null) _pileCountLabel.text = pileTotal.ToString();
+            if (_emptyPileMarker != null) _emptyPileMarker.SetActive(pileTotal == 0);
+
             if (_pileCardPrefab == null || _pileCardsRoot == null) return;
 
             int limit = Mathf.Clamp(_maxVisiblePileCards, 1, HardMaxVisible);
-            int available = model.PileCards.Count;
+            int available = cards.Count;
             int shown = available < limit ? available : limit;
-            int firstModelIndex = available - shown;
+            int firstIndex = available - shown;
 
             EnsurePool(shown);
 
@@ -78,18 +91,16 @@ namespace Psycko.Presentation.UI
                     continue;
                 }
 
-                int modelIndex = firstModelIndex + i;
-                int absoluteIndex = model.PileStartIndex + modelIndex;
-                bool isTop = modelIndex == available - 1;
+                int localIndex = firstIndex + i;
+                int absoluteIndex = startIndex + localIndex;
 
                 view.gameObject.SetActive(true);
-                view.Bind(model.PileCards[modelIndex], skin);
+                view.Bind(cards[localIndex], skin);
                 view.SetState(CardVisualState.Normal);
                 view.SetInteractable(false);
                 // Ordre d'affichage : index croissant = rendu au-dessus.
                 view.transform.SetSiblingIndex(i);
-                ApplyScatter(view.transform as RectTransform, absoluteIndex,
-                    isTop ? _topMaxRotation : _belowMaxRotation);
+                ApplyPose(view.transform as RectTransform, absoluteIndex);
             }
         }
 
@@ -104,18 +115,17 @@ namespace Psycko.Presentation.UI
         }
 
         /// <summary>
-        /// Éparpillement déterministe par index absolu : tirage uniforme dans un disque
-        /// (rayon = sqrt) pour remplir la surface, pas former un anneau.
-        /// Rotation Z indépendante dans [-maxRotation, +maxRotation].
+        /// Pose déterministe par index absolu : décalage X/Y et rotation dans des plages
+        /// fixes, indépendantes de la position dans la pile. Une carte posée ne rebouge jamais.
         /// </summary>
-        private void ApplyScatter(RectTransform rect, int pileIndex, float maxRotation)
+        private void ApplyPose(RectTransform rect, int pileIndex)
         {
             if (rect == null) return;
-            float angle = Unit(Hash(pileIndex, 1)) * (Mathf.PI * 2f);
-            float radius = Mathf.Sqrt(Unit(Hash(pileIndex, 2))) * _scatterRadius;
-            float rot = (Unit(Hash(pileIndex, 3)) * 2f - 1f) * maxRotation;
+            float x = (Unit(Hash(pileIndex, 1)) * 2f - 1f) * _maxOffsetX;
+            float y = (Unit(Hash(pileIndex, 2)) * 2f - 1f) * _maxOffsetY;
+            float rot = (Unit(Hash(pileIndex, 3)) * 2f - 1f) * _maxRotation;
 
-            rect.anchoredPosition = new Vector2(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius);
+            rect.anchoredPosition = new Vector2(x, y);
             rect.localRotation = Quaternion.Euler(0f, 0f, rot);
         }
 

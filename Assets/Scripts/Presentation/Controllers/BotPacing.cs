@@ -51,5 +51,15 @@ namespace Psycko.Presentation.Controllers
         {
             _remaining = _fast ? _fastDelay : _baseDelay;
         }
+
+        /// <summary>
+        /// Démarre une attente de durée explicite (aperçu avant destruction, T65).
+        /// En mode accéléré, la durée demandée est plafonnée au délai rapide.
+        /// </summary>
+        public void StartWait(float seconds)
+        {
+            float requested = Math.Max(0f, seconds);
+            _remaining = _fast ? Math.Min(requested, _fastDelay) : requested;
+        }
     }
 }

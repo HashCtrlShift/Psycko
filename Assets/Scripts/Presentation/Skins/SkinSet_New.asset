@@ -60,7 +60,7 @@ MonoBehaviour:
   - Key: Diamonds_Ten
     Sprite: {fileID: 21300000, guid: d28afb55685ff414289c20f09bd6d53c, type: 3}
   - Key: Diamonds_Priest
-    Sprite: {fileID: 3276088565712396107, guid: 59e1957eceea9a44eb6ec5b767585b01, type: 3}
+    Sprite: {fileID: 21300000, guid: 59e1957eceea9a44eb6ec5b767585b01, type: 3}
   - Key: Diamonds_Jack
     Sprite: {fileID: 21300000, guid: e3de2fa1b12dd8b48b4e594d54d5204d, type: 3}
   - Key: Diamonds_Knight
@@ -90,7 +90,7 @@ MonoBehaviour:
   - Key: Hearts_Ten
     Sprite: {fileID: 21300000, guid: e7778e45d9e3c084ab6e9a2b73c03c43, type: 3}
   - Key: Hearts_Priest
-    Sprite: {fileID: -2294135998415370531, guid: fa4033883812599429c1e40e4ed474dd, type: 3}
+    Sprite: {fileID: 21300000, guid: fa4033883812599429c1e40e4ed474dd, type: 3}
   - Key: Hearts_Jack
     Sprite: {fileID: 21300000, guid: a48d18e69518e3f469021413b0abc3f9, type: 3}
   - Key: Hearts_Knight
@@ -124,7 +124,7 @@ MonoBehaviour:
   - Key: Spades_Ten
     Sprite: {fileID: 21300000, guid: acf1ab4565b54694ca7b941c9ab649b9, type: 3}
   - Key: Spades_Priest
-    Sprite: {fileID: -7438519532490791314, guid: 2338d1c36df205d45baf987537825834, type: 3}
+    Sprite: {fileID: 21300000, guid: 2338d1c36df205d45baf987537825834, type: 3}
   - Key: Spades_Jack
     Sprite: {fileID: 21300000, guid: 0a152288191f3d841b2b9f6684e04998, type: 3}
   - Key: Spades_Knight
@@ -136,7 +136,7 @@ MonoBehaviour:
   - Key: Clubs_Knight
     Sprite: {fileID: 5186416172958483288, guid: a92c74b42812dde498d968c016a5ab3e, type: 3}
   - Key: Clubs_Priest
-    Sprite: {fileID: -4206769460278848833, guid: 96db1eb9a266f634e8a30c63f4e10b8e, type: 3}
+    Sprite: {fileID: 21300000, guid: 96db1eb9a266f634e8a30c63f4e10b8e, type: 3}
   - Key: Joker_Glass
     Sprite: {fileID: 21300000, guid: 68d3daec37e8c9b4ba26d52448ca2225, type: 3}
   _cardBack: {fileID: 21300000, guid: cd2321a5cdce19c4d8f11ad692173807, type: 3}

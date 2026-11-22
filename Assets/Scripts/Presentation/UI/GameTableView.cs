@@ -1,5 +1,8 @@
+using System.Collections.Generic;
 using Psycko.Core.Domain;
 using Psycko.Core.Interfaces;
+using Psycko.Core.Domain.Log;
+using Psycko.Presentation.Models;
 using Psycko.Presentation.Controllers;
 using Psycko.Presentation.Interfaces;
 using UnityEngine;
@@ -7,7 +10,7 @@ using UnityEngine;
 namespace Psycko.Presentation.UI
 {
     /// <summary>
-    /// Vue de table en paysage. S'abonne à GameplayController.StateChanged,
+    /// Vue de table en paysage. S'abonne à GameplayController.StateChanged et CardsPlaced,
     /// construit la vue du joueur humain, projette, puis pousse vers les sièges et la zone.
     /// RenderVisible permet aussi de dessiner sans GameState (phase d'échange pré-partie).
     /// </summary>
@@ -28,18 +31,34 @@ namespace Psycko.Presentation.UI
 
         private void OnEnable()
         {
-            if (_controller != null) _controller.StateChanged += OnStateChanged;
+            if (_controller == null) return;
+            _controller.StateChanged += OnStateChanged;
+            _controller.CardsPlaced += OnCardsPlaced;
+            if (_controller.LastState != null) OnStateChanged(_controller.LastState);
         }
 
         private void OnDisable()
         {
-            if (_controller != null) _controller.StateChanged -= OnStateChanged;
+            if (_controller == null) return;
+            _controller.StateChanged -= OnStateChanged;
+            _controller.CardsPlaced -= OnCardsPlaced;
         }
 
         private void OnStateChanged(GameState state)
         {
             if (state == null || state.Players.Count == 0) return;
             RenderVisible(PlayerVisibleState.From(state, state.Players[0].Id));
+        }
+
+        /// <summary>
+        /// Aperçu juste après la pose : seule la zone est redessinée depuis la Pile de l'état
+        /// d'aperçu, les sièges restent tels quels jusqu'au StateChanged résolu.
+        /// </summary>
+        private void OnCardsPlaced(GameState preview)
+        {
+            if (_zone == null || preview == null) return;
+            ICardSkin skin = _skinRegistry != null ? _skinRegistry.Current : null;
+            _zone.RenderPlacedPile(preview.Pile.Cards, skin);
         }
 
         /// <summary>Rend la table depuis une vue visible (ex. phase d'échange, sans GameState).</summary>
