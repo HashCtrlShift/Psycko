@@ -101,7 +101,7 @@ namespace Psycko.Core.Services
                         throw new InvalidOperationException(
                             $"Plafond anti-boucle atteint ({moveCap} coups).");
 
-                    state = PlayOneTurn(state, agents, orchestrator, recorder, tracker);
+                    state = PlayOneTurn(state, agents, orchestrator, recorder, tracker, observer);
                     observer?.OnStateChanged(state);
                 }
 
@@ -151,7 +151,8 @@ namespace Psycko.Core.Services
             IReadOnlyList<IPlayerAgent> agents,
             GameOrchestrator orchestrator,
             IGameLogRecorder? recorder,
-            GameResultTracker tracker)
+            GameResultTracker tracker,
+            IGameObserver? observer)
         {
             int seat = state.ActivePlayerIndex;
             var player = state.Players[seat];
@@ -161,12 +162,12 @@ namespace Psycko.Core.Services
             // le ramassage si la carte retournée est injouable : résultat toujours
             // final pour ce tour.
             if (player.CurrentPhase == DefPhase.Luck && player.Hand.Count == 0)
-                return PlayBlindTurn(state, seat, agent, orchestrator, recorder, tracker);
+                return PlayBlindTurn(state, seat, agent, orchestrator, recorder, tracker, observer);
 
             // Toutes les autres situations (Work, Talent, Luck avec main non vide) :
             // coup normal ou ramassage.
             var view = PlayerVisibleState.From(state, player.Id);
-            return PlayNormalTurn(state, seat, agent, view, orchestrator, recorder, tracker);
+            return PlayNormalTurn(state, seat, agent, view, orchestrator, recorder, tracker, observer);
         }
 
         private static GameState PlayBlindTurn(
@@ -175,7 +176,8 @@ namespace Psycko.Core.Services
             IPlayerAgent agent,
             GameOrchestrator orchestrator,
             IGameLogRecorder? recorder,
-            GameResultTracker tracker)
+            GameResultTracker tracker,
+            IGameObserver? observer)
         {
             var player = state.Players[seat];
 
@@ -200,7 +202,7 @@ namespace Psycko.Core.Services
                     $"(FaceDown={player.FaceDown.Count}).");
 
             var resolution = orchestrator.ApplyBlindPlay(
-                state, seat, proposedIndex.Value, recorder, tracker);
+                state, seat, proposedIndex.Value, recorder, tracker, observer);
 
             return Require(resolution.Result, "ApplyBlindPlay");
         }
@@ -212,7 +214,8 @@ namespace Psycko.Core.Services
             PlayerVisibleState view,
             GameOrchestrator orchestrator,
             IGameLogRecorder? recorder,
-            GameResultTracker tracker)
+            GameResultTracker tracker,
+            IGameObserver? observer)
         {
             int playerId = state.Players[seat].Id;
             var proposed = agent.ProposeNormalPlay(view);
@@ -221,7 +224,7 @@ namespace Psycko.Core.Services
             if (proposed is null)
                 return Pickup(state, playerId, recorder, tracker, "RequestPickup");
 
-            var played = orchestrator.ApplyPlay(state, proposed, seat, recorder, tracker);
+            var played = orchestrator.ApplyPlay(state, proposed, seat, recorder, tracker, observer);
 
             // Coup rejeté : ramassage, toujours sur l'état d'origine (played.NewState
             // est l'état rejeté, donc identique, mais `state` rend l'intention explicite).

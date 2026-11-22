@@ -1,5 +1,6 @@
 using System;
 using Psycko.Core.Domain;
+using Psycko.Core.Interfaces;
 using Psycko.Core.Rules.Validation;
 
 namespace Psycko.Core.Services.Turn
@@ -76,7 +77,7 @@ namespace Psycko.Core.Services.Turn
         /// ni devinés. GameOrchestrator doit alors résoudre le Don puis appeler
         /// ResolveRemainder(result, play) pour reprendre à Step4.
         /// </remarks>
-        public static TurnResult ApplyPlay(GameState state, Play play)
+        public static TurnResult ApplyPlay(GameState state, Play play, IGameObserver observer = null)
         {
             var result = Step1_PlaceCardsResolver.Resolve(state, play);
 
@@ -87,6 +88,8 @@ namespace Psycko.Core.Services.Turn
             // Unique mutation de TurnManager, placée ici car Step3 (IsGiftTriggered),
             // Step4 (cardsRemovedFromHand = 0) et Step5 (Pile.Cards) exigent le coup posé.
             var placed = (GameState)reconstruction.State.PlayCards(play);
+
+            observer?.OnCardsPlaced(placed);
 
             // Reconstruction appliquée AVANT Step3 : le Don lit la main réelle (CLAUDE.md :
             // pose → reconstruction → Don → re-pioche → Doublon/Carré).

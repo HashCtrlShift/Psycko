@@ -40,6 +40,9 @@ namespace Psycko.Console
             string detail = string.IsNullOrEmpty(e.Detail) ? "" : " (" + e.Detail + ")";
             System.Console.WriteLine($"[{e.Kind}] {who}{cards}{target}{effects}{detail}");
         }
+        public void OnCardsPlaced(GameState stateAfterPlacement)
+        {
+        }
 
         public void OnStateChanged(GameState state)
         {

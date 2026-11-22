@@ -14,32 +14,6 @@ namespace Psycko.Core.Services
     /// <summary>
     /// Source unique d'exécution des intentions, notamment Step6 : le resolver
     /// calcule, cet orchestrateur appelle SetActivePlayer au plus une fois.
-    /// Logging (T38b) : side-effect pur via IGameLogRecorder optionnel,
-    /// aucune branche logique ne dépend du recorder.
-    /// Effets du log (T38d) : GameLogEffectDetector lit l'état APRÈS pose du coup
-    /// et AVANT destruction de la Pile (Carré relu sur Pile.Cards / Plays).
-    /// Pile détruite (2, Bombe, Carré) : la contrainte est réinitialisée à
-    /// (Normal, Three) — pile vide = aucune contrainte.
-    /// Fin de joueur : Hand = 0 ET FaceDown = 0 (FaceUp déjà ramassé) → Finished,
-    /// vérifiée à la sortie de chaque chemin qui retire des cartes (FinishIfEmpty).
-    /// Doublon (log) : Step6 remet TurnResult.SkipNext à false une fois le tour avancé,
-    /// le drapeau n'est donc plus exploitable. Le log recalcule la règle de Step5
-    /// via IsDoublonApplied (Carré prime, plus de 2 joueurs actifs, PairDetection).
-    /// Don du 7 : la ligne Play porte l'éventuel Doublon, la ligne GiftCard porte
-    /// l'effet Don, et la ligne post-Don ne porte que le Carré.
-    /// Proverbe (log) : As réel + changement de phase du poseur entre le début et la fin
-    /// du coup (transition ou Finished). Calculé par comparaison de CurrentPhase avant/après.
-    /// Valet (log) : SensReverse n'est loggé que si le sens a réellement changé ;
-    /// le sens d'AVANT coup est lu sur l'état reçu en entrée et passé à Detect
-    /// (previousDirection), car les états intermédiaires ne sont pas fiables pour ça.
-    /// Compteurs d'effets (T42) : les effets détectés pour le log alimentent aussi
-    /// tracker.RecordEffects, avec les MÊMES instances (cohérence log/compteurs, un seul
-    /// appel au détecteur). Fonctionne en LogMode.Off (recorder null). Aucun effet n'est
-    /// compté pour un coup rejeté, ni pour le 2 terminal (ramassage forcé, aucun effet de carte).
-    /// 2 terminal (T62) : le verdict de LastCardValidator est rendu sur l'état AVANT le coup
-    /// et AVANT TurnManager.ApplyPlay. Le 2 est posé sans reconstruction (ni pioche, ni
-    /// ramassage FaceUp, ni transition de phase), puis le joueur ramasse toute la Pile
-    /// (2 compris) et passe son tour. La transition de phase reprend à la fin d'un prochain tour.
     /// </summary>
     public sealed class GameOrchestrator
     {
@@ -48,7 +22,8 @@ namespace Psycko.Core.Services
             Play play,
             int playerIndex,
             IGameLogRecorder recorder = null,
-            GameResultTracker tracker = null)
+            GameResultTracker tracker = null,
+             IGameObserver observer = null)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
             if (play == null) throw new ArgumentNullException(nameof(play));
@@ -119,6 +94,7 @@ namespace Psycko.Core.Services
 
                 // Pose seule : aucune pioche, aucun ramassage FaceUp, aucune transition de phase.
                 var placedOnly = (GameState)state.PlayCards(play);
+                observer?.OnCardsPlaced(placedOnly);
 
                 recorder?.Record(GameLogEntry.PlayerAction(
                     play.PlayerId, ActionKind.Play, play.Cards, PileSnapshot(placedOnly)));
@@ -133,7 +109,7 @@ namespace Psycko.Core.Services
             // CHANGE : sens de jeu AVANT le coup, lu sur l'état reçu en entrée (log du Valet).
             var directionBefore = state.Direction;
 
-            var turnResult = TurnManager.ApplyPlay(state, play);
+            var turnResult = TurnManager.ApplyPlay(state, play, observer);
 
             // Don du 7 : le tour est suspendu après Step3. Aucune mutation n'est appliquée ici
             // (ni pioche, ni destruction, ni changement de joueur) : tout est rejoué par
@@ -338,7 +314,8 @@ namespace Psycko.Core.Services
             int playerIndex,
             int faceDownIndex,
             IGameLogRecorder recorder = null,
-            GameResultTracker tracker = null)
+            GameResultTracker tracker = null,
+            IGameObserver observer = null)
         {
             if (state == null)
                 throw new ArgumentNullException(nameof(state));
@@ -386,6 +363,7 @@ namespace Psycko.Core.Services
             var directionBefore = state.Direction;
 
             var revealedState = (GameState)state.PlayCards(play);
+            observer?.OnCardsPlaced(revealedState);
 
             // ⭐ 2 terminal OU carte non jouable → ramassage forcé
             // CLAUDE.md § 2 Card : "Si c'est la dernière carte du joueur : ramasse la pile et passe son tour."

@@ -134,6 +134,7 @@ namespace Psycko.Presentation.Controllers
                     _queue.Enqueue(SessionEvent.Placed(entry, preview));
                 // Sinon : pas d'aperçu, le StateChanged résolu s'affiche directement.
             }
+            public void OnCardsPlaced(GameState stateAfterPlacement) { }
 
             public void OnStateChanged(GameState state)
             {

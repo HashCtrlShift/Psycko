@@ -14,6 +14,9 @@ namespace Psycko.Core.Interfaces
         /// <summary>Appelé à chaque entrée de log, dans l'ordre.</summary>
         void OnLogEntry(GameLogEntry entry);
 
+        /// <summary>Appelé après la pose et le débit des cartes, avant les effets du coup.</summary>
+        void OnCardsPlaced(GameState stateAfterPlacement);
+
         /// <summary>Appelé après chaque tour avec l'état réel de la partie.</summary>
         void OnStateChanged(GameState state);
     }
