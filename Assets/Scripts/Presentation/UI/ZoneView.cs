@@ -1,12 +1,13 @@
 using System.Collections.Generic;
 using Psycko.Presentation.Interfaces;
+using Psycko.Presentation.Logic;
 using Psycko.Core.Domain;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Psycko.Presentation.UI
 {
-    /// <summary>Pioche et pile : compteurs + dos/face + pile éparpillée. Aucune logique de jeu.</summary>
+    /// <summary>Vue passive de la pioche et de la Pile : elle ne fait que refléter son modèle.</summary>
     public sealed class ZoneView : MonoBehaviour
     {
         private const int HardMaxVisible = TableProjection.MaxVisiblePileCards;
@@ -38,16 +39,12 @@ namespace Psycko.Presentation.UI
         public void Render(ZoneViewModel model, ICardSkin skin)
         {
             if (model == null) return;
-
             if (_drawCountLabel != null) _drawCountLabel.text = model.DrawPileCount.ToString();
             RenderDraw(model, skin);
             RenderPile(model.PileCards, model.PileStartIndex, skin);
         }
 
-        /// <summary>
-        /// Affiche la Pile telle qu'elle est juste après une pose (aperçu T65).
-        /// La pioche n'est pas touchée : seule la pile et son compteur sont redessinés.
-        /// </summary>
+        /// <summary>API historique conservée pour l'aperçu de pose antérieur à T65-g.</summary>
         public void RenderPlacedPile(IReadOnlyList<Card> fullPile, ICardSkin skin)
         {
             if (fullPile == null) return;
@@ -65,21 +62,19 @@ namespace Psycko.Presentation.UI
             _drawCardView.SetInteractable(false);
         }
 
-        /// <param name="cards">Cartes disponibles (tout ou partie de la Pile), du bas vers le haut.</param>
+        /// <param name="cards">Cartes disponibles (du bas vers le haut).</param>
         /// <param name="startIndex">Index absolu dans la Pile de cards[0].</param>
         private void RenderPile(IReadOnlyList<Card> cards, int startIndex, ICardSkin skin)
         {
+            if (cards == null) return;
             int pileTotal = startIndex + cards.Count;
             if (_pileCountLabel != null) _pileCountLabel.text = pileTotal.ToString();
             if (_emptyPileMarker != null) _emptyPileMarker.SetActive(pileTotal == 0);
-
             if (_pileCardPrefab == null || _pileCardsRoot == null) return;
 
             int limit = Mathf.Clamp(_maxVisiblePileCards, 1, HardMaxVisible);
-            int available = cards.Count;
-            int shown = available < limit ? available : limit;
-            int firstIndex = available - shown;
-
+            int shown = cards.Count < limit ? cards.Count : limit;
+            int firstIndex = cards.Count - shown;
             EnsurePool(shown);
 
             for (int i = 0; i < _pool.Count; i++)
@@ -90,15 +85,12 @@ namespace Psycko.Presentation.UI
                     if (view.gameObject.activeSelf) view.gameObject.SetActive(false);
                     continue;
                 }
-
                 int localIndex = firstIndex + i;
                 int absoluteIndex = startIndex + localIndex;
-
                 view.gameObject.SetActive(true);
                 view.Bind(cards[localIndex], skin);
                 view.SetState(CardVisualState.Normal);
                 view.SetInteractable(false);
-                // Ordre d'affichage : index croissant = rendu au-dessus.
                 view.transform.SetSiblingIndex(i);
                 ApplyPose(view.transform as RectTransform, absoluteIndex);
             }
@@ -114,40 +106,13 @@ namespace Psycko.Presentation.UI
             }
         }
 
-        /// <summary>
-        /// Pose déterministe par index absolu : décalage X/Y et rotation dans des plages
-        /// fixes, indépendantes de la position dans la pile. Une carte posée ne rebouge jamais.
-        /// </summary>
         private void ApplyPose(RectTransform rect, int pileIndex)
         {
             if (rect == null) return;
-            float x = (Unit(Hash(pileIndex, 1)) * 2f - 1f) * _maxOffsetX;
-            float y = (Unit(Hash(pileIndex, 2)) * 2f - 1f) * _maxOffsetY;
-            float rot = (Unit(Hash(pileIndex, 3)) * 2f - 1f) * _maxRotation;
-
-            rect.anchoredPosition = new Vector2(x, y);
-            rect.localRotation = Quaternion.Euler(0f, 0f, rot);
-        }
-
-        /// <summary>Hash entier déterministe (mélange multiplicatif), sans état ni Random.</summary>
-        private static uint Hash(int index, int salt)
-        {
-            unchecked
-            {
-                uint h = (uint)index * 2654435761u + (uint)salt * 40503u;
-                h ^= h >> 16;
-                h *= 2246822519u;
-                h ^= h >> 13;
-                h *= 3266489917u;
-                h ^= h >> 16;
-                return h;
-            }
-        }
-
-        /// <summary>Hash -> valeur dans [0, 1].</summary>
-        private static float Unit(uint h)
-        {
-            return (h & 0xFFFFu) / 65535f;
+            PilePoseCalculator.Pose pose = PilePoseCalculator.Calculate(
+                pileIndex, _maxOffsetX, _maxOffsetY, _maxRotation);
+            rect.anchoredPosition = new Vector2(pose.X, pose.Y);
+            rect.localRotation = Quaternion.Euler(0f, 0f, pose.RotationZ);
         }
     }
 }

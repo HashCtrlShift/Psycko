@@ -6,6 +6,7 @@ using Psycko.Core.Domain;
 using Psycko.Core.Domain.Log;
 using Psycko.Core.Interfaces;
 using Psycko.Core.Services;
+using Psycko.Presentation.Logic;
 
 namespace Psycko.Presentation.Controllers
 {
@@ -39,6 +40,7 @@ namespace Psycko.Presentation.Controllers
         private readonly IReadOnlyList<IPlayerAgent> _agents;
         private readonly IReadOnlyList<string> _names;
         private readonly ConcurrentQueue<SessionEvent> _events = new ConcurrentQueue<SessionEvent>();
+        private readonly PresentationTimeline _timeline = new PresentationTimeline();
         private readonly object _gate = new object();
         private Task _task;
         private GameRunOutcome _outcome;
@@ -56,6 +58,7 @@ namespace Psycko.Presentation.Controllers
         public bool IsRunning { get { lock (_gate) return _task != null && !_finished; } }
         public bool IsFinished { get { lock (_gate) return _finished; } }
         public GameRunOutcome Outcome { get { lock (_gate) return _outcome; } }
+        public PresentationTimeline Timeline { get { return _timeline; } }
 
         public void Start(int seed)
         {
@@ -64,10 +67,12 @@ namespace Psycko.Presentation.Controllers
                 if (_task != null) throw new InvalidOperationException("La session a déjà démarré.");
                 _task = Task.Run(() =>
                 {
-                    var observer = new SessionObserver(_events);
+                    var observer = new CompositeObserver(
+                        new SessionObserver(_events), new TimelineObserver(_timeline));
                     GameRunOutcome result = GameRunner.Run(seed, _agents, _names, true, observer: observer);
                     lock (_gate) { _outcome = result; _finished = true; }
                     _events.Enqueue(SessionEvent.Complete(result));
+                    _timeline.Enqueue(TimelineStep.Finished());
                 });
             }
         }
@@ -87,7 +92,48 @@ namespace Psycko.Presentation.Controllers
                 if (e.Kind == SessionEventKind.HumanRequest) return true;
             return false;
         }
-        private void OnRequestPending(HumanRequestKind kind) { _events.Enqueue(SessionEvent.Request(kind)); }
+        private void OnRequestPending(HumanRequestKind kind)
+        {
+            _events.Enqueue(SessionEvent.Request(kind));
+            IPlayerVisibleState visibleState = _human.PendingState;
+            IFaceDownBlindView blindView = _human.PendingBlindView;
+            if (visibleState != null)
+                _timeline.Enqueue(TimelineStep.Request(kind, visibleState));
+            else if (blindView != null)
+                _timeline.Enqueue(TimelineStep.BlindRequest(kind, blindView));
+            else
+                throw new InvalidOperationException("Une requête humaine doit fournir son état visible ou sa vue aveugle.");
+        }
+
+        private sealed class CompositeObserver : IGameObserver
+        {
+            private readonly IGameObserver _sessionObserver;
+            private readonly IGameObserver _timelineObserver;
+
+            internal CompositeObserver(IGameObserver sessionObserver, IGameObserver timelineObserver)
+            {
+                _sessionObserver = sessionObserver;
+                _timelineObserver = timelineObserver;
+            }
+
+            public void OnLogEntry(GameLogEntry entry)
+            {
+                _sessionObserver.OnLogEntry(entry);
+                _timelineObserver.OnLogEntry(entry);
+            }
+
+            public void OnCardsPlaced(GameState stateAfterPlacement)
+            {
+                _sessionObserver.OnCardsPlaced(stateAfterPlacement);
+                _timelineObserver.OnCardsPlaced(stateAfterPlacement);
+            }
+
+            public void OnStateChanged(GameState state)
+            {
+                _sessionObserver.OnStateChanged(state);
+                _timelineObserver.OnStateChanged(state);
+            }
+        }
 
         private sealed class SessionObserver : IGameObserver
         {

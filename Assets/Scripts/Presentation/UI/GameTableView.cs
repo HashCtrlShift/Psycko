@@ -1,19 +1,13 @@
-using System.Collections.Generic;
 using Psycko.Core.Domain;
 using Psycko.Core.Interfaces;
-using Psycko.Core.Domain.Log;
-using Psycko.Presentation.Models;
 using Psycko.Presentation.Controllers;
 using Psycko.Presentation.Interfaces;
+using Psycko.Presentation.Models;
 using UnityEngine;
 
 namespace Psycko.Presentation.UI
 {
-    /// <summary>
-    /// Vue de table en paysage. S'abonne à GameplayController.StateChanged et CardsPlaced,
-    /// construit la vue du joueur humain, projette, puis pousse vers les sièges et la zone.
-    /// RenderVisible permet aussi de dessiner sans GameState (phase d'échange pré-partie).
-    /// </summary>
+    /// <summary>Rendu atomique des vues de table depuis un état ou une projection visible.</summary>
     public sealed class GameTableView : MonoBehaviour
     {
         [SerializeField] private GameplayController _controller;
@@ -29,6 +23,8 @@ namespace Psycko.Presentation.UI
         public PlayerSeatView SelfSeat { get { return _selfSeat; } }
         public PlayerSeatView[] AllSeatViews { get { return new[] { _selfSeat, _leftSeat, _topSeat, _rightSeat }; } }
 
+        // Ancien chemin, supprimé en T65-g : rétabli temporairement tant que le contrôleur
+        // n'appelle pas encore Render(GameState) directement.
         private void OnEnable()
         {
             if (_controller == null) return;
@@ -47,12 +43,13 @@ namespace Psycko.Presentation.UI
         private void OnStateChanged(GameState state)
         {
             if (state == null || state.Players.Count == 0) return;
-            RenderVisible(PlayerVisibleState.From(state, state.Players[0].Id));
+            // Strictement le même chemin de projection que l'ancien RenderVisible(...).
+            Render(state);
         }
 
         /// <summary>
-        /// Aperçu juste après la pose : seule la zone est redessinée depuis la Pile de l'état
-        /// d'aperçu, les sièges restent tels quels jusqu'au StateChanged résolu.
+        /// Ancien chemin, supprimé en T65-g : l'aperçu dessine uniquement la Pile ;
+        /// les sièges restent inchangés jusqu'au StateChanged résolu.
         /// </summary>
         private void OnCardsPlaced(GameState preview)
         {
@@ -61,27 +58,34 @@ namespace Psycko.Presentation.UI
             _zone.RenderPlacedPile(preview.Pile.Cards, skin);
         }
 
-        /// <summary>Rend la table depuis une vue visible (ex. phase d'échange, sans GameState).</summary>
+        /// <summary>Point d'entrée canonique : toutes les vues reflètent ce GameState.</summary>
+        public void Render(GameState state)
+        {
+            if (state == null || state.Players == null || state.Players.Count == 0) return;
+            IPlayerVisibleState visible = PlayerVisibleState.From(state, state.Players[0].Id);
+            Render(TableProjection.Build(visible));
+        }
+
+        /// <summary>Rendu d'une vue visible (compatibilité échange pré-partie).</summary>
         public void RenderVisible(IPlayerVisibleState visible)
         {
             if (visible == null) return;
             Render(TableProjection.Build(visible));
         }
 
+        /// <summary>API de projection conservée pour les appelants existants.</summary>
         public void Render(TableViewModel model)
         {
             if (model == null) return;
             ICardSkin skin = _skinRegistry != null ? _skinRegistry.Current : null;
-
             if (_selfSeat != null) _selfSeat.RenderSelf(model.Self, _selfDisplayName, skin);
             if (_zone != null) _zone.Render(model.Zone, skin);
-
             HideOpponentSeats();
             for (int i = 0; i < model.Opponents.Count; i++)
             {
-                OpponentSeatViewModel o = model.Opponents[i];
-                PlayerSeatView view = SeatFor(o.Position);
-                if (view != null) view.RenderOpponent(o, skin);
+                OpponentSeatViewModel opponent = model.Opponents[i];
+                PlayerSeatView view = SeatFor(opponent.Position);
+                if (view != null) view.RenderOpponent(opponent, skin);
             }
             if (Rendered != null) Rendered();
         }
