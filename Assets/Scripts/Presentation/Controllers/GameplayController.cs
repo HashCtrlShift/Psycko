@@ -6,6 +6,8 @@ using Psycko.Core.Interfaces;
 using Psycko.Core.Domain.Log;
 using Psycko.Core.Rules.Validation;
 using Psycko.Core.Services;
+using Psycko.Presentation.Logic;
+using Psycko.Presentation.Models;
 using UnityEngine;
 
 namespace Psycko.Presentation.Controllers
@@ -17,6 +19,9 @@ namespace Psycko.Presentation.Controllers
         private const int HumanPlayerId = 0;
 
         [SerializeField] private bool _verboseDiagnostics = true;
+
+        [Header("Séquenceur de présentation (T65-d, rendu branché en T65-e)")]
+        [SerializeField] private PresentationTimings _timings;
 
         [Header("Rythme des bots (T63)")]
         [Tooltip("Délai avant l'affichage de chaque coup de bot tant que l'humain est en jeu (secondes).")]
@@ -38,6 +43,7 @@ namespace Psycko.Presentation.Controllers
         private IReadOnlyList<Card> _humanHand;
         private GameState _lastState;
         private BotPacing _pacing;
+        private PresentationSequencer _sequencer;
 
         public event Action<GameState> StateChanged;
         public event Action<GameLogEntry> LogEntryReceived;
@@ -74,6 +80,7 @@ namespace Psycko.Presentation.Controllers
             var layout = new SeatLayout(new System.Random()).Create(_human, _checker);
             _session = new LocalGameSession(_human, layout);
             CreatePacing();
+            CreateSequencer();
             _session.Start(Environment.TickCount);
             Log("Session démarrée");
         }
@@ -83,13 +90,31 @@ namespace Psycko.Presentation.Controllers
             _human = human;
             _session = session;
             CreatePacing();
+            CreateSequencer();
         }
 
         internal void Tick() { Pump(Time.deltaTime); }
 
         private void Start() { Begin(); }
 
-        private void Update() { Pump(Time.deltaTime); }
+        private void Update()
+        {
+            Pump(Time.deltaTime);
+            if (_sequencer != null)
+            {
+                _sequencer.IsFastMode = _pacing != null && _pacing.IsFast;
+                _sequencer.Tick(Time.deltaTime);
+            }
+        }
+
+        private void CreateSequencer()
+        {
+            if (_session == null) return;
+            PresentationTimingValues settings = _timings != null
+                ? _timings.ToSettings()
+                : new PresentationTimingValues(_previewBeforeClearSeconds, 1f, _botDelaySeconds);
+            _sequencer = new PresentationSequencer(_session.Timeline, settings);
+        }
 
         private void CreatePacing()
         {

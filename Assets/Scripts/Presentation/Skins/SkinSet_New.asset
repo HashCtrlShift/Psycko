@@ -31,6 +31,8 @@ MonoBehaviour:
     Sprite: {fileID: 21300000, guid: 85f89580a11681549b9ffb376949db65, type: 3}
   - Key: Clubs_Nine
     Sprite: {fileID: 21300000, guid: 80f95e5f44390524bb8deb5601c652f7, type: 3}
+  - Key: Clubs_Priest
+    Sprite: {fileID: 21300000, guid: 96db1eb9a266f634e8a30c63f4e10b8e, type: 3}
   - Key: Clubs_Ten
     Sprite: {fileID: 21300000, guid: 1e04620bcec64fd40a30f64c71896f0f, type: 3}
   - Key: Clubs_Jack
@@ -39,6 +41,8 @@ MonoBehaviour:
     Sprite: {fileID: 21300000, guid: fe36b7396814a354f9cc8c4ade097f02, type: 3}
   - Key: Clubs_King
     Sprite: {fileID: 21300000, guid: d091e4889956b31489e97b1f34bf71eb, type: 3}
+  - Key: Clubs_Knight
+    Sprite: {fileID: 21300000, guid: a92c74b42812dde498d968c016a5ab3e, type: 3}
   - Key: Diamonds_Ace
     Sprite: {fileID: 21300000, guid: 3017dbb00da1675449aa5251a50b01af, type: 3}
   - Key: Diamonds_Two
@@ -64,7 +68,7 @@ MonoBehaviour:
   - Key: Diamonds_Jack
     Sprite: {fileID: 21300000, guid: e3de2fa1b12dd8b48b4e594d54d5204d, type: 3}
   - Key: Diamonds_Knight
-    Sprite: {fileID: 8273011950056691855, guid: d583b3305072ef54d9e5b63c1ae04e74, type: 3}
+    Sprite: {fileID: 21300000, guid: d583b3305072ef54d9e5b63c1ae04e74, type: 3}
   - Key: Diamonds_Queen
     Sprite: {fileID: 21300000, guid: 81566b6328bc70e47b28386d3b82e2cd, type: 3}
   - Key: Diamonds_King
@@ -94,7 +98,7 @@ MonoBehaviour:
   - Key: Hearts_Jack
     Sprite: {fileID: 21300000, guid: a48d18e69518e3f469021413b0abc3f9, type: 3}
   - Key: Hearts_Knight
-    Sprite: {fileID: 930564748349767924, guid: cbf259e504d20ec4ca4e3c9f1b4802a3, type: 3}
+    Sprite: {fileID: 21300000, guid: cbf259e504d20ec4ca4e3c9f1b4802a3, type: 3}
   - Key: Hearts_Queen
     Sprite: {fileID: 21300000, guid: 617fbda0a81f93b45ac04d7ed6abd497, type: 3}
   - Key: Hearts_King
@@ -103,6 +107,8 @@ MonoBehaviour:
     Sprite: {fileID: 21300000, guid: d6e360497d2edc3438392bbde4878efe, type: 3}
   - Key: Joker_Color
     Sprite: {fileID: 21300000, guid: 62670b5f06cf8d44ea338639b396df62, type: 3}
+  - Key: Joker_Glass
+    Sprite: {fileID: 21300000, guid: 68d3daec37e8c9b4ba26d52448ca2225, type: 3}
   - Key: Spades_Ace
     Sprite: {fileID: 21300000, guid: e292689738bba0345b9b74e1c69867b6, type: 3}
   - Key: Spades_Two
@@ -128,17 +134,11 @@ MonoBehaviour:
   - Key: Spades_Jack
     Sprite: {fileID: 21300000, guid: 0a152288191f3d841b2b9f6684e04998, type: 3}
   - Key: Spades_Knight
-    Sprite: {fileID: -3350752681232096330, guid: b026346d6c1b6ed4da1a6543e782f65f, type: 3}
+    Sprite: {fileID: 21300000, guid: b026346d6c1b6ed4da1a6543e782f65f, type: 3}
   - Key: Spades_Queen
     Sprite: {fileID: 21300000, guid: fbbcb7e76f8eabb4daf58e4151c4fafd, type: 3}
   - Key: Spades_King
     Sprite: {fileID: 21300000, guid: f4ec362508da2fb40b977b7433fc70fc, type: 3}
-  - Key: Clubs_Knight
-    Sprite: {fileID: 5186416172958483288, guid: a92c74b42812dde498d968c016a5ab3e, type: 3}
-  - Key: Clubs_Priest
-    Sprite: {fileID: 21300000, guid: 96db1eb9a266f634e8a30c63f4e10b8e, type: 3}
-  - Key: Joker_Glass
-    Sprite: {fileID: 21300000, guid: 68d3daec37e8c9b4ba26d52448ca2225, type: 3}
   _cardBack: {fileID: 21300000, guid: cd2321a5cdce19c4d8f11ad692173807, type: 3}
   _tableColor: {r: 0.07, g: 0.35, b: 0.2, a: 1}
   _seatColor: {r: 0, g: 0, b: 0, a: 0.35}
