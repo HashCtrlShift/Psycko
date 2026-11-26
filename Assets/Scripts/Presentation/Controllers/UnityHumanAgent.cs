@@ -22,10 +22,12 @@ namespace Psycko.Presentation.Controllers
         private object _answer;
         private bool _cancelled;
         private bool _expired;
+        private bool _pendingIsForced;
         private readonly Random _random;
 
         public event Action<HumanRequestKind> RequestPending;
         public HumanRequestKind PendingRequest { get { lock (_gate) return _pending; } }
+        public bool PendingIsForced { get { lock (_gate) return _pendingIsForced; } }
         public IPlayerVisibleState PendingState { get { lock (_gate) return _state; } }
         public IFaceDownBlindView PendingBlindView { get { lock (_gate) return _blindView; } }
         public TimeSpan Timeout { get { return _timeout; } }
@@ -55,7 +57,9 @@ namespace Psycko.Presentation.Controllers
                 if (_pending != HumanRequestKind.None)
                     throw new InvalidOperationException("Une requête humaine est déjà en attente : " + _pending + " alors que " + kind + " est demandé.");
                 _response.Dispose(); _response = new ManualResetEventSlim(false);
-                _pending = kind; _state = state; _blindView = blind; _answer = null; _expired = false; handler = RequestPending;
+                _pending = kind; _state = state; _blindView = blind; _answer = null; _expired = false;
+                _pendingIsForced = kind == HumanRequestKind.Pickup && forced is bool && (bool)forced;
+                handler = RequestPending;
             }
             if (handler != null)
             {
@@ -104,7 +108,7 @@ namespace Psycko.Presentation.Controllers
                 default: return null;
             }
         }
-        private void Clear() { _pending = HumanRequestKind.None; _state = null; _blindView = null; _answer = null; }
+        private void Clear() { _pending = HumanRequestKind.None; _state = null; _blindView = null; _answer = null; _pendingIsForced = false; }
         private void Submit(HumanRequestKind expected, object answer)
         {
             lock (_gate)

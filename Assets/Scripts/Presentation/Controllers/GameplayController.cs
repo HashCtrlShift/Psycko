@@ -44,6 +44,8 @@ namespace Psycko.Presentation.Controllers
         private GameState _lastState;
         private BotPacing _pacing;
         private PresentationSequencer _sequencer;
+        private Coroutine _forcedPickupCoroutine;
+        private ForcedPickupOnce _forcedPickupOnce = new ForcedPickupOnce();
 
         public event Action<GameState> StateChanged;
         public event Action<GameLogEntry> LogEntryReceived;
@@ -162,12 +164,14 @@ namespace Psycko.Presentation.Controllers
 
                     case SessionEventKind.HumanRequest:
                         Log("HumanRequest kind = " + item.RequestKind + ", abonnés = " + (HumanRequestPending != null));
+                        HandleHumanRequestPending(item.RequestKind);
                         if (HumanRequestPending != null) HumanRequestPending(item.RequestKind);
                         break;
 
                     case SessionEventKind.Finished:
                         if (item.Outcome != null && item.Outcome.Error != null)
                             Debug.LogError("[Gameplay] Partie terminée sur erreur : " + item.Outcome.Error);
+                        CancelForcedPickup();
                         if (GameFinished != null) GameFinished(item.Outcome);
                         break;
                 }
@@ -201,6 +205,44 @@ namespace Psycko.Presentation.Controllers
             if (StateChanged != null) StateChanged(state);
         }
 
+        private void HandleHumanRequestPending(HumanRequestKind kind)
+        {
+            CancelForcedPickup();
+            _forcedPickupOnce = new ForcedPickupOnce();
+
+            if (kind != HumanRequestKind.Pickup || _human == null || !_human.PendingIsForced)
+                return;
+
+            // Aucun hook UI dédié n'est exposé par le contrôleur; diagnostic visible en console.
+            Debug.Log("Aucune carte jouable");
+            _forcedPickupCoroutine = StartCoroutine(SubmitForcedPickupAfterDelay());
+        }
+
+        private System.Collections.IEnumerator SubmitForcedPickupAfterDelay()
+        {
+            float delay = _timings != null ? _timings.ForcedPickupDelaySeconds : 1f;
+            yield return new WaitForSeconds(delay);
+
+            _forcedPickupCoroutine = null;
+            if (_human == null || _human.PendingRequest != HumanRequestKind.Pickup
+                || !_human.PendingIsForced || !_forcedPickupOnce.TryClaim())
+                yield break;
+
+            _human.SubmitPickup(true);
+        }
+
+        private void CancelForcedPickup()
+        {
+            if (_forcedPickupCoroutine == null) return;
+            StopCoroutine(_forcedPickupCoroutine);
+            _forcedPickupCoroutine = null;
+        }
+
+        private void OnDisable()
+        {
+            CancelForcedPickup();
+        }
+
         private void Log(string message)
         {
             if (_verboseDiagnostics) Debug.Log("[Gameplay] " + message);
@@ -208,6 +250,7 @@ namespace Psycko.Presentation.Controllers
 
         private void OnDestroy()
         {
+            CancelForcedPickup();
             if (_session != null) _session.Cancel();
         }
     }

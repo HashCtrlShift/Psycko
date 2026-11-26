@@ -3801,9 +3801,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Psycko.Presentation::Psycko.Presentation.Controllers.GameplayController
   _verboseDiagnostics: 1
-  _botDelaySeconds: 1.5
+  _timings: {fileID: 0}
+  _botDelaySeconds: 1
   _fastDelaySeconds: 0.02
   _fastMaxEventsPerFrame: 8
+  _previewBeforeClearSeconds: 0.75
 --- !u!4 &1447653634
 Transform:
   m_ObjectHideFlags: 0
