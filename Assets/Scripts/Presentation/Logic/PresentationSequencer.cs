@@ -1,5 +1,6 @@
 using System;
 using Psycko.Core.Domain;
+using Psycko.Presentation.Controllers;
 
 namespace Psycko.Presentation.Logic
 {
@@ -15,7 +16,7 @@ namespace Psycko.Presentation.Logic
         private GameState _placedState;
         private bool _awaitingPlacedFollowup;
         private bool _previewDelayStarted;
-        private bool _previewClearsNextResolved;
+        private bool _placedHasEffect;
         private bool _waitingForRequest;
         private bool _finished;
 
@@ -73,6 +74,7 @@ namespace Psycko.Presentation.Logic
                     _placedState = step.State;
                     _awaitingPlacedFollowup = true;
                     _previewDelayStarted = false;
+                    _placedHasEffect = step.PlacementInfo.HasPreviewEffect;
                     if (!IsFastMode) Publish(step);
                     // Continue pour inspecter la suite FIFO et démarrer l'aperçu sans retard d'une frame.
                     continue;
@@ -81,7 +83,6 @@ namespace Psycko.Presentation.Logic
                 Publish(step);
                 if (step.Kind == TimelineStepKind.SnapshotResolved)
                 {
-                    _previewClearsNextResolved = false;
                     _remaining = IsFastMode ? FastBotDelaySeconds : _timings.BotDelaySeconds;
                     if (_remaining > 0f) return;
                     continue;
@@ -140,17 +141,14 @@ namespace Psycko.Presentation.Logic
 
             bool shrinking = following.Kind == TimelineStepKind.SnapshotResolved
                 && WillPileShrink(_placedState, following.State);
-            if (shrinking && !IsFastMode && !_previewDelayStarted)
+            bool pickupFollows = following.Kind == TimelineStepKind.Request
+                && following.RequestKind == HumanRequestKind.Pickup;
+            bool shouldPreview = shrinking || _placedHasEffect || pickupFollows;
+            if (shouldPreview && !IsFastMode && !_previewDelayStarted)
             {
                 _previewDelayStarted = true;
-                _previewClearsNextResolved = true;
                 _remaining = _timings.PreviewBeforeClearSeconds;
             }
-            else if (shrinking && IsFastMode)
-            {
-                _previewClearsNextResolved = true;
-            }
-
             if (_remaining > 0f) return false;
             _awaitingPlacedFollowup = false;
             _previewDelayStarted = false;

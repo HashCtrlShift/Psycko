@@ -2,6 +2,7 @@ using System;
 using Psycko.Core.Domain;
 using Psycko.Core.Interfaces;
 using Psycko.Core.Rules.Validation;
+using Psycko.Core.Rules.Detection;
 
 namespace Psycko.Core.Services.Turn
 {
@@ -89,7 +90,6 @@ namespace Psycko.Core.Services.Turn
             // Step4 (cardsRemovedFromHand = 0) et Step5 (Pile.Cards) exigent le coup posé.
             var placed = (GameState)reconstruction.State.PlayCards(play);
 
-            observer?.OnCardsPlaced(placed);
 
             // Reconstruction appliquée AVANT Step3 : le Don lit la main réelle (CLAUDE.md :
             // pose → reconstruction → Don → re-pioche → Doublon/Carré).
@@ -127,6 +127,17 @@ namespace Psycko.Core.Services.Turn
                 .WithDestroysPile(step3.DestroysPile)
                 .WithGrantsReplay(step3.GrantsReplay)
                 .WithRequiresGiftResolution(step3.RequiresGiftResolution);
+
+            // Compute the preview flag from the authoritative Core result, not Presentation rules.
+            var placementResult = result;
+            var previewEffect = placementResult.DestroysPile || placementResult.SkipNext
+                || placementResult.RequiresGiftResolution || placementResult.GrantsReplay
+                || (placementResult.NextDirection.HasValue && placementResult.NextDirection.Value != state.Direction)
+                || (placementResult.NextConstraint.HasValue && placementResult.NextConstraint.Value != state.Constraint)
+                || PairDetection.IsPairDetected(placed) || QuadDetection.IsQuadDetected(placed)
+                || play.IsJokerPlay || play.EffectiveRank == DefRank.Seven || play.EffectiveRank == DefRank.Two
+                || play.EffectiveRank == DefRank.Priest || play.EffectiveRank == DefRank.Jack;
+            observer?.OnCardsPlaced(placed, new PlacementInfo(previewEffect));
 
             if (result.RequiresGiftResolution)
                 return result;

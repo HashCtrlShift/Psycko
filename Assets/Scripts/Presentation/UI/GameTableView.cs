@@ -53,9 +53,8 @@ namespace Psycko.Presentation.UI
         /// </summary>
         private void OnCardsPlaced(GameState preview)
         {
-            if (_zone == null || preview == null) return;
-            ICardSkin skin = _skinRegistry != null ? _skinRegistry.Current : null;
-            _zone.RenderPlacedPile(preview.Pile.Cards, skin);
+            if (preview == null) return;
+            Render(preview);
         }
 
         /// <summary>Point d'entrée canonique : toutes les vues reflètent ce GameState.</summary>

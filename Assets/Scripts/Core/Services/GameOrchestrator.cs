@@ -94,7 +94,7 @@ namespace Psycko.Core.Services
 
                 // Pose seule : aucune pioche, aucun ramassage FaceUp, aucune transition de phase.
                 var placedOnly = (GameState)state.PlayCards(play);
-                observer?.OnCardsPlaced(placedOnly);
+                observer?.OnCardsPlaced(placedOnly, new PlacementInfo(true, true));
 
                 recorder?.Record(GameLogEntry.PlayerAction(
                     play.PlayerId, ActionKind.Play, play.Cards, PileSnapshot(placedOnly)));
@@ -363,7 +363,7 @@ namespace Psycko.Core.Services
             var directionBefore = state.Direction;
 
             var revealedState = (GameState)state.PlayCards(play);
-            observer?.OnCardsPlaced(revealedState);
+            observer?.OnCardsPlaced(revealedState, new PlacementInfo(!playable || terminatesOnTwo || play.IsJokerPlay || play.EffectiveRank == DefRank.Seven || play.EffectiveRank == DefRank.Two || play.EffectiveRank == DefRank.Priest || play.EffectiveRank == DefRank.Jack, !playable || terminatesOnTwo));
 
             // ⭐ 2 terminal OU carte non jouable → ramassage forcé
             // CLAUDE.md § 2 Card : "Si c'est la dernière carte du joueur : ramasse la pile et passe son tour."

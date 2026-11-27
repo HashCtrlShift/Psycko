@@ -122,10 +122,10 @@ namespace Psycko.Presentation.Controllers
                 _timelineObserver.OnLogEntry(entry);
             }
 
-            public void OnCardsPlaced(GameState stateAfterPlacement)
+            public void OnCardsPlaced(GameState stateAfterPlacement, PlacementInfo info)
             {
-                _sessionObserver.OnCardsPlaced(stateAfterPlacement);
-                _timelineObserver.OnCardsPlaced(stateAfterPlacement);
+                _sessionObserver.OnCardsPlaced(stateAfterPlacement, info);
+                _timelineObserver.OnCardsPlaced(stateAfterPlacement, info);
             }
 
             public void OnStateChanged(GameState state)
@@ -145,7 +145,7 @@ namespace Psycko.Presentation.Controllers
                 _queue.Enqueue(SessionEvent.Log(entry));
             }
 
-            public void OnCardsPlaced(GameState stateAfterPlacement)
+            public void OnCardsPlaced(GameState stateAfterPlacement, PlacementInfo info)
             {
                 _queue.Enqueue(SessionEvent.Placed(stateAfterPlacement));
             }

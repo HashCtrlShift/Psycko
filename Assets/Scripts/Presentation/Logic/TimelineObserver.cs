@@ -20,9 +20,9 @@ namespace Psycko.Presentation.Logic
             _timeline.Enqueue(TimelineStep.Log(entry));
         }
 
-        public void OnCardsPlaced(GameState stateAfterPlacement)
+        public void OnCardsPlaced(GameState stateAfterPlacement, PlacementInfo info)
         {
-            _timeline.Enqueue(TimelineStep.SnapshotPlaced(stateAfterPlacement));
+            _timeline.Enqueue(TimelineStep.SnapshotPlaced(stateAfterPlacement, info));
         }
 
         public void OnStateChanged(GameState state)

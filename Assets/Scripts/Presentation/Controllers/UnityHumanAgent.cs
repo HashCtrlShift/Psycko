@@ -26,6 +26,7 @@ namespace Psycko.Presentation.Controllers
         private readonly Random _random;
 
         public event Action<HumanRequestKind> RequestPending;
+        public event Action RequestAnswered;
         public HumanRequestKind PendingRequest { get { lock (_gate) return _pending; } }
         public bool PendingIsForced { get { lock (_gate) return _pendingIsForced; } }
         public IPlayerVisibleState PendingState { get { lock (_gate) return _state; } }
@@ -116,6 +117,8 @@ namespace Psycko.Presentation.Controllers
                 if (_pending == HumanRequestKind.None || _pending != expected) throw new InvalidOperationException("Aucune requête humaine compatible n'est en attente.");
                 _answer = answer; _expired = false; _response.Set();
             }
+            Action answered = RequestAnswered;
+            if (answered != null) answered();
         }
         public void SubmitPlay(Play play) { if (play == null) throw new ArgumentNullException(nameof(play)); Submit(HumanRequestKind.NormalPlay, play); }
         public void SubmitNoPlay() { Submit(HumanRequestKind.NormalPlay, null); }
