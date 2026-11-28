@@ -44,13 +44,6 @@ namespace Psycko.Presentation.UI
             RenderPile(model.PileCards, model.PileStartIndex, skin);
         }
 
-        /// <summary>API historique conservée pour l'aperçu de pose antérieur à T65-g.</summary>
-        public void RenderPlacedPile(IReadOnlyList<Card> fullPile, ICardSkin skin)
-        {
-            if (fullPile == null) return;
-            RenderPile(fullPile, 0, skin);
-        }
-
         private void RenderDraw(ZoneViewModel model, ICardSkin skin)
         {
             if (_drawCardView == null) return;

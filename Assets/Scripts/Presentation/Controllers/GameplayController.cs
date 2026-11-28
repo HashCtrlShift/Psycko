@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Psycko.Core.Domain;
 using Psycko.Core.Domain.Log;
 using Psycko.Core.Interfaces;
@@ -22,7 +23,7 @@ namespace Psycko.Presentation.Controllers
   private GameState _lastState; 
   private PresentationSequencer _sequencer;
   private Coroutine _forcedPickupCoroutine; 
-  private HumanRequestKind _lastRequest; 
+  private int _requestAnswered; 
   private ForcedPickupOnce _forcedPickupOnce=new ForcedPickupOnce();
   public event Action<GameState> StateChanged; 
   public event Action<GameLogEntry> LogEntryReceived;
@@ -39,10 +40,10 @@ namespace Psycko.Presentation.Controllers
   internal void Attach(UnityHumanAgent human,LocalGameSession session){_human=human;_session=session;CreateSequencer();}
   internal void Tick(){if(_sequencer!=null)_sequencer.Tick(Time.deltaTime);}
   private void Start(){Begin();} 
-  private void Update(){if(_sequencer!=null){if(_lastRequest!=HumanRequestKind.None&&_human!=null&&_human.PendingRequest==HumanRequestKind.None){_lastRequest=HumanRequestKind.None;_sequencer.NotifyRequestAnswered();}_sequencer.Tick(Time.deltaTime);}}
+  private void Update(){if(_sequencer!=null){if(Interlocked.Exchange(ref _requestAnswered,0)!=0)_sequencer.NotifyRequestAnswered();_sequencer.Tick(Time.deltaTime);}}
   private void CreateSequencer(){if(_session==null)return;var settings=_timings!=null?_timings.ToSettings():new PresentationTimingValues(1f,1f,1f);_sequencer=new PresentationSequencer(_session.Timeline,settings);_sequencer.StepPresented+=OnStepPresented;if(_human!=null)_human.RequestAnswered+=OnHumanRequestAnswered;}
-  private void OnStepPresented(TimelineStep step){if(step==null)return;switch(step.Kind){case TimelineStepKind.SnapshotPlaced:_lastState=step.State;if(CardsPlaced!=null)CardsPlaced(step.State);break;case TimelineStepKind.SnapshotResolved:HandleStateChanged(step.State);break;case TimelineStepKind.Request:_lastRequest=step.RequestKind;HandleHumanRequestPending(step.RequestKind);if(HumanRequestPending!=null)HumanRequestPending(step.RequestKind);break;case TimelineStepKind.Log:if(LogEntryReceived!=null)LogEntryReceived(step.LogEntry);break;case TimelineStepKind.Finished:CancelForcedPickup();if(GameFinished!=null)GameFinished(_session==null?null:_session.Outcome);break;}}
-  private void OnHumanRequestAnswered(){/* Update resumes after the agent clears PendingRequest. */}
+  private void OnStepPresented(TimelineStep step){if(step==null)return;switch(step.Kind){case TimelineStepKind.SnapshotPlaced:_lastState=step.State;if(CardsPlaced!=null)CardsPlaced(step.State);break;case TimelineStepKind.SnapshotResolved:HandleStateChanged(step.State);break;case TimelineStepKind.Request:HandleHumanRequestPending(step.RequestKind);if(HumanRequestPending!=null)HumanRequestPending(step.RequestKind);break;case TimelineStepKind.Failure:Debug.LogException(step.Error);break;case TimelineStepKind.Log:if(LogEntryReceived!=null)LogEntryReceived(step.LogEntry);break;case TimelineStepKind.Finished:CancelForcedPickup();if(GameFinished!=null)GameFinished(_session==null?null:_session.Outcome);break;}}
+  private void OnHumanRequestAnswered(){Interlocked.Exchange(ref _requestAnswered,1);}
   private void HandleStateChanged(GameState state){_lastState=state;if(state!=null&&state.Players.Count>0)_humanHand=PlayerVisibleState.From(state,state.Players[0].Id).SelfHand;if(state!=null&&state.GetFinishRank(HumanPlayerId).HasValue&&_sequencer!=null)_sequencer.IsFastMode=true;if(StateChanged!=null)StateChanged(state);}
   private void HandleHumanRequestPending(HumanRequestKind kind){CancelForcedPickup();_forcedPickupOnce=new ForcedPickupOnce();if(kind!=HumanRequestKind.Pickup||_human==null||!_human.PendingIsForced)return;Debug.Log("Aucune carte jouable");_forcedPickupCoroutine=StartCoroutine(SubmitForcedPickupAfterDelay());}
   private System.Collections.IEnumerator SubmitForcedPickupAfterDelay(){float delay=_timings!=null?_timings.ForcedPickupDelaySeconds:1f;yield return new WaitForSeconds(delay);_forcedPickupCoroutine=null;if(_human==null||_human.PendingRequest!=HumanRequestKind.Pickup||!_human.PendingIsForced||!_forcedPickupOnce.TryClaim())yield break;_human.SubmitPickup(true);}

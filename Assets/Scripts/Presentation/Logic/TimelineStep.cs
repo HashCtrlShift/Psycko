@@ -13,6 +13,7 @@ namespace Psycko.Presentation.Logic
         SnapshotResolved,
         Request,
         Log,
+        Failure,
         Finished
     }
 
@@ -26,10 +27,11 @@ namespace Psycko.Presentation.Logic
         public IPlayerVisibleState VisibleState { get; }
         public IFaceDownBlindView BlindView { get; }
         public GameLogEntry LogEntry { get; }
+        public Exception Error { get; }
 
         private TimelineStep(TimelineStepKind kind, GameState state,
             HumanRequestKind requestKind, IPlayerVisibleState visibleState,
-            IFaceDownBlindView blindView, GameLogEntry logEntry, PlacementInfo placementInfo = default(PlacementInfo))
+            IFaceDownBlindView blindView, GameLogEntry logEntry, PlacementInfo placementInfo = default(PlacementInfo), Exception error = null)
         {
             Kind = kind;
             State = state;
@@ -38,6 +40,7 @@ namespace Psycko.Presentation.Logic
             BlindView = blindView;
             LogEntry = logEntry;
             PlacementInfo = placementInfo;
+            Error = error;
         }
 
         public static TimelineStep SnapshotPlaced(GameState state, PlacementInfo info)
@@ -75,6 +78,12 @@ namespace Psycko.Presentation.Logic
         {
             if (entry == null) throw new ArgumentNullException(nameof(entry));
             return new TimelineStep(TimelineStepKind.Log, null, HumanRequestKind.None, null, null, entry);
+        }
+
+        public static TimelineStep Failure(Exception error)
+        {
+            if (error == null) throw new ArgumentNullException(nameof(error));
+            return new TimelineStep(TimelineStepKind.Failure, null, HumanRequestKind.None, null, null, null, error: error);
         }
 
         public static TimelineStep Finished(GameState finalState = null)

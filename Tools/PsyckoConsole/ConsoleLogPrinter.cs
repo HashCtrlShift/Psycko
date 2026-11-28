@@ -45,6 +45,8 @@ namespace Psycko.Console
             
         }
 
+        public void OnExchangeStateChanged(Psycko.Core.Domain.Exchange.PreGameExchangeState state) { }
+
         public void OnStateChanged(GameState state)
         {
             System.Console.WriteLine($"  Pile ({state.Pile.Cards.Count}) : {J(state.Pile.Cards)}");

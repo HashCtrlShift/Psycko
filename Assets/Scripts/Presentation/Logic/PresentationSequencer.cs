@@ -83,8 +83,8 @@ namespace Psycko.Presentation.Logic
                 Publish(step);
                 if (step.Kind == TimelineStepKind.SnapshotResolved)
                 {
-                    _remaining = IsFastMode ? FastBotDelaySeconds : _timings.BotDelaySeconds;
-                    if (_remaining > 0f) return;
+                    // A plain placement has no artificial hold. Effect/fold/pickup holds
+                    // are applied only to the paired SnapshotPlaced in PreparePlacedFollowup.
                     continue;
                 }
 

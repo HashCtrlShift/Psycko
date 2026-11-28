@@ -252,13 +252,13 @@ namespace Psycko.Presentation.Controllers
                 if (_pendingExchangeFaceUp != null)
                 {
                     ApplyExchange(shown, _pendingExchangeFaceUp);
-                    _pendingExchangeFaceUp = null;
                 }
                 else
                 {
-                    // Même carte = désélection ; une autre carte de la même zone la remplace.
+                    // Le choix reste dans sa zone : autre carte remplace, même carte annule.
                     _pendingExchangeHand = _pendingExchangeHand == shown ? null : shown;
                 }
+                _pendingExchangeFaceUp = null;
                 ReapplyCardStates();
             }
         }
@@ -272,14 +272,13 @@ namespace Psycko.Presentation.Controllers
             if (_pendingExchangeHand != null)
             {
                 ApplyExchange(_pendingExchangeHand, shownFaceUp);
-                _pendingExchangeHand = null;
             }
             else
             {
-                // FaceUp puis Main est aussi un ordre de sélection valide ; une seconde
-                // FaceUp remplace la précédente, et recliquer la même désélectionne.
+                // Le choix reste dans sa zone : autre carte remplace, même carte annule.
                 _pendingExchangeFaceUp = _pendingExchangeFaceUp == shownFaceUp ? null : shownFaceUp;
             }
+            _pendingExchangeHand = null;
             ReapplyCardStates();
         }
 

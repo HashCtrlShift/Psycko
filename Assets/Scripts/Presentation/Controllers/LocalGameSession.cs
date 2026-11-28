@@ -70,6 +70,9 @@ namespace Psycko.Presentation.Controllers
                     var observer = new CompositeObserver(
                         new SessionObserver(_events), new TimelineObserver(_timeline));
                     GameRunOutcome result = GameRunner.Run(seed, _agents, _names, true, observer: observer);
+                    // GameRunner intentionally converts worker exceptions into GameRunOutcome.Error.
+                    // Preserve them on the presentation timeline so Unity logs them on its main thread.
+                    if (result.Error != null) _timeline.Enqueue(TimelineStep.Failure(result.Error));
                     lock (_gate) { _outcome = result; _finished = true; }
                     _events.Enqueue(SessionEvent.Complete(result));
                     _timeline.Enqueue(TimelineStep.Finished());

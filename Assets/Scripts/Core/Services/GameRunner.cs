@@ -7,7 +7,6 @@ using Psycko.Core.Domain;
 using Psycko.Core.Domain.Exchange;
 using Psycko.Core.Domain.Log;
 using Psycko.Core.Interfaces;
-using Psycko.Core.Services.Exchange;
 using Psycko.Core.Services.Log;
 
 namespace Psycko.Core.Services
@@ -81,7 +80,7 @@ namespace Psycko.Core.Services
                 var exchange = CardDealer.Deal(deck, seats);
 
                 // 2. Échange pré-partie (non loggé)
-                exchange = RunExchange(exchange, agents);
+                exchange = RunExchange(exchange, agents, observer);
 
                 // 3. GameState de départ
                 state = PreGameExchange.CreateGameState(exchange);
@@ -121,19 +120,37 @@ namespace Psycko.Core.Services
         // ── Échange ──────────────────────────────────────────────────────
 
         private static PreGameExchangeState RunExchange(
-            PreGameExchangeState exchange, IReadOnlyList<IPlayerAgent> agents)
+            PreGameExchangeState exchange, IReadOnlyList<IPlayerAgent> agents, IGameObserver? observer)
         {
             for (int seat = 0; seat < agents.Count; seat++)
             {
                 int playerId = exchange.Players[seat].Id;
                 var view = PlayerVisibleState.FromExchange(exchange, playerId);
-                var choices = agents[seat].ProposeExchanges(view);
-
-                foreach (var choice in choices)
+                if (agents[seat] is IInteractiveExchangeAgent interactive)
                 {
-                    var resolution = PreGameExchange.Swap(exchange, playerId, choice);
-                    if (resolution.IsAccepted)
-                        exchange = resolution.State;
+                    while (interactive.ProposeNextExchange(
+                        PlayerVisibleState.FromExchange(exchange, playerId), out var choice))
+                    {
+                        var resolution = PreGameExchange.Swap(exchange, playerId, choice);
+                        if (resolution.IsAccepted)
+                        {
+                            exchange = resolution.State;
+                            observer?.OnExchangeStateChanged(exchange);
+                        }
+                    }
+                }
+                else
+                {
+                    var choices = agents[seat].ProposeExchanges(view);
+                    foreach (var choice in choices)
+                    {
+                        var resolution = PreGameExchange.Swap(exchange, playerId, choice);
+                        if (resolution.IsAccepted)
+                        {
+                            exchange = resolution.State;
+                            observer?.OnExchangeStateChanged(exchange);
+                        }
+                    }
                 }
 
                 var ready = PreGameExchange.MarkReady(exchange, playerId);

@@ -38,3 +38,12 @@ namespace Psycko.Core.Interfaces
         IReadOnlyList<ExchangeChoice> ProposeExchanges(IPlayerVisibleState state);
     }
 }
+namespace Psycko.Core.Interfaces
+{
+    /// <summary>Agent capable de participer à une négociation d'échange incrémentale.</summary>
+    public interface IInteractiveExchangeAgent
+    {
+        /// <summary>Retourne un échange unitaire; false termine la phase pour cet agent.</summary>
+        bool ProposeNextExchange(IPlayerVisibleState state, out ExchangeChoice choice);
+    }
+}

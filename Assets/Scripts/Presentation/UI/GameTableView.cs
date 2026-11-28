@@ -29,7 +29,7 @@ namespace Psycko.Presentation.UI
         {
             if (_controller == null) return;
             _controller.StateChanged += OnStateChanged;
-            _controller.CardsPlaced += OnCardsPlaced;
+            _controller.ExchangeStateChanged += OnExchangeStateChanged;
             if (_controller.LastState != null) OnStateChanged(_controller.LastState);
         }
 
@@ -37,7 +37,7 @@ namespace Psycko.Presentation.UI
         {
             if (_controller == null) return;
             _controller.StateChanged -= OnStateChanged;
-            _controller.CardsPlaced -= OnCardsPlaced;
+            _controller.ExchangeStateChanged -= OnExchangeStateChanged;
         }
 
         private void OnStateChanged(GameState state)
@@ -47,14 +47,10 @@ namespace Psycko.Presentation.UI
             Render(state);
         }
 
-        /// <summary>
-        /// Ancien chemin, supprimé en T65-g : l'aperçu dessine uniquement la Pile ;
-        /// les sièges restent inchangés jusqu'au StateChanged résolu.
-        /// </summary>
-        private void OnCardsPlaced(GameState preview)
+        private void OnExchangeStateChanged(Psycko.Core.Domain.Exchange.PreGameExchangeState state)
         {
-            if (preview == null) return;
-            Render(preview);
+            if (state == null || state.Players.Count == 0) return;
+            RenderVisible(Psycko.Core.Domain.PlayerVisibleState.FromExchange(state, state.Players[0].Id));
         }
 
         /// <summary>Point d'entrée canonique : toutes les vues reflètent ce GameState.</summary>

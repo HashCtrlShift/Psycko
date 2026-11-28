@@ -4,7 +4,7 @@ using System.Linq;
 using Psycko.Core.Domain;
 using Psycko.Core.Domain.Exchange;
 
-namespace Psycko.Core.Services.Exchange
+namespace Psycko.Core.Domain.Exchange
 {
     /// <summary>
     /// Résultat d'une opération d'échange : nouvel état, ou rejet motivé (état inchangé).

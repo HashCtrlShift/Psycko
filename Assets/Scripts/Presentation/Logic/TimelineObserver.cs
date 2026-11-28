@@ -1,6 +1,8 @@
 using System;
+using System;
 using Psycko.Core.Domain;
 using Psycko.Core.Domain.Log;
+using Psycko.Core.Domain.Exchange;
 using Psycko.Core.Interfaces;
 
 namespace Psycko.Presentation.Logic
@@ -23,6 +25,11 @@ namespace Psycko.Presentation.Logic
         public void OnCardsPlaced(GameState stateAfterPlacement, PlacementInfo info)
         {
             _timeline.Enqueue(TimelineStep.SnapshotPlaced(stateAfterPlacement, info));
+        }
+
+        public void OnExchangeStateChanged(PreGameExchangeState state)
+        {
+            _timeline.Enqueue(TimelineStep.ExchangeChanged(state));
         }
 
         public void OnStateChanged(GameState state)
