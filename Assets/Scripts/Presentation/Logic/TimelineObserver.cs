@@ -1,5 +1,5 @@
 using System;
-using System;
+using System.Collections.Concurrent;
 using Psycko.Core.Domain;
 using Psycko.Core.Domain.Log;
 using Psycko.Core.Domain.Exchange;
@@ -11,6 +11,7 @@ namespace Psycko.Presentation.Logic
     public sealed class TimelineObserver : IGameObserver
     {
         private readonly PresentationTimeline _timeline;
+        private readonly ConcurrentQueue<PreGameExchangeState> _exchangeStates = new ConcurrentQueue<PreGameExchangeState>();
 
         public TimelineObserver(PresentationTimeline timeline)
         {
@@ -27,9 +28,14 @@ namespace Psycko.Presentation.Logic
             _timeline.Enqueue(TimelineStep.SnapshotPlaced(stateAfterPlacement, info));
         }
 
+        public bool TryDequeueExchangeState(out PreGameExchangeState state)
+        {
+            return _exchangeStates.TryDequeue(out state);
+        }
+
         public void OnExchangeStateChanged(PreGameExchangeState state)
         {
-            _timeline.Enqueue(TimelineStep.ExchangeChanged(state));
+            if (state != null) _exchangeStates.Enqueue(state);
         }
 
         public void OnStateChanged(GameState state)

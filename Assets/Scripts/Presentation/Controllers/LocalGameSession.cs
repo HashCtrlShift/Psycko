@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Psycko.Core.Domain;
 using Psycko.Core.Domain.Log;
+using Psycko.Core.Domain.Exchange;
 using Psycko.Core.Interfaces;
 using Psycko.Core.Services;
 using Psycko.Presentation.Logic;
@@ -41,6 +42,7 @@ namespace Psycko.Presentation.Controllers
         private readonly IReadOnlyList<string> _names;
         private readonly ConcurrentQueue<SessionEvent> _events = new ConcurrentQueue<SessionEvent>();
         private readonly PresentationTimeline _timeline = new PresentationTimeline();
+        private TimelineObserver _timelineObserver;
         private readonly object _gate = new object();
         private Task _task;
         private GameRunOutcome _outcome;
@@ -60,6 +62,13 @@ namespace Psycko.Presentation.Controllers
         public GameRunOutcome Outcome { get { lock (_gate) return _outcome; } }
         public PresentationTimeline Timeline { get { return _timeline; } }
 
+        public bool TryDequeueExchangeState(out PreGameExchangeState state)
+        {
+            TimelineObserver observer = _timelineObserver;
+            if (observer == null) { state = null; return false; }
+            return observer.TryDequeueExchangeState(out state);
+        }
+
         public void Start(int seed)
         {
             lock (_gate)
@@ -67,8 +76,9 @@ namespace Psycko.Presentation.Controllers
                 if (_task != null) throw new InvalidOperationException("La session a déjà démarré.");
                 _task = Task.Run(() =>
                 {
+                    _timelineObserver = new TimelineObserver(_timeline);
                     var observer = new CompositeObserver(
-                        new SessionObserver(_events), new TimelineObserver(_timeline));
+                        new SessionObserver(_events), _timelineObserver);
                     GameRunOutcome result = GameRunner.Run(seed, _agents, _names, true, observer: observer);
                     // GameRunner intentionally converts worker exceptions into GameRunOutcome.Error.
                     // Preserve them on the presentation timeline so Unity logs them on its main thread.
@@ -131,6 +141,12 @@ namespace Psycko.Presentation.Controllers
                 _timelineObserver.OnCardsPlaced(stateAfterPlacement, info);
             }
 
+            public void OnExchangeStateChanged(Psycko.Core.Domain.Exchange.PreGameExchangeState state)
+            {
+                _sessionObserver.OnExchangeStateChanged(state);
+                _timelineObserver.OnExchangeStateChanged(state);
+            }
+
             public void OnStateChanged(GameState state)
             {
                 _sessionObserver.OnStateChanged(state);
@@ -151,6 +167,11 @@ namespace Psycko.Presentation.Controllers
             public void OnCardsPlaced(GameState stateAfterPlacement, PlacementInfo info)
             {
                 _queue.Enqueue(SessionEvent.Placed(stateAfterPlacement));
+            }
+
+            public void OnExchangeStateChanged(Psycko.Core.Domain.Exchange.PreGameExchangeState state)
+            {
+                // Session event consumers start from a complete GameState.
             }
 
             public void OnStateChanged(GameState state)

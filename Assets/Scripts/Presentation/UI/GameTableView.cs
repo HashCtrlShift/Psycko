@@ -29,7 +29,6 @@ namespace Psycko.Presentation.UI
         {
             if (_controller == null) return;
             _controller.StateChanged += OnStateChanged;
-            _controller.ExchangeStateChanged += OnExchangeStateChanged;
             if (_controller.LastState != null) OnStateChanged(_controller.LastState);
         }
 
@@ -37,7 +36,6 @@ namespace Psycko.Presentation.UI
         {
             if (_controller == null) return;
             _controller.StateChanged -= OnStateChanged;
-            _controller.ExchangeStateChanged -= OnExchangeStateChanged;
         }
 
         private void OnStateChanged(GameState state)
@@ -45,12 +43,6 @@ namespace Psycko.Presentation.UI
             if (state == null || state.Players.Count == 0) return;
             // Strictement le même chemin de projection que l'ancien RenderVisible(...).
             Render(state);
-        }
-
-        private void OnExchangeStateChanged(Psycko.Core.Domain.Exchange.PreGameExchangeState state)
-        {
-            if (state == null || state.Players.Count == 0) return;
-            RenderVisible(Psycko.Core.Domain.PlayerVisibleState.FromExchange(state, state.Players[0].Id));
         }
 
         /// <summary>Point d'entrée canonique : toutes les vues reflètent ce GameState.</summary>
